@@ -202,6 +202,24 @@ defmodule TextexpWeb.DocumentLive do
                 />
               </label>
             </div>
+            <div
+              :if={@list_tag}
+              id="documents-filter"
+              class="mb-2 flex items-center gap-1.5 px-1 text-xs text-base-content/60"
+            >
+              <span>Tag :</span>
+              <.tag_badge id="documents-filter-tag" tag={@list_tag}>
+                <button
+                  id="documents-filter-clear"
+                  type="button"
+                  phx-click="clear_list_tag"
+                  aria-label={"Retirer le filtre « #{@list_tag.label} »"}
+                  class="-mr-1 cursor-pointer opacity-60 transition-opacity hover:opacity-100"
+                >
+                  <.icon name="hero-x-mark-micro" class="size-3" />
+                </button>
+              </.tag_badge>
+            </div>
             <ul id="documents" class="menu w-full p-0" phx-update="stream">
               <li id="documents-empty" class="hidden only:block px-3 py-2 text-sm opacity-60">
                 Aucun document
@@ -241,9 +259,9 @@ defmodule TextexpWeb.DocumentLive do
           <:label>
             <button
               type="button"
-              phx-click="search_tag"
+              phx-click="filter_tag"
               phx-value-id={tag.id}
-              title={"Documents avec le tag « #{tag.label} »"}
+              title={"Lister les documents avec le tag « #{tag.label} »"}
               class="cursor-pointer decoration-dotted underline-offset-2 hover:underline"
             >
               {tag.label}
@@ -458,7 +476,11 @@ defmodule TextexpWeb.DocumentLive do
        search_open?: false,
        search_index: nil,
        search_tag: nil,
-       share_form: nil
+       share_form: nil,
+       # The tag filtering the sidebar's list, and the ids of the documents
+       # listed then
+       list_tag: nil,
+       listed_ids: nil
      )
      |> stream(:viewers, [])
      |> stream(:members, [])
@@ -575,8 +597,8 @@ defmodule TextexpWeb.DocumentLive do
   defp mark_active(socket, previous, document) do
     if previous && previous.id != document.id do
       socket
-      |> stream_insert(:documents, previous)
-      |> stream_insert(:documents, document)
+      |> list_document(previous)
+      |> list_document(document)
     else
       socket
     end
@@ -603,10 +625,14 @@ defmodule TextexpWeb.DocumentLive do
     end
   end
 
-  # Tags added or removed, on this page or another.
+  # Tags added or removed, on this page or another. The sidebar, filtered by
+  # a tag, may then list the document or no longer.
   def handle_info({:document_tags_changed, document_id}, socket) do
     if socket.assigns.document.id == document_id do
-      {:noreply, put_tags(socket, Document.list_tags(document_id))}
+      {:noreply,
+       socket
+       |> put_tags(Document.list_tags(document_id))
+       |> put_list(socket.assigns.list_tag)}
     else
       {:noreply, socket}
     end
@@ -681,7 +707,7 @@ defmodule TextexpWeb.DocumentLive do
 
     {:noreply,
      socket
-     |> stream_insert(:documents, document, at: 0)
+     |> list_new_document(document)
      |> push_patch(to: ~p"/documents/#{document.id}")}
   end
 
@@ -694,7 +720,7 @@ defmodule TextexpWeb.DocumentLive do
            Document.import_document(socket.assigns.current_user, title, snapshot) do
       {:reply, %{id: document.id},
        socket
-       |> stream_insert(:documents, document, at: 0)
+       |> list_new_document(document)
        |> put_flash(:info, "« #{title} » importé")}
     else
       _ -> {:reply, %{}, put_flash(socket, :error, "Impossible d'importer « #{name} »")}
@@ -770,20 +796,24 @@ defmodule TextexpWeb.DocumentLive do
   def handle_event("close_share", _params, socket),
     do: {:noreply, assign(socket, sharing?: false)}
 
-  # The search modal's index lives while it is open (see SearchModal).
-  def handle_event("open_search", _params, socket), do: {:noreply, open_search(socket, nil)}
+  # The search modal's index lives while it is open (see SearchModal). It opens
+  # filtered by the tag filtering the sidebar, if any.
+  def handle_event("open_search", _params, socket),
+    do: {:noreply, open_search(socket, socket.assigns.list_tag)}
 
-  # A tag of the document: the search opens on the documents carrying it.
-  def handle_event("search_tag", %{"id" => id}, socket) do
+  # A tag of the document: the sidebar lists the documents carrying it.
+  def handle_event("filter_tag", %{"id" => id}, socket) do
     case Enum.find(Document.list_tags(socket.assigns.document.id), &(&1.id == id)) do
       nil ->
         {:noreply, socket}
 
       tag ->
         Document.record_tag_search(socket.assigns.current_user, tag.id)
-        {:noreply, open_search(socket, tag)}
+        {:noreply, put_list(socket, tag)}
     end
   end
+
+  def handle_event("clear_list_tag", _params, socket), do: {:noreply, put_list(socket, nil)}
 
   def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
 
@@ -848,8 +878,40 @@ defmodule TextexpWeb.DocumentLive do
       page_title: document.title || "Sans titre",
       title_form: to_form(%{"title" => document.title})
     )
-    |> stream_insert(:documents, document)
+    |> list_document(document)
   end
+
+  # The sidebar's list: every document of the user, or those carrying `tag`.
+  defp put_list(socket, nil) do
+    socket
+    |> assign(list_tag: nil, listed_ids: nil)
+    |> stream(:documents, Document.list_documents(socket.assigns.current_user), reset: true)
+  end
+
+  defp put_list(socket, tag) do
+    documents = Document.list_documents_tagged(socket.assigns.current_user, tag.id)
+
+    socket
+    |> assign(list_tag: tag, listed_ids: MapSet.new(documents, & &1.id))
+    |> stream(:documents, documents, reset: true)
+  end
+
+  # Updates `document` in the sidebar, unless the tag filtering it leaves the
+  # document out.
+  defp list_document(%{assigns: %{listed_ids: nil}} = socket, document),
+    do: stream_insert(socket, :documents, document)
+
+  defp list_document(socket, document) do
+    if MapSet.member?(socket.assigns.listed_ids, document.id),
+      do: stream_insert(socket, :documents, document),
+      else: socket
+  end
+
+  # A new document, first in the list: shown, the filter removed if any.
+  defp list_new_document(%{assigns: %{list_tag: nil}} = socket, document),
+    do: stream_insert(socket, :documents, document, at: 0)
+
+  defp list_new_document(socket, _document), do: put_list(socket, nil)
 
   # The form of a member's role, in their row of the share panel.
   defp role_form(member) do
