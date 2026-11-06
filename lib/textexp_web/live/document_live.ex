@@ -54,6 +54,23 @@ defmodule TextexpWeb.DocumentLive do
           <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
           <div class="flex flex-1 flex-col">
             <div class="document-header px-[54px] pt-1">
+              <nav
+                :if={@ancestors != []}
+                id="breadcrumb"
+                aria-label="Documents parents"
+                class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/60"
+              >
+                <%= for ancestor <- @ancestors do %>
+                  <.link
+                    id={"breadcrumb-#{ancestor.id}"}
+                    patch={~p"/documents/#{ancestor.id}"}
+                    class="max-w-48 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
+                  >
+                    {ancestor.title || "Sans titre"}
+                  </.link>
+                  <.icon name="hero-chevron-right-micro" class="size-3 shrink-0" />
+                <% end %>
+              </nav>
               <.form
                 for={@title_form}
                 id="title-form"
@@ -220,19 +237,16 @@ defmodule TextexpWeb.DocumentLive do
                 </button>
               </.tag_badge>
             </div>
-            <ul id="documents" class="menu w-full p-0" phx-update="stream">
-              <li id="documents-empty" class="hidden only:block px-3 py-2 text-sm opacity-60">
+            <ul id="documents" class="menu w-full p-0">
+              <li :if={@documents == %{}} id="documents-empty" class="px-3 py-2 text-sm opacity-60">
                 Aucun document
               </li>
-              <li :for={{id, document} <- @streams.documents} id={id}>
-                <.link
-                  patch={~p"/documents/#{document.id}"}
-                  class={[@document.id == document.id && "menu-active"]}
-                >
-                  <.icon name="hero-document-text" class="size-4" />
-                  <span class="truncate">{document.title || "Sans titre"}</span>
-                </.link>
-              </li>
+              <.document_items
+                documents={sidebar_items(@documents, @list_tag)}
+                children={if(@list_tag, do: %{}, else: children(@documents))}
+                active_id={@document && @document.id}
+                expanded={@expanded}
+              />
             </ul>
             <Layouts.account current_user={@current_user} />
           </div>
@@ -240,6 +254,86 @@ defmodule TextexpWeb.DocumentLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  attr :documents, :list, required: true
+  attr :children, :map, required: true, doc: "the sub-documents of each document's id"
+  attr :active_id, :string, required: true
+  attr :expanded, :any, required: true, doc: "the ids of the documents unfolded"
+
+  # Documents of the sidebar, each with its sub-documents under it when
+  # unfolded, and for an editor a button creating one.
+  defp document_items(assigns) do
+    ~H"""
+    <li :for={document <- @documents} id={"documents-#{document.id}"}>
+      <div class={["group gap-1 py-1 pr-1 pl-1", @active_id == document.id && "menu-active"]}>
+        <button
+          :if={@children[document.id]}
+          id={"documents-#{document.id}-toggle"}
+          type="button"
+          phx-click="toggle_document"
+          phx-value-id={document.id}
+          aria-expanded={to_string(MapSet.member?(@expanded, document.id))}
+          aria-label={"Sous-documents de « #{document.title || "Sans titre"} »"}
+          class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-60 hover:opacity-100"
+        >
+          <.icon
+            name="hero-chevron-right-micro"
+            class={[
+              "size-4 transition-transform duration-150",
+              MapSet.member?(@expanded, document.id) && "rotate-90"
+            ]}
+          />
+        </button>
+        <span :if={!@children[document.id]} class="size-5 shrink-0"></span>
+        <.link patch={~p"/documents/#{document.id}"} class="flex min-w-0 flex-1 items-center gap-2">
+          <.icon name="hero-document-text" class="size-4 shrink-0" />
+          <span class="truncate">{document.title || "Sans titre"}</span>
+        </.link>
+        <button
+          :if={Policy.can?(document.role, :write)}
+          id={"documents-#{document.id}-new"}
+          type="button"
+          phx-click="new_sub_document"
+          phx-value-id={document.id}
+          title="Nouveau sous-document"
+          aria-label={"Nouveau sous-document de « #{document.title || "Sans titre"} »"}
+          class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
+        >
+          <.icon name="hero-plus-micro" class="size-4" />
+        </button>
+      </div>
+      <ul :if={@children[document.id] && MapSet.member?(@expanded, document.id)}>
+        <.document_items
+          documents={@children[document.id]}
+          children={@children}
+          active_id={@active_id}
+          expanded={@expanded}
+        />
+      </ul>
+    </li>
+    """
+  end
+
+  # The documents at the sidebar's first level: those without parent, or
+  # whose parent the user cannot read, last updated first. While a tag filters
+  # the list, all its documents.
+  defp sidebar_items(documents, list_tag) do
+    documents
+    |> Map.values()
+    |> Enum.filter(
+      &(list_tag || is_nil(&1.parent_id) || not Map.has_key?(documents, &1.parent_id))
+    )
+    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
+  end
+
+  # The sub-documents of each document, in the order they were created.
+  defp children(documents) do
+    documents
+    |> Map.values()
+    |> Enum.filter(&(&1.parent_id && Map.has_key?(documents, &1.parent_id)))
+    |> Enum.sort_by(& &1.inserted_at, DateTime)
+    |> Enum.group_by(& &1.parent_id)
   end
 
   attr :tags, :any, required: true
@@ -477,14 +571,16 @@ defmodule TextexpWeb.DocumentLive do
        search_index: nil,
        search_tag: nil,
        share_form: nil,
-       # The tag filtering the sidebar's list, and the ids of the documents
-       # listed then
+       # The sidebar's documents, by id: a map rather than a stream, to show
+       # them as trees (see document_items/1). The tag filtering them, if any,
+       # and the documents unfolded.
+       documents: Map.new(documents, &{&1.id, &1}),
        list_tag: nil,
-       listed_ids: nil
+       expanded: MapSet.new(),
+       ancestors: []
      )
      |> stream(:viewers, [])
-     |> stream(:members, [])
-     |> stream(:documents, documents)}
+     |> stream(:members, [])}
   end
 
   # /documents opens the document the user opened last, else the one they
@@ -509,15 +605,7 @@ defmodule TextexpWeb.DocumentLive do
   def handle_params(%{"id" => id}, _uri, socket) do
     case Document.get_document(id, socket.assigns.current_user) do
       {:ok, document} ->
-        previous = socket.assigns.document
-
-        socket =
-          socket
-          |> leave_document()
-          |> open_document(document)
-          |> mark_active(previous, document)
-
-        {:noreply, socket}
+        {:noreply, socket |> leave_document() |> open_document(document)}
 
       {:error, _} ->
         {:noreply,
@@ -538,9 +626,14 @@ defmodule TextexpWeb.DocumentLive do
       Presence.track_user(viewers_topic(document.id), user.id, %{id: user.id, email: user.email})
     end
 
+    # its parents, unfolded in the sidebar
+    ancestors = Document.list_ancestors(document, socket.assigns.current_user)
+
     socket
     |> close_search()
     |> assign(
+      ancestors: ancestors,
+      expanded: MapSet.union(socket.assigns.expanded, MapSet.new(ancestors, & &1.id)),
       document: document,
       can_edit?: Policy.can?(document.role, :write),
       can_share?: Policy.can?(document.role, :share),
@@ -592,18 +685,6 @@ defmodule TextexpWeb.DocumentLive do
     socket
   end
 
-  # The sidebar's active item depends on the open document: re-insert the items
-  # of the previous and new documents so that they are rendered again.
-  defp mark_active(socket, previous, document) do
-    if previous && previous.id != document.id do
-      socket
-      |> list_document(previous)
-      |> list_document(document)
-    else
-      socket
-    end
-  end
-
   def handle_info({:document_updated, document_id, at, title}, socket) do
     if socket.assigns.document.id == document_id do
       {:noreply, socket |> assign(last_update: at) |> put_saved_title(title)}
@@ -640,7 +721,7 @@ defmodule TextexpWeb.DocumentLive do
 
   # An empty document was left and deleted (see YPersistence).
   def handle_info({:document_deleted, document_id}, socket) do
-    socket = stream_delete_by_dom_id(socket, :documents, "documents-#{document_id}")
+    socket = update(socket, :documents, &Map.delete(&1, document_id))
 
     if socket.assigns.document.id == document_id do
       {:noreply, push_navigate(socket, to: ~p"/documents")}
@@ -707,7 +788,7 @@ defmodule TextexpWeb.DocumentLive do
 
     {:noreply,
      socket
-     |> list_new_document(document)
+     |> list_new_document(%{document | role: :owner})
      |> push_patch(to: ~p"/documents/#{document.id}")}
   end
 
@@ -720,7 +801,7 @@ defmodule TextexpWeb.DocumentLive do
            Document.import_document(socket.assigns.current_user, title, snapshot) do
       {:reply, %{id: document.id},
        socket
-       |> list_new_document(document)
+       |> list_new_document(%{document | role: :owner})
        |> put_flash(:info, "« #{title} » importé")}
     else
       _ -> {:reply, %{}, put_flash(socket, :error, "Impossible d'importer « #{name} »")}
@@ -815,6 +896,32 @@ defmodule TextexpWeb.DocumentLive do
 
   def handle_event("clear_list_tag", _params, socket), do: {:noreply, put_list(socket, nil)}
 
+  def handle_event("toggle_document", %{"id" => id}, socket) do
+    expanded = socket.assigns.expanded
+
+    expanded =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, expanded: expanded)}
+  end
+
+  # Opened at once, under its parent unfolded.
+  def handle_event("new_sub_document", %{"id" => parent_id}, socket) do
+    case Document.create_sub_document(parent_id, socket.assigns.current_user) do
+      {:ok, document} ->
+        {:noreply,
+         socket
+         |> list_new_document(document)
+         |> update(:expanded, &MapSet.put(&1, parent_id))
+         |> push_patch(to: ~p"/documents/#{document.id}")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas ajouter de sous-document ici")}
+    end
+  end
+
   def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
 
   def handle_event("toggle_share", _params, socket) do
@@ -881,35 +988,40 @@ defmodule TextexpWeb.DocumentLive do
     |> list_document(document)
   end
 
-  # The sidebar's list: every document of the user, or those carrying `tag`.
-  defp put_list(socket, nil) do
-    socket
-    |> assign(list_tag: nil, listed_ids: nil)
-    |> stream(:documents, Document.list_documents(socket.assigns.current_user), reset: true)
-  end
-
+  # The sidebar's documents: every document of the user, or those carrying `tag`.
   defp put_list(socket, tag) do
-    documents = Document.list_documents_tagged(socket.assigns.current_user, tag.id)
+    user = socket.assigns.current_user
 
-    socket
-    |> assign(list_tag: tag, listed_ids: MapSet.new(documents, & &1.id))
-    |> stream(:documents, documents, reset: true)
+    documents =
+      if tag,
+        do: Document.list_documents_tagged(user, tag.id),
+        else: Document.list_documents(user)
+
+    assign(socket, list_tag: tag, documents: Map.new(documents, &{&1.id, &1}))
   end
 
   # Updates `document` in the sidebar, unless the tag filtering it leaves the
   # document out.
-  defp list_document(%{assigns: %{listed_ids: nil}} = socket, document),
-    do: stream_insert(socket, :documents, document)
-
   defp list_document(socket, document) do
-    if MapSet.member?(socket.assigns.listed_ids, document.id),
-      do: stream_insert(socket, :documents, document),
-      else: socket
+    %{documents: documents, list_tag: list_tag} = socket.assigns
+
+    if list_tag && not Map.has_key?(documents, document.id),
+      do: socket,
+      else:
+        assign(socket,
+          documents:
+            Map.update(
+              documents,
+              document.id,
+              document,
+              &%{&1 | title: document.title, updated_at: document.updated_at}
+            )
+        )
   end
 
-  # A new document, first in the list: shown, the filter removed if any.
+  # A new document: shown, the filter removed if any.
   defp list_new_document(%{assigns: %{list_tag: nil}} = socket, document),
-    do: stream_insert(socket, :documents, document, at: 0)
+    do: update(socket, :documents, &Map.put(&1, document.id, document))
 
   defp list_new_document(socket, _document), do: put_list(socket, nil)
 

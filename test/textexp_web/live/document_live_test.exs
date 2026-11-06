@@ -3,6 +3,7 @@ defmodule TextexpWeb.DocumentLiveTest do
 
   alias Textexp.Fixtures
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   alias Textexp.Document
@@ -134,7 +135,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert "/documents/" <> id = assert_patch(view)
 
       assert has_element?(view, "#document-editor-#{id}")
-      assert has_element?(view, "#documents-#{id} a.menu-active")
+      assert has_element?(view, "#documents-#{id} > div.menu-active")
     end
 
     test "switching documents moves the editor, the active item and the viewer",
@@ -149,8 +150,8 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       assert has_element?(view, "#document-editor-#{second.id}")
       refute has_element?(view, "#document-editor-#{first.id}")
-      assert has_element?(view, "#documents-#{second.id} a.menu-active")
-      refute has_element?(view, "#documents-#{first.id} a.menu-active")
+      assert has_element?(view, "#documents-#{second.id} > div.menu-active")
+      refute has_element?(view, "#documents-#{first.id} > div.menu-active")
       assert has_element?(view, "#viewers-#{user.id}")
       assert TextexpWeb.Presence.list_users("viewers:#{first.id}") == []
     end
@@ -409,6 +410,72 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert has_element?(view, "#documents-#{own.id}")
       assert has_element?(view, "#documents-#{shared.id}")
       refute has_element?(view, "#documents-#{hidden.id}")
+    end
+  end
+
+  describe "sub-documents" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+      %{conn: log_in(conn, owner), owner: owner, parent: parent}
+    end
+
+    test "an editor creates one from the sidebar, opened under its parent",
+         %{conn: conn, parent: parent} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view |> element("#documents-#{parent.id}-new") |> render_click()
+
+      [child] =
+        Textexp.SqliteRepo.all(from d in Document.Document, where: d.parent_id == ^parent.id)
+
+      assert_patch(view, ~p"/documents/#{child.id}")
+
+      assert has_element?(
+               view,
+               "#documents-#{parent.id} #documents-#{child.id} > div.menu-active"
+             )
+
+      assert has_element?(view, "#breadcrumb-#{parent.id}", "Projet")
+    end
+
+    test "a sub-document shows under its parent, unfolded on demand",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+
+      refute has_element?(view, "#documents-#{child.id}")
+
+      view |> element("#documents-#{parent.id}-toggle") |> render_click()
+      assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+
+      view |> element("#documents-#{parent.id}-toggle") |> render_click()
+      refute has_element?(view, "#documents-#{child.id}")
+    end
+
+    test "opening a sub-document unfolds its parents",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      {:ok, grandchild} = Document.create_sub_document(child.id, owner)
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{grandchild.id}")
+
+      assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
+      assert has_element?(view, "#breadcrumb-#{parent.id}")
+      assert has_element?(view, "#breadcrumb-#{child.id}")
+    end
+
+    test "a viewer sees the sub-documents, without creating any",
+         %{owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      viewer = register_user()
+      Fixtures.share!(owner, parent, viewer, :viewer)
+
+      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{child.id}")
+
+      assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+      refute has_element?(view, "#documents-#{parent.id}-new")
     end
   end
 
