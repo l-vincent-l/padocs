@@ -25,7 +25,7 @@ defmodule TextexpWeb.DocumentLive do
 
         <div class="drawer-content flex flex-col">
           <%!-- The menu's open button (small screens, or the menu folded), and
-               sharing on the right, above the title --%>
+               the document's actions on the right, above the title --%>
           <div class={[
             "flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4",
             !@can_share? && "lg:hidden lg:group-data-[collapsed]/drawer:flex"
@@ -49,35 +49,7 @@ defmodule TextexpWeb.DocumentLive do
             >
               <.icon name="hero-chevron-double-right" class="size-5" />
             </button>
-            <button
-              :if={@can_share?}
-              id="move-button"
-              type="button"
-              phx-click="open_move"
-              aria-haspopup="dialog"
-              title="Déplacer vers…"
-              class="btn btn-sm ml-auto mr-2 border-base-content bg-base-100 px-3 hover:bg-primary hover:text-primary-content"
-            >
-              <.icon name="hero-arrows-right-left" class="size-4" />
-              <span class="hidden sm:inline">Déplacer</span>
-            </button>
-            <button
-              :if={@can_share?}
-              id="share-button"
-              type="button"
-              phx-click="toggle_share"
-              aria-expanded={to_string(@sharing?)}
-              aria-controls="share-panel"
-              class={[
-                "btn btn-sm border-base-content px-4",
-                if(@sharing?,
-                  do: "btn-primary",
-                  else: "bg-base-100 hover:bg-primary hover:text-primary-content"
-                )
-              ]}
-            >
-              <.icon name="hero-user-plus" class="size-4" /> Partager
-            </button>
+            <.document_actions :if={@can_share?} />
           </div>
 
           <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
@@ -255,7 +227,7 @@ defmodule TextexpWeb.DocumentLive do
           <div
             id="sidebar"
             class={[
-              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width)",
+              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width) lg:pr-7",
               "lg:group-data-[ready]/drawer:transition-[margin-left,visibility] lg:duration-200 lg:ease-out",
               "lg:group-data-[resizing]/drawer:transition-none",
               "lg:group-data-[collapsed]/drawer:invisible lg:group-data-[collapsed]/drawer:-ml-(--sidebar-width)"
@@ -301,11 +273,21 @@ defmodule TextexpWeb.DocumentLive do
               tabindex="0"
               title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
               class={[
-                "absolute inset-y-0 right-0 z-10 hidden w-1.5 cursor-col-resize touch-none lg:block",
-                "transition-colors hover:bg-base-content/30 focus-visible:bg-base-content/50 focus-visible:outline-none",
-                "group-data-[resizing]/drawer:bg-base-content/50"
+                "group/handle absolute inset-y-0 right-0 z-10 hidden w-3 cursor-col-resize touch-none lg:block",
+                "border-l border-dotted border-base-content/30 transition-colors",
+                "hover:bg-base-content/10 focus-visible:bg-base-content/10 focus-visible:outline-none",
+                "group-data-[resizing]/drawer:bg-base-content/10"
               ]}
             >
+              <%!-- The grip, in the middle of the screen --%>
+              <span class={[
+                "sticky top-1/2 mx-auto flex h-10 w-1.5 -translate-y-1/2 justify-between",
+                "*:w-px *:bg-base-content/40 *:transition-colors",
+                "group-hover/handle:*:bg-base-content group-focus-visible/handle:*:bg-base-content",
+                "group-data-[resizing]/drawer:*:bg-base-content"
+              ]}>
+                <span></span><span></span>
+              </span>
             </div>
             <div class="mb-3 flex gap-2">
               <button
@@ -336,19 +318,15 @@ defmodule TextexpWeb.DocumentLive do
                 />
               </label>
             </div>
-            <%!-- Its documents are dragged onto others to move them (see the
-                 DocumentTree hook) --%>
+            <%!-- The open document and its sub-documents, the others being found
+                 by the search. They are dragged onto one another to move them
+                 (see the DocumentTree hook) --%>
             <div id="documents-tree" phx-hook=".DocumentTree" class="group/tree">
               <ul id="documents" class="menu w-full p-0">
-                <li
-                  :if={@documents == %{}}
-                  id="documents-empty"
-                  class="px-3 py-2 text-sm opacity-60"
-                >
-                  Aucun document
-                </li>
                 <.document_items
-                  documents={sidebar_items(@documents)}
+                  documents={
+                    if(@document, do: [Map.get(@documents, @document.id, @document)], else: [])
+                  }
                   children={children(@documents)}
                   active_id={@document && @document.id}
                   expanded={@expanded}
@@ -640,15 +618,6 @@ defmodule TextexpWeb.DocumentLive do
     """
   end
 
-  # The documents at the sidebar's first level: those without parent, or
-  # whose parent the user cannot read, last updated first.
-  defp sidebar_items(documents) do
-    documents
-    |> Map.values()
-    |> Enum.filter(&(is_nil(&1.parent_id) or not Map.has_key?(documents, &1.parent_id)))
-    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
-  end
-
   # The sub-documents of each document, in the order they were created.
   defp children(documents) do
     documents
@@ -743,6 +712,84 @@ defmodule TextexpWeb.DocumentLive do
       <% end %>
     <% end %>
     """
+  end
+
+  # The menu of the document's actions, for its owner: sharing and moving it.
+  # Opened and closed in the browser; closed by a click outside or Escape.
+  defp document_actions(assigns) do
+    ~H"""
+    <div id="document-actions" class="relative ml-auto" phx-click-away={hide_actions()}>
+      <button
+        id="document-actions-button"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="document-actions-menu"
+        aria-label="Actions du document"
+        title="Partager, déplacer…"
+        phx-click={toggle_actions()}
+        class="btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content aria-expanded:bg-primary aria-expanded:text-primary-content"
+      >
+        <.icon name="hero-ellipsis-horizontal" class="size-5" />
+      </button>
+      <div
+        id="document-actions-menu"
+        role="menu"
+        aria-labelledby="document-actions-button"
+        phx-window-keydown={hide_actions()}
+        phx-key="Escape"
+        class="absolute right-0 top-full z-30 mt-2 hidden w-56 border-2 border-base-content bg-base-100 py-1 shadow-hard"
+      >
+        <.action_item id="share-button" icon="hero-user-plus" event="toggle_share">
+          Partager…
+        </.action_item>
+        <.action_item id="move-button" icon="hero-arrows-right-left" event="open_move">
+          Déplacer vers…
+        </.action_item>
+      </div>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :icon, :string, required: true
+  attr :event, :string, required: true
+  slot :inner_block, required: true
+
+  defp action_item(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      role="menuitem"
+      aria-haspopup="dialog"
+      phx-click={hide_actions() |> JS.push(@event)}
+      class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+    >
+      <.icon name={@icon} class="size-4 shrink-0" />
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+
+  defp toggle_actions do
+    JS.toggle(
+      to: "#document-actions-menu",
+      in:
+        {"transition ease-out duration-100", "opacity-0 -translate-y-1",
+         "opacity-100 translate-y-0"},
+      out: {"transition ease-in duration-75", "opacity-100", "opacity-0"}
+    )
+    |> JS.toggle_attribute({"aria-expanded", "true", "false"}, to: "#document-actions-button")
+    |> JS.focus_first(to: "#document-actions-menu")
+  end
+
+  defp hide_actions do
+    JS.hide(
+      to: "#document-actions-menu",
+      transition: {"transition ease-in duration-75", "opacity-100", "opacity-0"}
+    )
+    |> JS.set_attribute({"aria-expanded", "false"}, to: "#document-actions-button")
   end
 
   attr :document, :any, required: true
@@ -1101,7 +1148,7 @@ defmodule TextexpWeb.DocumentLive do
     |> close_search()
     |> assign(
       ancestors: ancestors,
-      expanded: MapSet.union(socket.assigns.expanded, MapSet.new(ancestors, & &1.id)),
+      expanded: MapSet.put(socket.assigns.expanded, document.id),
       document: document,
       can_edit?: Policy.can?(document.role, :write),
       can_share?: Policy.can?(document.role, :share),

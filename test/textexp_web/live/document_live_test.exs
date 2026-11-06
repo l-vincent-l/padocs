@@ -114,7 +114,7 @@ defmodule TextexpWeb.DocumentLiveTest do
 
     test "a deleted empty document leaves the sidebar", %{conn: conn, user: user} do
       document = Fixtures.create_document!(user, %{title: "Notes"})
-      other = Fixtures.create_document!(user, %{})
+      {:ok, other} = Document.create_sub_document(document.id, user)
       {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
       assert has_element?(view, "#documents-#{other.id}")
 
@@ -145,13 +145,12 @@ defmodule TextexpWeb.DocumentLiveTest do
       {:ok, view, _html} = live(conn, ~p"/documents/#{first.id}")
       assert [_] = TextexpWeb.Presence.list_users("viewers:#{first.id}")
 
-      view |> element("#documents-#{second.id} a") |> render_click()
-      assert_patch(view, ~p"/documents/#{second.id}")
+      render_patch(view, ~p"/documents/#{second.id}")
 
       assert has_element?(view, "#document-editor-#{second.id}")
       refute has_element?(view, "#document-editor-#{first.id}")
       assert has_element?(view, "#documents-#{second.id} > div.menu-active")
-      refute has_element?(view, "#documents-#{first.id} > div.menu-active")
+      refute has_element?(view, "#documents-#{first.id}")
       assert has_element?(view, "#viewers-#{user.id}")
       assert TextexpWeb.Presence.list_users("viewers:#{first.id}") == []
     end
@@ -397,19 +396,29 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert owner_id == user.id
     end
 
-    test "the sidebar lists the documents the user owns or is a member of",
+    test "the sidebar shows the open document and its sub-documents only",
          %{conn: conn, user: user} do
       other = register_user()
       own = Fixtures.create_document!(user, %{title: "Mine"})
+      {:ok, child} = Document.create_sub_document(own.id, user)
+      {:ok, grandchild} = Document.create_sub_document(child.id, user)
+      sibling = Fixtures.create_document!(user, %{title: "Another"})
       shared = Fixtures.create_document!(other, %{title: "Shared"})
       Fixtures.share!(other, shared, user, :viewer)
-      hidden = Fixtures.create_document!(other, %{title: "Hidden"})
 
       {:ok, view, _html} = live(conn, ~p"/documents/#{own.id}")
 
-      assert has_element?(view, "#documents-#{own.id}")
-      assert has_element?(view, "#documents-#{shared.id}")
-      refute has_element?(view, "#documents-#{hidden.id}")
+      assert has_element?(view, "#documents > #documents-#{own.id} > div.menu-active")
+      assert has_element?(view, "#documents-#{own.id} #documents-#{child.id}")
+      refute has_element?(view, "#documents-#{grandchild.id}")
+      refute has_element?(view, "#documents-#{sibling.id}")
+      refute has_element?(view, "#documents-#{shared.id}")
+
+      # a sub-document, opened, is the sidebar's first level
+      render_patch(view, ~p"/documents/#{child.id}")
+      assert has_element?(view, "#documents > #documents-#{child.id}")
+      assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
+      refute has_element?(view, "#documents-#{own.id}")
     end
   end
 
@@ -444,39 +453,36 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       assert_patch(view, ~p"/documents/#{child.id}")
 
-      assert has_element?(
-               view,
-               "#documents-#{parent.id} #documents-#{child.id} > div.menu-active"
-             )
-
+      assert has_element?(view, "#documents > #documents-#{child.id} > div.menu-active")
       assert has_element?(view, "#breadcrumb-#{parent.id}", "Projet")
     end
 
-    test "a sub-document shows under its parent, unfolded on demand",
+    test "the sub-documents of a sub-document unfold on demand",
          %{conn: conn, owner: owner, parent: parent} do
       {:ok, child} = Document.create_sub_document(parent.id, owner)
-      other = Fixtures.create_document!(owner, %{title: "Autre"})
-      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+      {:ok, grandchild} = Document.create_sub_document(child.id, owner)
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
 
-      refute has_element?(view, "#documents-#{child.id}")
-
-      view |> element("#documents-#{parent.id}-toggle") |> render_click()
       assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+      refute has_element?(view, "#documents-#{grandchild.id}")
 
-      view |> element("#documents-#{parent.id}-toggle") |> render_click()
-      refute has_element?(view, "#documents-#{child.id}")
+      view |> element("#documents-#{child.id}-toggle") |> render_click()
+      assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
+
+      view |> element("#documents-#{child.id}-toggle") |> render_click()
+      refute has_element?(view, "#documents-#{grandchild.id}")
     end
 
-    test "opening a sub-document unfolds its parents",
+    test "a sub-document shows its parents in the breadcrumb",
          %{conn: conn, owner: owner, parent: parent} do
       {:ok, child} = Document.create_sub_document(parent.id, owner)
       {:ok, grandchild} = Document.create_sub_document(child.id, owner)
 
       {:ok, view, _html} = live(conn, ~p"/documents/#{grandchild.id}")
 
-      assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
       assert has_element?(view, "#breadcrumb-#{parent.id}")
       assert has_element?(view, "#breadcrumb-#{child.id}")
+      refute has_element?(view, "#documents-#{parent.id}")
     end
 
     test "a viewer sees the sub-documents, without creating any",
@@ -485,12 +491,12 @@ defmodule TextexpWeb.DocumentLiveTest do
       viewer = register_user()
       Fixtures.share!(owner, parent, viewer, :viewer)
 
-      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{child.id}")
+      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{parent.id}")
 
       assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
       refute has_element?(view, "#documents-#{parent.id}-new")
       refute has_element?(view, ~s(#documents-#{child.id} > div[draggable="true"]))
-      refute has_element?(view, "#move-button")
+      refute has_element?(view, "#document-actions")
     end
   end
 
@@ -539,30 +545,32 @@ defmodule TextexpWeb.DocumentLiveTest do
       %{conn: log_in(conn, owner), owner: owner, parent: parent, child: child, other: other}
     end
 
-    test "a document dropped onto another goes under it, unfolded",
-         %{conn: conn, owner: owner, parent: parent, other: other} do
-      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
-      assert has_element?(view, ~s(#documents-#{parent.id} > div[draggable="true"]))
+    test "a sub-document dropped onto another goes under it, unfolded",
+         %{conn: conn, owner: owner, parent: parent, child: child} do
+      {:ok, sibling} = Document.create_sub_document(parent.id, owner)
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+      assert has_element?(view, ~s(#documents-#{child.id} > div[draggable="true"]))
 
       view
       |> element("#documents-tree")
-      |> render_hook("move_document", %{"id" => parent.id, "parent_id" => other.id})
+      |> render_hook("move_document", %{"id" => child.id, "parent_id" => sibling.id})
 
-      assert has_element?(view, "#documents-#{other.id} #documents-#{parent.id}")
-      assert {:ok, %{parent_id: parent_id}} = Document.get_document(parent.id, owner)
-      assert parent_id == other.id
+      assert has_element?(view, "#documents-#{sibling.id} #documents-#{child.id}")
+      assert {:ok, %{parent_id: parent_id}} = Document.get_document(child.id, owner)
+      assert parent_id == sibling.id
     end
 
     test "a document dropped onto the root leaves its parent",
-         %{conn: conn, parent: parent, child: child} do
+         %{conn: conn, owner: owner, parent: parent, child: child} do
       {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
 
       view
       |> element("#documents-tree")
       |> render_hook("move_document", %{"id" => child.id, "parent_id" => nil})
 
-      refute has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
-      assert has_element?(view, "#documents > #documents-#{child.id}")
+      # no longer a sub-document of the open document
+      refute has_element?(view, "#documents-#{child.id}")
+      assert {:ok, %{parent_id: nil}} = Document.get_document(child.id, owner)
     end
 
     test "a document cannot go under one of its descendants",
@@ -593,7 +601,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       refute has_element?(view, "#move-panel")
       assert has_element?(view, "#breadcrumb-#{other.id}")
       refute has_element?(view, "#breadcrumb-#{parent.id}")
-      assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
+      assert has_element?(view, "#documents > #documents-#{child.id}")
     end
 
     test "the move panel moves the open document to the root",
@@ -613,8 +621,8 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       {:ok, _} = Document.move_document(child.id, other.id, owner)
 
-      # the message is handled before the click
-      view |> element("#documents-#{other.id}-toggle") |> render_click()
+      # the open document is unfolded
+      _ = render(view)
       assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
     end
   end
@@ -723,7 +731,6 @@ defmodule TextexpWeb.DocumentLiveTest do
       })
 
       assert_reply(view, %{id: id})
-      assert has_element?(view, "#documents-#{id}", "Recette des crêpes")
 
       document = Document.get_document!(id)
       assert document.owner_id == user.id
