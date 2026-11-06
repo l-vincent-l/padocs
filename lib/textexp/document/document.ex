@@ -8,6 +8,9 @@ defmodule Textexp.Document.Document do
   preview the document without decoding it. The snapshot is rewritten on each
   save, so `updated_at` is its last update (renaming also changes it).
 
+  A document can be the sub-document of another, its `parent`, from which it
+  inherits the accesses (see `Textexp.Document`).
+
   `role` is the reader's right on it, read along with it (see
   `Textexp.Document.get_document/2`); `snippet`, the fragment of its body
   matching a search (see `Textexp.Document.Search`).
@@ -23,6 +26,8 @@ defmodule Textexp.Document.Document do
     field :role, Ecto.Enum, values: [:owner, :editor, :viewer], virtual: true
     field :snippet, :any, virtual: true
     belongs_to :owner, Textexp.Accounts.User
+    belongs_to :parent, __MODULE__
+    has_many :children, __MODULE__, foreign_key: :parent_id
     has_many :memberships, Textexp.Document.Membership
     many_to_many :tags, Textexp.Document.Tag, join_through: Textexp.Document.TagDocument
     timestamps(type: :utc_datetime_usec)

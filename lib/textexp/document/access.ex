@@ -1,9 +1,10 @@
 defmodule Textexp.Document.Access do
   @moduledoc """
   The rights on a document, kept by its DocServer while it runs (see
-  `YPhoenix.Access`): its owner, and its members' roles, loaded in one query
-  then updated by the changes `Textexp.Document` broadcasts on
-  `Textexp.Document.members_topic/1`.
+  `YPhoenix.Access`): the role of each user, those of the document and those
+  it inherits from its ancestors (see `Textexp.Document.access_rights/1`),
+  loaded in one query then updated by the changes `Textexp.Document`
+  broadcasts on `Textexp.Document.members_topic/1`.
   """
   @behaviour YPhoenix.Access
 
@@ -16,14 +17,14 @@ defmodule Textexp.Document.Access do
     Phoenix.PubSub.subscribe(Textexp.PubSub, Document.members_topic(document_id))
 
     case Document.access_rights(document_id) do
-      %{owner_id: nil} -> :not_found
-      rights -> {:ok, Map.put(rights, :document_id, document_id)}
+      {:ok, roles} -> {:ok, %{document_id: document_id, roles: roles}}
+      :error -> :not_found
     end
   end
 
   @impl true
-  def permission(rights, user) do
-    role = role(rights, user)
+  def permission(%{roles: roles}, user) do
+    role = Map.get(roles, user.id)
 
     cond do
       Policy.can?(role, :write) -> :write
@@ -32,20 +33,19 @@ defmodule Textexp.Document.Access do
     end
   end
 
-  defp role(%{owner_id: owner_id}, %{id: owner_id}), do: :owner
-  defp role(%{members: members}, %{id: user_id}), do: Map.get(members, user_id)
-
+  # `role` is the user's role on the document now, whether the change was on
+  # it or on an ancestor.
   @impl true
   def handle_info(
         {:member_changed, document_id, user_id, role},
         %{document_id: document_id} = rights
       ) do
-    members =
+    roles =
       if role,
-        do: Map.put(rights.members, user_id, role),
-        else: Map.delete(rights.members, user_id)
+        do: Map.put(rights.roles, user_id, role),
+        else: Map.delete(rights.roles, user_id)
 
-    {:ok, %{rights | members: members}}
+    {:ok, %{rights | roles: roles}}
   end
 
   def handle_info(_msg, _rights), do: :ignore
