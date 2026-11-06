@@ -63,7 +63,8 @@ defmodule Textexp.Document.YPersistence do
   def unbind(state, document_id, doc) do
     document = Document.get_document!(document_id)
 
-    if blank?(document.title) and Body.empty?(doc) do
+    # A sub-document needs its parent: an empty parent is kept.
+    if blank?(document.title) and Body.empty?(doc) and not Document.has_children?(document_id) do
       timed(:delete, document_id, fn -> Document.delete_document(document_id) end)
 
       Phoenix.PubSub.broadcast(
