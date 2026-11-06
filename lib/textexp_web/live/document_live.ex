@@ -158,6 +158,8 @@ defmodule TextexpWeb.DocumentLive do
                 :if={@sharing?}
                 form={@share_form}
                 members={@streams.members}
+                inherited={@inherited_accesses}
+                current_user_id={@current_user.id}
               />
               <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
             </div>
@@ -663,9 +665,12 @@ defmodule TextexpWeb.DocumentLive do
 
   attr :form, Phoenix.HTML.Form, required: true
   attr :members, :any, required: true
+  attr :inherited, :list, required: true, doc: "see Document.list_inherited_accesses/2"
+  attr :current_user_id, :string, required: true
 
-  # A modal that invites an address as viewer or editor, and lists the members.
-  # Closed by its button, a click outside or Escape.
+  # A modal that invites an address as viewer or editor, and lists the members,
+  # then the accesses inherited from the parents, changed from there. Closed by
+  # its button, a click outside or Escape.
   defp share_panel(assigns) do
     ~H"""
     <div id="share-modal" class="modal modal-open" phx-window-keydown="close_share" phx-key="Escape">
@@ -729,7 +734,7 @@ defmodule TextexpWeb.DocumentLive do
           class="mt-2 divide-y-2 divide-dotted divide-base-content/30"
         >
           <li id="members-empty" class="hidden py-2 text-sm text-base-content/60 only:block">
-            Pas encore partagé.
+            {if @inherited == [], do: "Pas encore partagé.", else: "Aucun accès propre à ce document."}
           </li>
           <li
             :for={{id, member} <- @members}
@@ -779,6 +784,48 @@ defmodule TextexpWeb.DocumentLive do
             </span>
           </li>
         </ul>
+        <div :if={@inherited != []} id="inherited-accesses" class="mt-5">
+          <h3 class="text-xs uppercase">Accès hérités</h3>
+          <p class="mt-0.5 text-xs text-base-content/60">
+            Donnés par les documents parents : ils se changent depuis ces documents.
+          </p>
+          <ul class="mt-1 divide-y-2 divide-dotted divide-base-content/30">
+            <li
+              :for={access <- @inherited}
+              id={"inherited-#{access.user_id}"}
+              class="flex items-center justify-between gap-3 py-2 text-sm"
+            >
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="flex size-7 shrink-0 items-center justify-center border-2 border-dashed border-base-content/60 text-xs font-medium uppercase text-base-content/70">
+                  {String.first(access.email)}
+                </span>
+                <span class="truncate text-base-content/80">
+                  {access.email}<span
+                    :if={access.user_id == @current_user_id}
+                    class="text-base-content/50"
+                  > (vous)</span>
+                </span>
+              </span>
+              <span class="flex min-w-0 shrink-0 items-center gap-2 text-xs text-base-content/60">
+                <%= if access.from do %>
+                  <.link
+                    id={"inherited-#{access.user_id}-from"}
+                    patch={~p"/documents/#{access.from.id}"}
+                    title={"Hérité de « #{access.from.title || "Sans titre"} »"}
+                    class="hidden max-w-40 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline sm:inline"
+                  >
+                    via {access.from.title || "Sans titre"}
+                  </.link>
+                <% else %>
+                  <span class="hidden sm:inline">via un document parent</span>
+                <% end %>
+                <span class="w-28 border-2 border-base-content/40 px-2 py-0.5 text-center whitespace-nowrap">
+                  {String.capitalize(role_label(access.role))}
+                </span>
+              </span>
+            </li>
+          </ul>
+        </div>
       </section>
       <button
         type="button"
@@ -807,6 +854,7 @@ defmodule TextexpWeb.DocumentLive do
        sharing?: false,
        moving?: false,
        move_destinations: [],
+       inherited_accesses: [],
        search_open?: false,
        search_index: nil,
        search_tag: nil,
@@ -1206,7 +1254,15 @@ defmodule TextexpWeb.DocumentLive do
   def handle_event("toggle_share", _params, socket) do
     {:noreply,
      socket
-     |> assign(sharing?: true, share_form: share_form())
+     |> assign(
+       sharing?: true,
+       share_form: share_form(),
+       inherited_accesses:
+         Document.list_inherited_accesses(
+           socket.assigns.current_user,
+           socket.assigns.document.id
+         )
+     )
      |> stream(:members, members(socket), reset: true)}
   end
 
@@ -1373,6 +1429,7 @@ defmodule TextexpWeb.DocumentLive do
     )
   end
 
+  defp role_label(:owner), do: "propriétaire"
   defp role_label(:editor), do: "éditeur"
   defp role_label(:viewer), do: "lecteur"
 

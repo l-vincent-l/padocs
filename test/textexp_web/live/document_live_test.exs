@@ -481,6 +481,42 @@ defmodule TextexpWeb.DocumentLiveTest do
     end
   end
 
+  describe "inherited accesses" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      %{conn: log_in(conn, owner), owner: owner, parent: parent, child: child}
+    end
+
+    test "the share panel lists those of the parents, apart from the members",
+         %{conn: conn, owner: owner, parent: parent, child: child} do
+      inherited = register_user()
+      Fixtures.share!(owner, parent, inherited, :editor)
+      direct = register_user()
+      Fixtures.share!(owner, child, direct, :viewer)
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+      view |> element("#share-button") |> render_click()
+
+      assert has_element?(view, "#members", direct.email)
+      refute has_element?(view, "#members", inherited.email)
+      assert has_element?(view, "#inherited-#{inherited.id}", "Éditeur")
+      assert has_element?(view, "#inherited-#{inherited.id}-from", "Projet")
+      refute has_element?(view, "#inherited-#{direct.id}")
+
+      view |> element("#inherited-#{inherited.id}-from") |> render_click()
+      assert_patch(view, ~p"/documents/#{parent.id}")
+    end
+
+    test "a document without parent has none", %{conn: conn, parent: parent} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+      view |> element("#share-button") |> render_click()
+
+      refute has_element?(view, "#inherited-accesses")
+    end
+  end
+
   describe "moving documents" do
     setup %{conn: conn} do
       owner = register_user()

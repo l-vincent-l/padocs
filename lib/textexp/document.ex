@@ -583,6 +583,71 @@ defmodule Textexp.Document do
     end
   end
 
+  @doc """
+  The accesses the document of `document_id` inherits from its ancestors, for
+  `user` who can share it: `%{user_id, email, role, from}` for each user, by
+  email, with their best role on an ancestor and the nearest ancestor giving
+  it, `from`, `%{id, title}`. `from` is `nil` for an ancestor `user` cannot
+  read, whose title they must not see.
+  """
+  def list_inherited_accesses(user, document_id) do
+    case authorized(document_id, user, :share, &{:ok, inherited_accesses(&1, user)}) do
+      {:ok, accesses} -> accesses
+      {:error, _} -> []
+    end
+  end
+
+  defp inherited_accesses(%Document{parent_id: nil}, _user), do: []
+
+  defp inherited_accesses(%Document{parent_id: parent_id} = document, user) do
+    first =
+      from d in Document,
+        where: d.id == ^parent_id,
+        select: %{id: d.id, parent_id: d.parent_id, depth: 0}
+
+    next =
+      from d in Document,
+        join: c in "ancestors",
+        on: d.id == c.parent_id,
+        select: %{id: d.id, parent_id: d.parent_id, depth: c.depth + 1}
+
+    ancestors =
+      from(c in "ancestors", join: d in Document, as: :ancestor, on: d.id == c.id)
+      |> recursive_ctes(true)
+      |> with_cte("ancestors", as: ^union_all(first, ^next))
+
+    owners =
+      ancestors
+      |> join(:inner, [ancestor: d], u in User, on: u.id == d.owner_id)
+      |> select([c, d, u], {u.id, u.email, ^@ranks.owner, c.depth, d.id, d.title})
+      |> Repo.all()
+
+    members =
+      ancestors
+      |> join(:inner, [ancestor: d], m in Membership, on: m.document_id == d.id)
+      |> join(:inner, [c, d, m], u in User, on: u.id == m.user_id)
+      |> select(
+        [c, d, m, u],
+        {u.id, u.email, fragment("CASE ? WHEN 'editor' THEN 2 ELSE 1 END", m.role), c.depth, d.id,
+         d.title}
+      )
+      |> Repo.all()
+
+    readable = MapSet.new(list_ancestors(document, user), & &1.id)
+
+    (owners ++ members)
+    |> Enum.group_by(&elem(&1, 0))
+    |> Enum.map(fn {user_id, accesses} ->
+      # the best role, from the nearest ancestor
+      {_, email, rank, _, id, title} =
+        Enum.min_by(accesses, fn {_, _, rank, depth, _, _} -> {-rank, depth} end)
+
+      from = if MapSet.member?(readable, id), do: %{id: id, title: title}
+      %{user_id: user_id, email: email, role: role(rank), from: from}
+    end)
+    |> Enum.sort_by(& &1.email)
+  end
+
   defp members(document_id) do
     Repo.all(
       from m in Membership,

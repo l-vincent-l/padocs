@@ -169,4 +169,50 @@ defmodule Textexp.Document.SubDocumentTest do
       refute_received {:member_changed, _, _, _}
     end
   end
+
+  describe "list_inherited_accesses/2" do
+    test "lists the best role of each user on the ancestors, from the nearest",
+         %{owner: owner, parent: parent, child: child, grandchild: grandchild} do
+      editor = Fixtures.confirmed_user("a-editor@example.com")
+      viewer = Fixtures.confirmed_user("b-viewer@example.com")
+      Fixtures.share!(owner, parent, editor, :viewer)
+      Fixtures.share!(owner, child, editor, :editor)
+      Fixtures.share!(owner, parent, viewer, :viewer)
+      direct = Fixtures.confirmed_user()
+      Fixtures.share!(owner, grandchild, direct, :editor)
+
+      {parent_id, child_id, owner_id} = {parent.id, child.id, owner.id}
+
+      assert [
+               %{email: "a-editor@example.com", role: :editor, from: %{id: ^child_id}},
+               %{email: "b-viewer@example.com", role: :viewer, from: %{id: ^parent_id}},
+               %{user_id: ^owner_id, role: :owner, from: %{id: ^child_id}}
+             ] = Document.list_inherited_accesses(owner, grandchild.id)
+
+      assert Document.list_inherited_accesses(owner, parent.id) == []
+    end
+
+    test "hides the ancestors the user cannot read",
+         %{owner: owner, parent: parent, child: child} do
+      member = Fixtures.confirmed_user()
+      Fixtures.share!(owner, child, member, :editor)
+      {:ok, own} = Document.create_sub_document(child.id, member)
+      reader = Fixtures.confirmed_user()
+      Fixtures.share!(owner, parent, reader, :viewer)
+
+      accesses = Map.new(Document.list_inherited_accesses(member, own.id), &{&1.user_id, &1})
+
+      # `member` can read `child`, not `parent`
+      assert %{role: :viewer, from: nil} = accesses[reader.id]
+      assert %{role: :owner, from: %{id: child_id}} = accesses[owner.id]
+      assert child_id == child.id
+    end
+
+    test "is empty for a user who cannot share the document",
+         %{owner: owner, parent: parent, child: child} do
+      viewer = Fixtures.confirmed_user()
+      Fixtures.share!(owner, parent, viewer, :viewer)
+      assert Document.list_inherited_accesses(viewer, child.id) == []
+    end
+  end
 end
