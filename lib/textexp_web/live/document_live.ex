@@ -278,26 +278,8 @@ defmodule TextexpWeb.DocumentLive do
                 />
               </label>
             </div>
-            <div
-              :if={@list_tag}
-              id="documents-filter"
-              class="mb-2 flex items-center gap-1.5 px-1 text-xs text-base-content/60"
-            >
-              <span>Tag :</span>
-              <.tag_badge id="documents-filter-tag" tag={@list_tag}>
-                <button
-                  id="documents-filter-clear"
-                  type="button"
-                  phx-click="clear_list_tag"
-                  aria-label={"Retirer le filtre « #{@list_tag.label} »"}
-                  class="-mr-1 cursor-pointer opacity-60 transition-opacity hover:opacity-100"
-                >
-                  <.icon name="hero-x-mark-micro" class="size-3" />
-                </button>
-              </.tag_badge>
-            </div>
             <%!-- Its documents are dragged onto others to move them (see the
-                 DocumentTree hook), except while a tag filters the list --%>
+                 DocumentTree hook) --%>
             <div id="documents-tree" phx-hook=".DocumentTree" class="group/tree">
               <ul id="documents" class="menu w-full p-0">
                 <li
@@ -308,11 +290,10 @@ defmodule TextexpWeb.DocumentLive do
                   Aucun document
                 </li>
                 <.document_items
-                  documents={sidebar_items(@documents, @list_tag)}
-                  children={if(@list_tag, do: %{}, else: children(@documents))}
+                  documents={sidebar_items(@documents)}
+                  children={children(@documents)}
                   active_id={@document && @document.id}
                   expanded={@expanded}
-                  movable?={!@list_tag}
                   user_id={@current_user.id}
                 />
               </ul>
@@ -413,7 +394,6 @@ defmodule TextexpWeb.DocumentLive do
   attr :children, :map, required: true, doc: "the sub-documents of each document's id"
   attr :active_id, :string, required: true
   attr :expanded, :any, required: true, doc: "the ids of the documents unfolded"
-  attr :movable?, :boolean, required: true, doc: "whether documents can be dragged"
   attr :user_id, :string, required: true
 
   # Documents of the sidebar, each with its sub-documents under it when
@@ -428,9 +408,9 @@ defmodule TextexpWeb.DocumentLive do
         data-document-id={document.id}
         data-parent-id={document.parent_id}
         data-can-root={document.owner_id == @user_id}
-        data-drop-target={@movable? && Policy.can?(document.role, :write) && "document"}
+        data-drop-target={Policy.can?(document.role, :write) && "document"}
         data-folded={@children[document.id] && !MapSet.member?(@expanded, document.id)}
-        draggable={to_string(@movable? && Policy.can?(document.role, :share))}
+        draggable={to_string(Policy.can?(document.role, :share))}
         class={[
           "group gap-1 py-1 pr-1 pl-1 transition-[opacity,box-shadow] duration-150",
           "data-[drop-over]:bg-base-200 data-[drop-over]:ring-2 data-[drop-over]:ring-base-content data-[drop-over]:ring-inset",
@@ -484,7 +464,6 @@ defmodule TextexpWeb.DocumentLive do
           children={@children}
           active_id={@active_id}
           expanded={@expanded}
-          movable?={@movable?}
           user_id={@user_id}
         />
       </ul>
@@ -493,14 +472,11 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   # The documents at the sidebar's first level: those without parent, or
-  # whose parent the user cannot read, last updated first. While a tag filters
-  # the list, all its documents.
-  defp sidebar_items(documents, list_tag) do
+  # whose parent the user cannot read, last updated first.
+  defp sidebar_items(documents) do
     documents
     |> Map.values()
-    |> Enum.filter(
-      &(list_tag || is_nil(&1.parent_id) || not Map.has_key?(documents, &1.parent_id))
-    )
+    |> Enum.filter(&(is_nil(&1.parent_id) or not Map.has_key?(documents, &1.parent_id)))
     |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
   end
 
@@ -530,9 +506,9 @@ defmodule TextexpWeb.DocumentLive do
           <:label>
             <button
               type="button"
-              phx-click="filter_tag"
+              phx-click="search_tag"
               phx-value-id={tag.id}
-              title={"Lister les documents avec le tag « #{tag.label} »"}
+              title={"Documents avec le tag « #{tag.label} »"}
               class="cursor-pointer decoration-dotted underline-offset-2 hover:underline"
             >
               {tag.label}
@@ -897,10 +873,8 @@ defmodule TextexpWeb.DocumentLive do
        search_tag: nil,
        share_form: nil,
        # The sidebar's documents, by id: a map rather than a stream, to show
-       # them as trees (see document_items/1). The tag filtering them, if any,
-       # and the documents unfolded.
+       # them as trees (see document_items/1), and the documents unfolded.
        documents: Map.new(documents, &{&1.id, &1}),
-       list_tag: nil,
        expanded: MapSet.new(),
        ancestors: []
      )
@@ -1032,14 +1006,10 @@ defmodule TextexpWeb.DocumentLive do
     end
   end
 
-  # Tags added or removed, on this page or another. The sidebar, filtered by
-  # a tag, may then list the document or no longer.
+  # Tags added or removed, on this page or another.
   def handle_info({:document_tags_changed, document_id}, socket) do
     if socket.assigns.document.id == document_id do
-      {:noreply,
-       socket
-       |> put_tags(Document.list_tags(document_id))
-       |> put_list(socket.assigns.list_tag)}
+      {:noreply, put_tags(socket, Document.list_tags(document_id))}
     else
       {:noreply, socket}
     end
@@ -1208,24 +1178,20 @@ defmodule TextexpWeb.DocumentLive do
   def handle_event("close_share", _params, socket),
     do: {:noreply, assign(socket, sharing?: false)}
 
-  # The search modal's index lives while it is open (see SearchModal). It opens
-  # filtered by the tag filtering the sidebar, if any.
-  def handle_event("open_search", _params, socket),
-    do: {:noreply, open_search(socket, socket.assigns.list_tag)}
+  # The search modal's index lives while it is open (see SearchModal).
+  def handle_event("open_search", _params, socket), do: {:noreply, open_search(socket, nil)}
 
-  # A tag of the document: the sidebar lists the documents carrying it.
-  def handle_event("filter_tag", %{"id" => id}, socket) do
+  # A tag of the document: the search opens on the documents carrying it.
+  def handle_event("search_tag", %{"id" => id}, socket) do
     case Enum.find(Document.list_tags(socket.assigns.document.id), &(&1.id == id)) do
       nil ->
         {:noreply, socket}
 
       tag ->
         Document.record_tag_search(socket.assigns.current_user, tag.id)
-        {:noreply, put_list(socket, tag)}
+        {:noreply, open_search(socket, tag)}
     end
   end
-
-  def handle_event("clear_list_tag", _params, socket), do: {:noreply, put_list(socket, nil)}
 
   def handle_event("toggle_document", %{"id" => id}, socket) do
     expanded = socket.assigns.expanded
@@ -1360,42 +1326,23 @@ defmodule TextexpWeb.DocumentLive do
     |> list_document(document)
   end
 
-  # The sidebar's documents: every document of the user, or those carrying `tag`.
-  defp put_list(socket, tag) do
-    user = socket.assigns.current_user
-
-    documents =
-      if tag,
-        do: Document.list_documents_tagged(user, tag.id),
-        else: Document.list_documents(user)
-
-    assign(socket, list_tag: tag, documents: Map.new(documents, &{&1.id, &1}))
-  end
-
-  # Updates `document` in the sidebar, unless the tag filtering it leaves the
-  # document out.
+  # Updates `document` in the sidebar.
   defp list_document(socket, document) do
-    %{documents: documents, list_tag: list_tag} = socket.assigns
-
-    if list_tag && not Map.has_key?(documents, document.id),
-      do: socket,
-      else:
-        assign(socket,
-          documents:
-            Map.update(
-              documents,
-              document.id,
-              document,
-              &%{&1 | title: document.title, updated_at: document.updated_at}
-            )
-        )
+    update(
+      socket,
+      :documents,
+      &Map.update(
+        &1,
+        document.id,
+        document,
+        fn listed -> %{listed | title: document.title, updated_at: document.updated_at} end
+      )
+    )
   end
 
-  # A new document: shown, the filter removed if any.
-  defp list_new_document(%{assigns: %{list_tag: nil}} = socket, document),
+  # A new document, shown in the sidebar.
+  defp list_new_document(socket, document),
     do: update(socket, :documents, &Map.put(&1, document.id, document))
-
-  defp list_new_document(socket, _document), do: put_list(socket, nil)
 
   # The document of `id` now under the document of `parent_id`, `nil` for the
   # root, in the sidebar and, if it is the open document or one of its
