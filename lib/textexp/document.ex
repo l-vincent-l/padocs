@@ -14,7 +14,8 @@ defmodule Textexp.Document do
   rights of the clients (see `Textexp.Document.Access`).
 
   A change of a member's role is broadcast on `members_topic/1`, a rename or a
-  change of tags on `Textexp.Document.YPersistence.topic/1`.
+  change of tags on `Textexp.Document.YPersistence.topic/1`, a move on
+  `Textexp.Document.YPersistence.documents_topic/0`.
   """
   import Ecto.Query
 
@@ -252,24 +253,28 @@ defmodule Textexp.Document do
   # inherit the change.
   defp broadcast_member_changed(document_id, user_id) do
     ids = subtree_ids(document_id)
-
-    ranks =
-      Repo.all(
-        from a in subquery(ranks(%User{id: user_id})),
-          where: a.id in ^ids,
-          select: {a.id, a.rank}
-      )
-      |> Map.new()
-
-    for id <- ids do
-      Phoenix.PubSub.broadcast(
-        Textexp.PubSub,
-        members_topic(id),
-        {:member_changed, id, user_id, role(ranks[id])}
-      )
-    end
-
+    ranks = user_ranks(user_id, ids)
+    for id <- ids, do: broadcast_role(id, user_id, role(ranks[id]))
     :ok
+  end
+
+  defp broadcast_role(document_id, user_id, role) do
+    Phoenix.PubSub.broadcast(
+      Textexp.PubSub,
+      members_topic(document_id),
+      {:member_changed, document_id, user_id, role}
+    )
+  end
+
+  # The best rank of the user of `user_id` on each of the documents of `ids`
+  # they can access.
+  defp user_ranks(user_id, ids) do
+    Repo.all(
+      from a in subquery(ranks(%User{id: user_id})),
+        where: a.id in ^ids,
+        select: {a.id, a.rank}
+    )
+    |> Map.new()
   end
 
   # Runs `fun` if `user` may do `action` on the document of `id`, in the same
@@ -344,6 +349,83 @@ defmodule Textexp.Document do
         {:ok, %{document | role: :owner}}
       end
     end)
+  end
+
+  @doc """
+  Moves the document of `id` under the document of `parent_id`, or to the
+  root for `nil`. It then inherits the accesses of its new parent instead of
+  the old one's, as do its descendants.
+
+  `user` must be able to share the document and to write the new parent. To
+  the root, they must own it: an owner by inheritance would lose it. A
+  document cannot go under itself or one of its descendants (`:cycle`).
+
+  The roles changed by the move are broadcast on `members_topic/1`, and
+  `{:document_moved, id, parent_id}` on `YPersistence.documents_topic/0`.
+  """
+  def move_document(id, parent_id, user) do
+    result =
+      authorized(id, user, :share, fn document ->
+        ids = subtree_ids(document.id)
+
+        with {:ok, parent_id} <- destination(document, parent_id, ids, user) do
+          # Only the users with a role on the old or new parent can see theirs
+          # change, on the documents moved.
+          users = parent_users(document.parent_id) ++ parent_users(parent_id)
+          users = Enum.uniq(users)
+          before = Map.new(users, &{&1, user_ranks(&1, ids)})
+
+          Repo.update_all(from(d in Document, where: d.id == ^document.id),
+            set: [parent_id: parent_id]
+          )
+
+          changes =
+            for user_id <- users,
+                now = user_ranks(user_id, ids),
+                id <- ids,
+                now[id] != before[user_id][id],
+                do: {id, user_id, role(now[id])}
+
+          {:ok, {%{document | parent_id: parent_id}, changes}}
+        end
+      end)
+
+    with {:ok, {document, changes}} <- result do
+      for {id, user_id, role} <- changes, do: broadcast_role(id, user_id, role)
+
+      Phoenix.PubSub.broadcast(
+        Textexp.PubSub,
+        YPersistence.documents_topic(),
+        {:document_moved, document.id, document.parent_id}
+      )
+
+      {:ok, document}
+    end
+  end
+
+  defp destination(%Document{owner_id: owner_id}, nil, _ids, %{id: owner_id}), do: {:ok, nil}
+  defp destination(_document, nil, _ids, _user), do: {:error, :forbidden}
+
+  defp destination(_document, parent_id, ids, user) do
+    with {:ok, parent_id} <- Ecto.UUID.cast(parent_id),
+         false <- parent_id in ids,
+         {:ok, parent} <- get_document(parent_id, user),
+         true <- Policy.can?(parent.role, :write) do
+      {:ok, parent_id}
+    else
+      true -> {:error, :cycle}
+      _ -> {:error, :forbidden}
+    end
+  end
+
+  # The ids of the users with a role on the document of `id`, inherited or not.
+  defp parent_users(nil), do: []
+
+  defp parent_users(id) do
+    case access_rights(id) do
+      {:ok, roles} -> Map.keys(roles)
+      :error -> []
+    end
   end
 
   @doc """

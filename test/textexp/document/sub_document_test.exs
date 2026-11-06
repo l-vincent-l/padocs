@@ -89,4 +89,84 @@ defmodule Textexp.Document.SubDocumentTest do
     {:ok, rights} = Access.handle_info(message, rights)
     assert Access.permission(rights, editor) == :none
   end
+
+  describe "move_document/3" do
+    test "moves a document under another, with its descendants",
+         %{owner: owner, child: child, grandchild: grandchild} do
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      Phoenix.PubSub.subscribe(Textexp.PubSub, Textexp.Document.YPersistence.documents_topic())
+
+      assert {:ok, %{parent_id: parent_id}} = Document.move_document(child.id, other.id, owner)
+      assert parent_id == other.id
+      assert_receive {:document_moved, _, ^parent_id}
+
+      assert Enum.map(Document.list_ancestors(grandchild, owner), & &1.id) == [other.id, child.id]
+    end
+
+    test "moves a document to the root", %{owner: owner, child: child} do
+      assert {:ok, %{parent_id: nil}} = Document.move_document(child.id, nil, owner)
+      assert {:ok, %{parent_id: nil}} = Document.get_document(child.id, owner)
+    end
+
+    test "refuses to move a document under itself or a descendant",
+         %{owner: owner, parent: parent, child: child, grandchild: grandchild} do
+      assert {:error, :cycle} = Document.move_document(parent.id, parent.id, owner)
+      assert {:error, :cycle} = Document.move_document(parent.id, grandchild.id, owner)
+      assert {:ok, %{parent_id: nil}} = Document.get_document(parent.id, owner)
+      assert {:ok, %{parent_id: parent_id}} = Document.get_document(child.id, owner)
+      assert parent_id == parent.id
+    end
+
+    test "needs to share the document and write the new parent",
+         %{owner: owner, parent: parent, child: child} do
+      editor = Fixtures.confirmed_user()
+      Fixtures.share!(owner, parent, editor, :editor)
+      own = Fixtures.create_document!(editor)
+      assert {:error, :forbidden} = Document.move_document(child.id, own.id, editor)
+
+      reader = Fixtures.create_document!(editor)
+      Fixtures.share!(editor, reader, owner, :viewer)
+      assert {:error, :forbidden} = Document.move_document(child.id, reader.id, owner)
+
+      assert {:error, :forbidden} = Document.move_document(child.id, "nope", owner)
+    end
+
+    test "to the root, needs to own the document, not only by inheritance",
+         %{owner: owner, child: child} do
+      member = Fixtures.confirmed_user()
+      Fixtures.share!(owner, child, member, :editor)
+      {:ok, own} = Document.create_sub_document(child.id, member)
+
+      # `owner` owns `own` by inheritance: at the root, it would no longer be theirs
+      assert {:ok, %{role: :owner}} = Document.get_document(own.id, owner)
+      assert {:error, :forbidden} = Document.move_document(own.id, nil, owner)
+      assert {:ok, _} = Document.move_document(own.id, nil, member)
+    end
+
+    test "broadcasts the roles it changes, on the documents moved",
+         %{owner: owner, parent: parent, child: child, grandchild: grandchild} do
+      editor = Fixtures.confirmed_user()
+      Fixtures.share!(owner, parent, editor, :editor)
+      viewer = Fixtures.confirmed_user()
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      Fixtures.share!(owner, other, viewer, :viewer)
+
+      for document <- [parent, child, grandchild] do
+        Phoenix.PubSub.subscribe(Textexp.PubSub, Document.members_topic(document.id))
+      end
+
+      {:ok, _} = Document.move_document(child.id, other.id, owner)
+
+      {child_id, grandchild_id, editor_id, viewer_id} =
+        {child.id, grandchild.id, editor.id, viewer.id}
+
+      assert_receive {:member_changed, ^child_id, ^editor_id, nil}
+      assert_receive {:member_changed, ^grandchild_id, ^editor_id, nil}
+      assert_receive {:member_changed, ^child_id, ^viewer_id, :viewer}
+      assert_receive {:member_changed, ^grandchild_id, ^viewer_id, :viewer}
+      # the owner keeps their role, the parent left is not moved
+      refute_received {:member_changed, _, _, :owner}
+      refute_received {:member_changed, _, _, _}
+    end
+  end
 end
