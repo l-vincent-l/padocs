@@ -44,7 +44,8 @@ defmodule Textexp.Document.YPersistence do
 
   @doc """
   PubSub topic on which `{:document_deleted, document_id}` is broadcast when an
-  empty document is deleted.
+  empty document is deleted, and `{:document_moved, document_id, parent_id}`
+  when a document is moved (see `Textexp.Document.move_document/3`).
   """
   def documents_topic, do: "documents"
 
@@ -63,7 +64,8 @@ defmodule Textexp.Document.YPersistence do
   def unbind(state, document_id, doc) do
     document = Document.get_document!(document_id)
 
-    if blank?(document.title) and Body.empty?(doc) do
+    # A sub-document needs its parent: an empty parent is kept.
+    if blank?(document.title) and Body.empty?(doc) and not Document.has_children?(document_id) do
       timed(:delete, document_id, fn -> Document.delete_document(document_id) end)
 
       Phoenix.PubSub.broadcast(

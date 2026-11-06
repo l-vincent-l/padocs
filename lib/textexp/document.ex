@@ -4,6 +4,9 @@ defmodule Textexp.Document do
   (see `Textexp.Document.Membership`) read and write, viewers only read (see
   `Textexp.Document.Policy`).
 
+  A document can have sub-documents, which inherit its accesses: a user's
+  role on a document is the best they have on it or any of its ancestors.
+
   Functions taking a `user` only see and change what that user may: listings
   are filtered in their query, an action reads the user's role, then checks it
   with `Policy`. The others, without user, are for the server itself: e.g.
@@ -11,7 +14,8 @@ defmodule Textexp.Document do
   rights of the clients (see `Textexp.Document.Access`).
 
   A change of a member's role is broadcast on `members_topic/1`, a rename or a
-  change of tags on `Textexp.Document.YPersistence.topic/1`.
+  change of tags on `Textexp.Document.YPersistence.topic/1`, a move on
+  `Textexp.Document.YPersistence.documents_topic/0`.
   """
   import Ecto.Query
 
@@ -36,26 +40,63 @@ defmodule Textexp.Document do
   @max_import_bytes 5_000_000
 
   # Read without their snapshot, which only the editor loads.
-  @fields [:id, :title, :excerpt, :owner_id, :inserted_at, :updated_at]
+  @fields [:id, :title, :excerpt, :owner_id, :parent_id, :inserted_at, :updated_at]
+
+  # The roles, as ranks: the best is the highest.
+  @ranks %{owner: 3, editor: 2, viewer: 1}
 
   ## Reading
 
-  # The documents `user` can read, each with `user`'s membership if any.
+  # The documents `user` can read, each with `user`'s best `rank` on it (see
+  # @ranks), as `:access`.
   defp readable_by(user) do
     from d in Document,
       as: :document,
-      left_join: m in Membership,
-      as: :membership,
-      on: m.document_id == d.id and m.user_id == ^user.id,
-      where: d.owner_id == ^user.id or not is_nil(m.id)
+      join: a in subquery(ranks(user)),
+      as: :access,
+      on: a.id == d.id
   end
 
-  @doc "The documents `user` can read, last updated first."
+  # The documents `user` can access: those they own or are a member of, and
+  # their descendants, which inherit the access. `%{id, rank}`, the best rank
+  # for each.
+  defp ranks(user) do
+    owned = from d in Document, where: d.owner_id == ^user.id, select: %{id: d.id, rank: 3}
+
+    shared =
+      from m in Membership,
+        where: m.user_id == ^user.id,
+        select: %{
+          id: m.document_id,
+          rank: fragment("CASE ? WHEN 'editor' THEN 2 ELSE 1 END", m.role)
+        }
+
+    inherited =
+      from d in Document,
+        join: a in "accesses",
+        on: d.parent_id == a.id,
+        select: %{id: d.id, rank: a.rank}
+
+    from(a in "accesses", group_by: a.id, select: %{id: a.id, rank: max(a.rank)})
+    |> recursive_ctes(true)
+    |> with_cte("accesses", as: ^(owned |> union_all(^shared) |> union_all(^inherited)))
+  end
+
+  defp role(rank), do: Enum.find_value(@ranks, fn {role, r} -> r == rank && role end)
+
+  @doc "The documents `user` can read, last updated first, with their `role` on each."
   def list_documents(user) do
     readable_by(user)
     |> order_by(desc: :updated_at)
-    |> select([document: d], struct(d, @fields))
+    |> with_roles()
+  end
+
+  # The documents of `query`, each with the reader's `role` on it.
+  defp with_roles(query) do
+    query
+    |> select([document: d, access: a], {struct(d, @fields), a.rank})
     |> Repo.all()
+    |> Enum.map(fn {document, rank} -> %{document | role: role(rank)} end)
   end
 
   @doc "Among `ids`, the documents `user` can read."
@@ -96,64 +137,144 @@ defmodule Textexp.Document do
   """
   def get_document(id, user) do
     with {:ok, id} <- Ecto.UUID.cast(id),
-         {document, role} <-
+         {document, rank} <-
            readable_by(user)
            |> where([document: d], d.id == ^id)
-           |> select([document: d, membership: m], {struct(d, @fields), m.role})
+           |> select([document: d, access: a], {struct(d, @fields), a.rank})
            |> Repo.one() do
-      {:ok, %{document | role: role(document, user, role)}}
+      {:ok, %{document | role: role(rank)}}
     else
       _ -> {:error, :not_found}
     end
   end
 
-  defp role(%Document{owner_id: owner_id}, %{id: owner_id}, _membership_role), do: :owner
-  defp role(_document, _user, membership_role), do: membership_role
+  @doc """
+  The ancestors of `document` that `user` can read, from the root down to its
+  parent.
+  """
+  def list_ancestors(%Document{parent_id: nil}, _user), do: []
+
+  def list_ancestors(%Document{parent_id: parent_id}, user) do
+    first =
+      from d in Document,
+        where: d.id == ^parent_id,
+        select: %{id: d.id, parent_id: d.parent_id, depth: 0}
+
+    next =
+      from d in Document,
+        join: c in "ancestors",
+        on: d.id == c.parent_id,
+        select: %{id: d.id, parent_id: d.parent_id, depth: c.depth + 1}
+
+    readable_by(user)
+    |> recursive_ctes(true)
+    |> with_cte("ancestors", as: ^union_all(first, ^next))
+    |> join(:inner, [document: d], c in "ancestors", as: :ancestor, on: c.id == d.id)
+    |> order_by([ancestor: c], desc: c.depth)
+    |> select([document: d], struct(d, @fields))
+    |> Repo.all()
+  end
+
+  # The ids of the document of `id` and of its descendants.
+  defp subtree_ids(id) do
+    first = from d in Document, where: d.id == ^id, select: %{id: d.id}
+
+    next =
+      from d in Document,
+        join: s in "subtree",
+        on: d.parent_id == s.id,
+        select: %{id: d.id}
+
+    from(s in "subtree", select: s.id)
+    |> recursive_ctes(true)
+    |> with_cte("subtree", as: ^union_all(first, ^next))
+    |> Repo.all()
+  end
+
+  @doc "Whether the document of `id` has sub-documents."
+  def has_children?(id), do: Repo.exists?(from d in Document, where: d.parent_id == ^id)
 
   @doc """
-  The rights on the document of `id`: `%{owner_id, members}`, `members` giving
-  the role of each member's id. Without owner for an unknown document.
+  The roles on the document of `id`, those it has and those it inherits from
+  its ancestors: `{:ok, roles}`, `roles` giving the best role of each user's
+  id, or `:error` for an unknown document.
   """
   def access_rights(id) do
-    rows =
-      case Ecto.UUID.cast(id) do
-        {:ok, id} ->
-          Repo.all(
-            from d in Document,
-              left_join: m in Membership,
-              on: m.document_id == d.id,
-              where: d.id == ^id,
-              select: {d.owner_id, m.user_id, m.role}
-          )
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         chain when chain != [] <- chain(id) do
+      owners = for {owner_id, _user_id, _role} <- chain, do: {owner_id, @ranks.owner}
 
-        :error ->
-          []
-      end
+      members =
+        for {_owner_id, user_id, role} <- chain, user_id, do: {user_id, @ranks[role]}
 
-    owner_id =
-      case rows do
-        [{owner_id, _user_id, _role} | _] -> owner_id
-        [] -> nil
-      end
+      roles =
+        (owners ++ members)
+        |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+        |> Map.new(fn {user_id, ranks} -> {user_id, role(Enum.max(ranks))} end)
 
-    %{
-      owner_id: owner_id,
-      members: for({_, user_id, role} <- rows, user_id, into: %{}, do: {user_id, role})
-    }
+      {:ok, roles}
+    else
+      _ -> :error
+    end
+  end
+
+  # The document of `id` and its ancestors: `{owner_id, member_id, role}` for
+  # each of their members, `{owner_id, nil, nil}` for one without members.
+  defp chain(id) do
+    first = from d in Document, where: d.id == ^id, select: %{id: d.id, parent_id: d.parent_id}
+
+    next =
+      from d in Document,
+        join: c in "chain",
+        on: d.id == c.parent_id,
+        select: %{id: d.id, parent_id: d.parent_id}
+
+    from(c in "chain",
+      join: d in Document,
+      on: d.id == c.id,
+      left_join: m in Membership,
+      on: m.document_id == d.id,
+      select: {d.owner_id, m.user_id, m.role}
+    )
+    |> recursive_ctes(true)
+    |> with_cte("chain", as: ^union_all(first, ^next))
+    |> Repo.all()
   end
 
   @doc """
   PubSub topic on which `{:member_changed, document_id, user_id, role}` is
-  broadcast when a member is added (`role`), changed, or removed (`nil`).
+  broadcast when the role of a user on a document changed: a member added,
+  changed or removed, on it or one of its ancestors. `role` is the user's
+  role on it now, `nil` without access.
   """
   def members_topic(document_id), do: "document_members:#{document_id}"
 
-  defp broadcast_member_changed(document_id, user_id, role) do
+  # Broadcast for the document of `document_id` and its descendants, which
+  # inherit the change.
+  defp broadcast_member_changed(document_id, user_id) do
+    ids = subtree_ids(document_id)
+    ranks = user_ranks(user_id, ids)
+    for id <- ids, do: broadcast_role(id, user_id, role(ranks[id]))
+    :ok
+  end
+
+  defp broadcast_role(document_id, user_id, role) do
     Phoenix.PubSub.broadcast(
       Textexp.PubSub,
       members_topic(document_id),
       {:member_changed, document_id, user_id, role}
     )
+  end
+
+  # The best rank of the user of `user_id` on each of the documents of `ids`
+  # they can access.
+  defp user_ranks(user_id, ids) do
+    Repo.all(
+      from a in subquery(ranks(%User{id: user_id})),
+        where: a.id in ^ids,
+        select: {a.id, a.rank}
+    )
+    |> Map.new()
   end
 
   # Runs `fun` if `user` may do `action` on the document of `id`, in the same
@@ -216,6 +337,95 @@ defmodule Textexp.Document do
     %Document{owner_id: user.id}
     |> Changeset.cast(attrs, [:title])
     |> Repo.insert()
+  end
+
+  @doc """
+  Creates a sub-document of the document of `parent_id`, which `user` must be
+  able to write. `user` owns it; the accesses to the parent apply to it.
+  """
+  def create_sub_document(parent_id, user) do
+    authorized(parent_id, user, :write, fn parent ->
+      with {:ok, document} <- Repo.insert(%Document{owner_id: user.id, parent_id: parent.id}) do
+        {:ok, %{document | role: :owner}}
+      end
+    end)
+  end
+
+  @doc """
+  Moves the document of `id` under the document of `parent_id`, or to the
+  root for `nil`. It then inherits the accesses of its new parent instead of
+  the old one's, as do its descendants.
+
+  `user` must be able to share the document and to write the new parent. To
+  the root, they must own it: an owner by inheritance would lose it. A
+  document cannot go under itself or one of its descendants (`:cycle`).
+
+  The roles changed by the move are broadcast on `members_topic/1`, and
+  `{:document_moved, id, parent_id}` on `YPersistence.documents_topic/0`.
+  """
+  def move_document(id, parent_id, user) do
+    result =
+      authorized(id, user, :share, fn document ->
+        ids = subtree_ids(document.id)
+
+        with {:ok, parent_id} <- destination(document, parent_id, ids, user) do
+          # Only the users with a role on the old or new parent can see theirs
+          # change, on the documents moved.
+          users = parent_users(document.parent_id) ++ parent_users(parent_id)
+          users = Enum.uniq(users)
+          before = Map.new(users, &{&1, user_ranks(&1, ids)})
+
+          Repo.update_all(from(d in Document, where: d.id == ^document.id),
+            set: [parent_id: parent_id]
+          )
+
+          changes =
+            for user_id <- users,
+                now = user_ranks(user_id, ids),
+                id <- ids,
+                now[id] != before[user_id][id],
+                do: {id, user_id, role(now[id])}
+
+          {:ok, {%{document | parent_id: parent_id}, changes}}
+        end
+      end)
+
+    with {:ok, {document, changes}} <- result do
+      for {id, user_id, role} <- changes, do: broadcast_role(id, user_id, role)
+
+      Phoenix.PubSub.broadcast(
+        Textexp.PubSub,
+        YPersistence.documents_topic(),
+        {:document_moved, document.id, document.parent_id}
+      )
+
+      {:ok, document}
+    end
+  end
+
+  defp destination(%Document{owner_id: owner_id}, nil, _ids, %{id: owner_id}), do: {:ok, nil}
+  defp destination(_document, nil, _ids, _user), do: {:error, :forbidden}
+
+  defp destination(_document, parent_id, ids, user) do
+    with {:ok, parent_id} <- Ecto.UUID.cast(parent_id),
+         false <- parent_id in ids,
+         {:ok, parent} <- get_document(parent_id, user),
+         true <- Policy.can?(parent.role, :write) do
+      {:ok, parent_id}
+    else
+      true -> {:error, :cycle}
+      _ -> {:error, :forbidden}
+    end
+  end
+
+  # The ids of the users with a role on the document of `id`, inherited or not.
+  defp parent_users(nil), do: []
+
+  defp parent_users(id) do
+    case access_rights(id) do
+      {:ok, roles} -> Map.keys(roles)
+      :error -> []
+    end
   end
 
   @doc """
@@ -344,7 +554,7 @@ defmodule Textexp.Document do
                {:ok, Enum.find(members(document.id), &(&1.user_id == user.id))}
              end
            end) do
-      broadcast_member_changed(document_id, member.user_id, member.role)
+      broadcast_member_changed(document_id, member.user_id)
       {:ok, member}
     end
   end
@@ -373,6 +583,71 @@ defmodule Textexp.Document do
     end
   end
 
+  @doc """
+  The accesses the document of `document_id` inherits from its ancestors, for
+  `user` who can share it: `%{user_id, email, role, from}` for each user, by
+  email, with their best role on an ancestor and the nearest ancestor giving
+  it, `from`, `%{id, title}`. `from` is `nil` for an ancestor `user` cannot
+  read, whose title they must not see.
+  """
+  def list_inherited_accesses(user, document_id) do
+    case authorized(document_id, user, :share, &{:ok, inherited_accesses(&1, user)}) do
+      {:ok, accesses} -> accesses
+      {:error, _} -> []
+    end
+  end
+
+  defp inherited_accesses(%Document{parent_id: nil}, _user), do: []
+
+  defp inherited_accesses(%Document{parent_id: parent_id} = document, user) do
+    first =
+      from d in Document,
+        where: d.id == ^parent_id,
+        select: %{id: d.id, parent_id: d.parent_id, depth: 0}
+
+    next =
+      from d in Document,
+        join: c in "ancestors",
+        on: d.id == c.parent_id,
+        select: %{id: d.id, parent_id: d.parent_id, depth: c.depth + 1}
+
+    ancestors =
+      from(c in "ancestors", join: d in Document, as: :ancestor, on: d.id == c.id)
+      |> recursive_ctes(true)
+      |> with_cte("ancestors", as: ^union_all(first, ^next))
+
+    owners =
+      ancestors
+      |> join(:inner, [ancestor: d], u in User, on: u.id == d.owner_id)
+      |> select([c, d, u], {u.id, u.email, ^@ranks.owner, c.depth, d.id, d.title})
+      |> Repo.all()
+
+    members =
+      ancestors
+      |> join(:inner, [ancestor: d], m in Membership, on: m.document_id == d.id)
+      |> join(:inner, [c, d, m], u in User, on: u.id == m.user_id)
+      |> select(
+        [c, d, m, u],
+        {u.id, u.email, fragment("CASE ? WHEN 'editor' THEN 2 ELSE 1 END", m.role), c.depth, d.id,
+         d.title}
+      )
+      |> Repo.all()
+
+    readable = MapSet.new(list_ancestors(document, user), & &1.id)
+
+    (owners ++ members)
+    |> Enum.group_by(&elem(&1, 0))
+    |> Enum.map(fn {user_id, accesses} ->
+      # the best role, from the nearest ancestor
+      {_, email, rank, _, id, title} =
+        Enum.min_by(accesses, fn {_, _, rank, depth, _, _} -> {-rank, depth} end)
+
+      from = if MapSet.member?(readable, id), do: %{id: id, title: title}
+      %{user_id: user_id, email: email, role: role(rank), from: from}
+    end)
+    |> Enum.sort_by(& &1.email)
+  end
+
   defp members(document_id) do
     Repo.all(
       from m in Membership,
@@ -397,7 +672,7 @@ defmodule Textexp.Document do
              membership |> Changeset.change(role: role) |> Repo.update!()
              {:ok, Enum.find(members(document.id), &(&1.id == membership.id))}
            end) do
-      broadcast_member_changed(membership.document_id, membership.user_id, role)
+      broadcast_member_changed(membership.document_id, membership.user_id)
       {:ok, member}
     else
       _ -> {:error, :not_found}
@@ -412,7 +687,7 @@ defmodule Textexp.Document do
            authorized(membership.document_id, owner, :share, fn _document ->
              {:ok, Repo.delete!(membership)}
            end) do
-      broadcast_member_changed(membership.document_id, membership.user_id, nil)
+      broadcast_member_changed(membership.document_id, membership.user_id)
       :ok
     else
       _ -> {:error, :not_found}
@@ -496,15 +771,17 @@ defmodule Textexp.Document do
     |> select([tag: t], t)
   end
 
-  @doc "The documents `user` can read that carry the tag of `tag_id`, last updated first."
+  @doc """
+  The documents `user` can read that carry the tag of `tag_id`, last updated
+  first, with their `role` on each.
+  """
   def list_documents_tagged(user, tag_id) do
     readable_by(user)
     |> join(:inner, [document: d], l in TagDocument,
       on: l.document_id == d.id and l.tag_id == ^tag_id
     )
     |> order_by(desc: :updated_at)
-    |> select([document: d], struct(d, @fields))
-    |> Repo.all()
+    |> with_roles()
   end
 
   @doc """

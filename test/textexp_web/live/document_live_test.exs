@@ -3,6 +3,7 @@ defmodule TextexpWeb.DocumentLiveTest do
 
   alias Textexp.Fixtures
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   alias Textexp.Document
@@ -134,7 +135,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert "/documents/" <> id = assert_patch(view)
 
       assert has_element?(view, "#document-editor-#{id}")
-      assert has_element?(view, "#documents-#{id} a.menu-active")
+      assert has_element?(view, "#documents-#{id} > div.menu-active")
     end
 
     test "switching documents moves the editor, the active item and the viewer",
@@ -149,8 +150,8 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       assert has_element?(view, "#document-editor-#{second.id}")
       refute has_element?(view, "#document-editor-#{first.id}")
-      assert has_element?(view, "#documents-#{second.id} a.menu-active")
-      refute has_element?(view, "#documents-#{first.id} a.menu-active")
+      assert has_element?(view, "#documents-#{second.id} > div.menu-active")
+      refute has_element?(view, "#documents-#{first.id} > div.menu-active")
       assert has_element?(view, "#viewers-#{user.id}")
       assert TextexpWeb.Presence.list_users("viewers:#{first.id}") == []
     end
@@ -412,6 +413,199 @@ defmodule TextexpWeb.DocumentLiveTest do
     end
   end
 
+  describe "sub-documents" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+      %{conn: log_in(conn, owner), owner: owner, parent: parent}
+    end
+
+    test "an editor creates one from the sidebar, opened under its parent",
+         %{conn: conn, parent: parent} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view |> element("#documents-#{parent.id}-new") |> render_click()
+
+      [child] =
+        Textexp.SqliteRepo.all(from d in Document.Document, where: d.parent_id == ^parent.id)
+
+      assert_patch(view, ~p"/documents/#{child.id}")
+
+      assert has_element?(
+               view,
+               "#documents-#{parent.id} #documents-#{child.id} > div.menu-active"
+             )
+
+      assert has_element?(view, "#breadcrumb-#{parent.id}", "Projet")
+    end
+
+    test "a sub-document shows under its parent, unfolded on demand",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+
+      refute has_element?(view, "#documents-#{child.id}")
+
+      view |> element("#documents-#{parent.id}-toggle") |> render_click()
+      assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+
+      view |> element("#documents-#{parent.id}-toggle") |> render_click()
+      refute has_element?(view, "#documents-#{child.id}")
+    end
+
+    test "opening a sub-document unfolds its parents",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      {:ok, grandchild} = Document.create_sub_document(child.id, owner)
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{grandchild.id}")
+
+      assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
+      assert has_element?(view, "#breadcrumb-#{parent.id}")
+      assert has_element?(view, "#breadcrumb-#{child.id}")
+    end
+
+    test "a viewer sees the sub-documents, without creating any",
+         %{owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      viewer = register_user()
+      Fixtures.share!(owner, parent, viewer, :viewer)
+
+      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{child.id}")
+
+      assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+      refute has_element?(view, "#documents-#{parent.id}-new")
+      refute has_element?(view, ~s(#documents-#{child.id} > div[draggable="true"]))
+      refute has_element?(view, "#move-button")
+    end
+  end
+
+  describe "inherited accesses" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      %{conn: log_in(conn, owner), owner: owner, parent: parent, child: child}
+    end
+
+    test "the share panel lists those of the parents, apart from the members",
+         %{conn: conn, owner: owner, parent: parent, child: child} do
+      inherited = register_user()
+      Fixtures.share!(owner, parent, inherited, :editor)
+      direct = register_user()
+      Fixtures.share!(owner, child, direct, :viewer)
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+      view |> element("#share-button") |> render_click()
+
+      assert has_element?(view, "#members", direct.email)
+      refute has_element?(view, "#members", inherited.email)
+      assert has_element?(view, "#inherited-#{inherited.id}", "Éditeur")
+      assert has_element?(view, "#inherited-#{inherited.id}-from", "Projet")
+      refute has_element?(view, "#inherited-#{direct.id}")
+
+      view |> element("#inherited-#{inherited.id}-from") |> render_click()
+      assert_patch(view, ~p"/documents/#{parent.id}")
+    end
+
+    test "a document without parent has none", %{conn: conn, parent: parent} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+      view |> element("#share-button") |> render_click()
+
+      refute has_element?(view, "#inherited-accesses")
+    end
+  end
+
+  describe "moving documents" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      %{conn: log_in(conn, owner), owner: owner, parent: parent, child: child, other: other}
+    end
+
+    test "a document dropped onto another goes under it, unfolded",
+         %{conn: conn, owner: owner, parent: parent, other: other} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+      assert has_element?(view, ~s(#documents-#{parent.id} > div[draggable="true"]))
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("move_document", %{"id" => parent.id, "parent_id" => other.id})
+
+      assert has_element?(view, "#documents-#{other.id} #documents-#{parent.id}")
+      assert {:ok, %{parent_id: parent_id}} = Document.get_document(parent.id, owner)
+      assert parent_id == other.id
+    end
+
+    test "a document dropped onto the root leaves its parent",
+         %{conn: conn, parent: parent, child: child} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("move_document", %{"id" => child.id, "parent_id" => nil})
+
+      refute has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+      assert has_element?(view, "#documents > #documents-#{child.id}")
+    end
+
+    test "a document cannot go under one of its descendants",
+         %{conn: conn, parent: parent, child: child} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("move_document", %{"id" => parent.id, "parent_id" => child.id})
+
+      assert has_element?(view, "#documents > #documents-#{parent.id}")
+      assert has_element?(view, "#flash-error")
+    end
+
+    test "the move panel moves the open document, the breadcrumb following",
+         %{conn: conn, parent: parent, child: child, other: other} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+      assert has_element?(view, "#breadcrumb-#{parent.id}")
+
+      view |> element("#move-button") |> render_click()
+      # neither its parent nor itself
+      refute has_element?(view, "#move-to-#{parent.id}")
+      refute has_element?(view, "#move-to-#{child.id}")
+      assert has_element?(view, "#move-to-root")
+
+      view |> element("#move-to-#{other.id}") |> render_click()
+
+      refute has_element?(view, "#move-panel")
+      assert has_element?(view, "#breadcrumb-#{other.id}")
+      refute has_element?(view, "#breadcrumb-#{parent.id}")
+      assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
+    end
+
+    test "the move panel moves the open document to the root",
+         %{conn: conn, parent: parent, child: child} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+
+      view |> element("#move-button") |> render_click()
+      view |> element("#move-to-root") |> render_click()
+
+      refute has_element?(view, "#breadcrumb")
+      refute has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+    end
+
+    test "a move on another page shows in the sidebar",
+         %{conn: conn, owner: owner, child: child, other: other} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+
+      {:ok, _} = Document.move_document(child.id, other.id, owner)
+
+      # the message is handled before the click
+      view |> element("#documents-#{other.id}-toggle") |> render_click()
+      assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
+    end
+  end
+
   describe "tags" do
     setup %{conn: conn} do
       owner = register_user()
@@ -455,19 +649,45 @@ defmodule TextexpWeb.DocumentLiveTest do
       refute has_element?(view, "#tags-#{tag.id}")
     end
 
-    test "a tag opens the search on the documents carrying it",
+    test "a tag filters the sidebar's list by it, until the filter is removed",
          %{owner: owner, document: document, view: view} do
       other = Fixtures.create_document!(owner, %{title: "Autre"})
       untagged = Fixtures.create_document!(owner, %{title: "Sans tag"})
       {:ok, tag} = Document.add_tag(document.id, owner, "Recettes")
       {:ok, _} = Document.add_tag(other.id, owner, "Recettes")
 
-      view |> element("#tags-#{tag.id} button[phx-click=search_tag]") |> render_click()
+      view |> element("#tags-#{tag.id} button[phx-click=filter_tag]") |> render_click()
 
+      refute has_element?(view, "#search-panel")
+      assert has_element?(view, "#documents-filter-tag", "Recettes")
+      assert has_element?(view, "#documents-#{document.id}")
+      assert has_element?(view, "#documents-#{other.id}")
+      refute has_element?(view, "#documents-#{untagged.id}")
+
+      # the search opens filtered by it
+      view |> element("#search-button") |> render_click()
       assert has_element?(view, "#search-panel #search-active-tag", "Recettes")
-      assert has_element?(view, "#search-results a[href='/documents/#{document.id}']")
       assert has_element?(view, "#search-results a[href='/documents/#{other.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{untagged.id}']")
+      view |> element("#search-close") |> render_click()
+
+      view |> element("#documents-filter-clear") |> render_click()
+
+      refute has_element?(view, "#documents-filter")
+      view |> element("#search-button") |> render_click()
+      refute has_element?(view, "#search-active-tag")
+      assert has_element?(view, "#documents-#{untagged.id}")
+    end
+
+    test "the filtered list follows the tags of the open document",
+         %{owner: owner, document: document, view: view} do
+      {:ok, tag} = Document.add_tag(document.id, owner, "Recettes")
+      view |> element("#tags-#{tag.id} button[phx-click=filter_tag]") |> render_click()
+      assert has_element?(view, "#documents-#{document.id}")
+
+      view |> element("#tags-#{tag.id} button[phx-click=remove_tag]") |> render_click()
+
+      refute has_element?(view, "#documents-#{document.id}")
     end
 
     test "a viewer sees the tags without changing them",

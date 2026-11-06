@@ -34,13 +34,25 @@ defmodule TextexpWeb.DocumentLive do
             </label>
             <button
               :if={@can_share?}
+              id="move-button"
+              type="button"
+              phx-click="open_move"
+              aria-haspopup="dialog"
+              title="Déplacer vers…"
+              class="btn btn-sm ml-auto mr-2 border-base-content bg-base-100 px-3 hover:bg-primary hover:text-primary-content"
+            >
+              <.icon name="hero-arrows-right-left" class="size-4" />
+              <span class="hidden sm:inline">Déplacer</span>
+            </button>
+            <button
+              :if={@can_share?}
               id="share-button"
               type="button"
               phx-click="toggle_share"
               aria-expanded={to_string(@sharing?)}
               aria-controls="share-panel"
               class={[
-                "btn btn-sm ml-auto border-base-content px-4",
+                "btn btn-sm border-base-content px-4",
                 if(@sharing?,
                   do: "btn-primary",
                   else: "bg-base-100 hover:bg-primary hover:text-primary-content"
@@ -54,6 +66,23 @@ defmodule TextexpWeb.DocumentLive do
           <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
           <div class="flex flex-1 flex-col">
             <div class="document-header px-[54px] pt-1">
+              <nav
+                :if={@ancestors != []}
+                id="breadcrumb"
+                aria-label="Documents parents"
+                class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/60"
+              >
+                <%= for ancestor <- @ancestors do %>
+                  <.link
+                    id={"breadcrumb-#{ancestor.id}"}
+                    patch={~p"/documents/#{ancestor.id}"}
+                    class="max-w-48 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
+                  >
+                    {ancestor.title || "Sans titre"}
+                  </.link>
+                  <.icon name="hero-chevron-right-micro" class="size-3 shrink-0" />
+                <% end %>
+              </nav>
               <.form
                 for={@title_form}
                 id="title-form"
@@ -117,10 +146,20 @@ defmodule TextexpWeb.DocumentLive do
                 user={@current_user}
                 initial_tag={@search_tag}
               />
+              <.move_panel
+                :if={@moving?}
+                document={@document}
+                destinations={@move_destinations}
+                can_move_to_root?={
+                  @document.parent_id != nil and @document.owner_id == @current_user.id
+                }
+              />
               <.share_panel
                 :if={@sharing?}
                 form={@share_form}
                 members={@streams.members}
+                inherited={@inherited_accesses}
+                current_user_id={@current_user.id}
               />
               <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
             </div>
@@ -202,26 +241,239 @@ defmodule TextexpWeb.DocumentLive do
                 />
               </label>
             </div>
-            <ul id="documents" class="menu w-full p-0" phx-update="stream">
-              <li id="documents-empty" class="hidden only:block px-3 py-2 text-sm opacity-60">
-                Aucun document
-              </li>
-              <li :for={{id, document} <- @streams.documents} id={id}>
-                <.link
-                  patch={~p"/documents/#{document.id}"}
-                  class={[@document.id == document.id && "menu-active"]}
+            <div
+              :if={@list_tag}
+              id="documents-filter"
+              class="mb-2 flex items-center gap-1.5 px-1 text-xs text-base-content/60"
+            >
+              <span>Tag :</span>
+              <.tag_badge id="documents-filter-tag" tag={@list_tag}>
+                <button
+                  id="documents-filter-clear"
+                  type="button"
+                  phx-click="clear_list_tag"
+                  aria-label={"Retirer le filtre « #{@list_tag.label} »"}
+                  class="-mr-1 cursor-pointer opacity-60 transition-opacity hover:opacity-100"
                 >
-                  <.icon name="hero-document-text" class="size-4" />
-                  <span class="truncate">{document.title || "Sans titre"}</span>
-                </.link>
-              </li>
-            </ul>
+                  <.icon name="hero-x-mark-micro" class="size-3" />
+                </button>
+              </.tag_badge>
+            </div>
+            <%!-- Its documents are dragged onto others to move them (see the
+                 DocumentTree hook), except while a tag filters the list --%>
+            <div id="documents-tree" phx-hook=".DocumentTree" class="group/tree">
+              <ul id="documents" class="menu w-full p-0">
+                <li
+                  :if={@documents == %{}}
+                  id="documents-empty"
+                  class="px-3 py-2 text-sm opacity-60"
+                >
+                  Aucun document
+                </li>
+                <.document_items
+                  documents={sidebar_items(@documents, @list_tag)}
+                  children={if(@list_tag, do: %{}, else: children(@documents))}
+                  active_id={@document && @document.id}
+                  expanded={@expanded}
+                  movable?={!@list_tag}
+                  user_id={@current_user.id}
+                />
+              </ul>
+              <div
+                id="documents-root-drop"
+                data-drop-target="root"
+                class="mt-1 hidden items-center justify-center gap-1.5 border-2 border-dashed border-base-content/40 px-3 py-2 text-xs text-base-content/60 transition-colors group-data-[dragging=root]/tree:flex data-[drop-over]:border-base-content data-[drop-over]:bg-base-200 data-[drop-over]:text-base-content"
+              >
+                <.icon name="hero-arrow-up-left-micro" class="size-4" /> Mettre à la racine
+              </div>
+            </div>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".DocumentTree">
+              // Drags a document of the sidebar onto another, or onto the root's
+              // zone, then asks the server to move it there. The attributes it sets
+              // go through this.js(), so that LiveView's patches keep them.
+              export default {
+                mounted() {
+                  this.el.addEventListener("dragstart", e => {
+                    const row = e.target.closest?.("[data-document-row][draggable=true]")
+                    if (!row) return
+                    this.dragged = row
+                    e.dataTransfer.effectAllowed = "move"
+                    e.dataTransfer.setData("text/plain", row.dataset.documentId)
+                    const toRoot = "canRoot" in row.dataset && row.dataset.parentId
+                    this.js().setAttribute(this.el, "data-dragging", toRoot ? "root" : "")
+                    this.js().setAttribute(row, "data-dragged", "")
+                  })
+                  this.el.addEventListener("dragover", e => {
+                    const target = this.target(e)
+                    this.over(target)
+                    if (!target) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = "move"
+                  })
+                  this.el.addEventListener("dragleave", e => {
+                    if (!this.el.contains(e.relatedTarget)) this.over(null)
+                  })
+                  this.el.addEventListener("drop", e => {
+                    const target = this.target(e)
+                    if (!target) return
+                    e.preventDefault()
+                    const root = target.dataset.dropTarget === "root"
+                    this.pushEvent("move_document", {
+                      id: this.dragged.dataset.documentId,
+                      parent_id: root ? null : target.dataset.documentId
+                    })
+                    this.end()
+                  })
+                  this.el.addEventListener("dragend", () => this.end())
+                },
+                // Where the dragged document may go, under the pointer: a document
+                // its user may write, but neither itself, one of its descendants nor
+                // its parent; or the root, if it may and is not there.
+                target(e) {
+                  if (!this.dragged) return null
+                  const target = e.target.closest?.("[data-drop-target]")
+                  if (!target) return null
+                  if (target.dataset.dropTarget === "root")
+                    return this.el.dataset.dragging === "root" ? target : null
+                  if (this.dragged.closest("li").contains(target)) return null
+                  if (target.dataset.documentId === this.dragged.dataset.parentId) return null
+                  return target
+                },
+                // Highlights `target`; a folded document held under the pointer
+                // unfolds, to drop into its sub-documents.
+                over(target) {
+                  if (target === this.current) return
+                  if (this.current) this.js().removeAttribute(this.current, "data-drop-over")
+                  clearTimeout(this.unfold)
+                  this.current = target
+                  if (!target) return
+                  this.js().setAttribute(target, "data-drop-over", "")
+                  if ("folded" in target.dataset) {
+                    const id = target.dataset.documentId
+                    this.unfold = setTimeout(() => this.pushEvent("toggle_document", {id}), 700)
+                  }
+                },
+                end() {
+                  this.over(null)
+                  if (this.dragged) this.js().removeAttribute(this.dragged, "data-dragged")
+                  this.dragged = null
+                  this.js().removeAttribute(this.el, "data-dragging")
+                },
+                destroyed() {
+                  clearTimeout(this.unfold)
+                }
+              }
+            </script>
             <Layouts.account current_user={@current_user} />
           </div>
         </div>
       </div>
     </Layouts.app>
     """
+  end
+
+  attr :documents, :list, required: true
+  attr :children, :map, required: true, doc: "the sub-documents of each document's id"
+  attr :active_id, :string, required: true
+  attr :expanded, :any, required: true, doc: "the ids of the documents unfolded"
+  attr :movable?, :boolean, required: true, doc: "whether documents can be dragged"
+  attr :user_id, :string, required: true
+
+  # Documents of the sidebar, each with its sub-documents under it when
+  # unfolded, and for an editor a button creating one. Its owner drags a
+  # document onto one they can write to move it there (see the DocumentTree
+  # hook); only its real owner to the root, see Document.move_document/3.
+  defp document_items(assigns) do
+    ~H"""
+    <li :for={document <- @documents} id={"documents-#{document.id}"}>
+      <div
+        data-document-row
+        data-document-id={document.id}
+        data-parent-id={document.parent_id}
+        data-can-root={document.owner_id == @user_id}
+        data-drop-target={@movable? && Policy.can?(document.role, :write) && "document"}
+        data-folded={@children[document.id] && !MapSet.member?(@expanded, document.id)}
+        draggable={to_string(@movable? && Policy.can?(document.role, :share))}
+        class={[
+          "group gap-1 py-1 pr-1 pl-1 transition-[opacity,box-shadow] duration-150",
+          "data-[drop-over]:bg-base-200 data-[drop-over]:ring-2 data-[drop-over]:ring-base-content data-[drop-over]:ring-inset",
+          "data-[dragged]:opacity-40",
+          @active_id == document.id && "menu-active"
+        ]}
+      >
+        <button
+          :if={@children[document.id]}
+          id={"documents-#{document.id}-toggle"}
+          type="button"
+          phx-click="toggle_document"
+          phx-value-id={document.id}
+          aria-expanded={to_string(MapSet.member?(@expanded, document.id))}
+          aria-label={"Sous-documents de « #{document.title || "Sans titre"} »"}
+          class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-60 hover:opacity-100"
+        >
+          <.icon
+            name="hero-chevron-right-micro"
+            class={[
+              "size-4 transition-transform duration-150",
+              MapSet.member?(@expanded, document.id) && "rotate-90"
+            ]}
+          />
+        </button>
+        <span :if={!@children[document.id]} class="size-5 shrink-0"></span>
+        <.link
+          patch={~p"/documents/#{document.id}"}
+          draggable="false"
+          class="flex min-w-0 flex-1 items-center gap-2"
+        >
+          <.icon name="hero-document-text" class="size-4 shrink-0" />
+          <span class="truncate">{document.title || "Sans titre"}</span>
+        </.link>
+        <button
+          :if={Policy.can?(document.role, :write)}
+          id={"documents-#{document.id}-new"}
+          type="button"
+          phx-click="new_sub_document"
+          phx-value-id={document.id}
+          title="Nouveau sous-document"
+          aria-label={"Nouveau sous-document de « #{document.title || "Sans titre"} »"}
+          class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
+        >
+          <.icon name="hero-plus-micro" class="size-4" />
+        </button>
+      </div>
+      <ul :if={@children[document.id] && MapSet.member?(@expanded, document.id)}>
+        <.document_items
+          documents={@children[document.id]}
+          children={@children}
+          active_id={@active_id}
+          expanded={@expanded}
+          movable?={@movable?}
+          user_id={@user_id}
+        />
+      </ul>
+    </li>
+    """
+  end
+
+  # The documents at the sidebar's first level: those without parent, or
+  # whose parent the user cannot read, last updated first. While a tag filters
+  # the list, all its documents.
+  defp sidebar_items(documents, list_tag) do
+    documents
+    |> Map.values()
+    |> Enum.filter(
+      &(list_tag || is_nil(&1.parent_id) || not Map.has_key?(documents, &1.parent_id))
+    )
+    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
+  end
+
+  # The sub-documents of each document, in the order they were created.
+  defp children(documents) do
+    documents
+    |> Map.values()
+    |> Enum.filter(&(&1.parent_id && Map.has_key?(documents, &1.parent_id)))
+    |> Enum.sort_by(& &1.inserted_at, DateTime)
+    |> Enum.group_by(& &1.parent_id)
   end
 
   attr :tags, :any, required: true
@@ -241,9 +493,9 @@ defmodule TextexpWeb.DocumentLive do
           <:label>
             <button
               type="button"
-              phx-click="search_tag"
+              phx-click="filter_tag"
               phx-value-id={tag.id}
-              title={"Documents avec le tag « #{tag.label} »"}
+              title={"Lister les documents avec le tag « #{tag.label} »"}
               class="cursor-pointer decoration-dotted underline-offset-2 hover:underline"
             >
               {tag.label}
@@ -311,11 +563,114 @@ defmodule TextexpWeb.DocumentLive do
     """
   end
 
+  attr :document, :any, required: true
+  attr :destinations, :list, required: true, doc: "`{document, path}`, see move_destinations/1"
+  attr :can_move_to_root?, :boolean, required: true
+
+  # A modal listing where the open document can go: the documents its user
+  # can write, each under the titles of its parents, and the root. Closed by
+  # its button, a click outside or Escape.
+  defp move_panel(assigns) do
+    ~H"""
+    <div id="move-modal" class="modal modal-open" phx-window-keydown="close_move" phx-key="Escape">
+      <section
+        id="move-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="move-title"
+        phx-mounted={JS.focus_first(to: "#move-destinations")}
+        class="modal-box w-11/12 max-w-lg border-2 border-base-content bg-base-100 p-5 shadow-hard sm:p-6"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 id="move-title" class="text-sm uppercase">Déplacer vers…</h2>
+            <p class="mt-0.5 truncate text-xs text-base-content/60">
+              « {@document.title || "Sans titre"} » prendra les accès de son nouveau parent.
+            </p>
+          </div>
+          <button
+            id="move-close"
+            type="button"
+            phx-click="close_move"
+            aria-label="Fermer"
+            class="btn btn-ghost btn-sm btn-square -mt-1 -mr-2"
+          >
+            <.icon name="hero-x-mark" class="size-5" />
+          </button>
+        </div>
+        <ul
+          id="move-destinations"
+          class="mt-3 max-h-80 divide-y-2 divide-dotted divide-base-content/30 overflow-y-auto"
+        >
+          <li :if={@can_move_to_root?}>
+            <.move_destination id="move-to-root" document_id={@document.id} parent_id="">
+              <.icon name="hero-arrow-up-left" class="size-4 shrink-0" />
+              <span class="font-medium">Racine</span>
+            </.move_destination>
+          </li>
+          <li :for={{destination, path} <- @destinations}>
+            <.move_destination
+              id={"move-to-#{destination.id}"}
+              document_id={@document.id}
+              parent_id={destination.id}
+            >
+              <.icon name="hero-document-text" class="size-4 shrink-0" />
+              <span class="flex min-w-0 flex-col">
+                <span :if={path != []} class="truncate text-xs text-base-content/60">
+                  {Enum.join(path, " / ")}
+                </span>
+                <span class="truncate">{destination.title || "Sans titre"}</span>
+              </span>
+            </.move_destination>
+          </li>
+          <li
+            :if={@destinations == [] and !@can_move_to_root?}
+            id="move-empty"
+            class="py-2 text-sm text-base-content/60"
+          >
+            Aucun autre document où le mettre.
+          </li>
+        </ul>
+      </section>
+      <button
+        type="button"
+        class="modal-backdrop"
+        phx-click="close_move"
+        aria-label="Fermer"
+        tabindex="-1"
+      ></button>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :document_id, :string, required: true
+  attr :parent_id, :string, required: true
+  slot :inner_block, required: true
+
+  defp move_destination(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      phx-click="move_document"
+      phx-value-id={@document_id}
+      phx-value-parent_id={@parent_id}
+      class="flex w-full cursor-pointer items-center gap-2 px-2 py-2 text-left text-sm transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+    >
+      {render_slot(@inner_block)}
+    </button>
+    """
+  end
+
   attr :form, Phoenix.HTML.Form, required: true
   attr :members, :any, required: true
+  attr :inherited, :list, required: true, doc: "see Document.list_inherited_accesses/2"
+  attr :current_user_id, :string, required: true
 
-  # A modal that invites an address as viewer or editor, and lists the members.
-  # Closed by its button, a click outside or Escape.
+  # A modal that invites an address as viewer or editor, and lists the members,
+  # then the accesses inherited from the parents, changed from there. Closed by
+  # its button, a click outside or Escape.
   defp share_panel(assigns) do
     ~H"""
     <div id="share-modal" class="modal modal-open" phx-window-keydown="close_share" phx-key="Escape">
@@ -379,7 +734,7 @@ defmodule TextexpWeb.DocumentLive do
           class="mt-2 divide-y-2 divide-dotted divide-base-content/30"
         >
           <li id="members-empty" class="hidden py-2 text-sm text-base-content/60 only:block">
-            Pas encore partagé.
+            {if @inherited == [], do: "Pas encore partagé.", else: "Aucun accès propre à ce document."}
           </li>
           <li
             :for={{id, member} <- @members}
@@ -429,6 +784,48 @@ defmodule TextexpWeb.DocumentLive do
             </span>
           </li>
         </ul>
+        <div :if={@inherited != []} id="inherited-accesses" class="mt-5">
+          <h3 class="text-xs uppercase">Accès hérités</h3>
+          <p class="mt-0.5 text-xs text-base-content/60">
+            Donnés par les documents parents : ils se changent depuis ces documents.
+          </p>
+          <ul class="mt-1 divide-y-2 divide-dotted divide-base-content/30">
+            <li
+              :for={access <- @inherited}
+              id={"inherited-#{access.user_id}"}
+              class="flex items-center justify-between gap-3 py-2 text-sm"
+            >
+              <span class="flex min-w-0 items-center gap-2">
+                <span class="flex size-7 shrink-0 items-center justify-center border-2 border-dashed border-base-content/60 text-xs font-medium uppercase text-base-content/70">
+                  {String.first(access.email)}
+                </span>
+                <span class="truncate text-base-content/80">
+                  {access.email}<span
+                    :if={access.user_id == @current_user_id}
+                    class="text-base-content/50"
+                  > (vous)</span>
+                </span>
+              </span>
+              <span class="flex min-w-0 shrink-0 items-center gap-2 text-xs text-base-content/60">
+                <%= if access.from do %>
+                  <.link
+                    id={"inherited-#{access.user_id}-from"}
+                    patch={~p"/documents/#{access.from.id}"}
+                    title={"Hérité de « #{access.from.title || "Sans titre"} »"}
+                    class="hidden max-w-40 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline sm:inline"
+                  >
+                    via {access.from.title || "Sans titre"}
+                  </.link>
+                <% else %>
+                  <span class="hidden sm:inline">via un document parent</span>
+                <% end %>
+                <span class="w-28 border-2 border-base-content/40 px-2 py-0.5 text-center whitespace-nowrap">
+                  {String.capitalize(role_label(access.role))}
+                </span>
+              </span>
+            </li>
+          </ul>
+        </div>
       </section>
       <button
         type="button"
@@ -455,14 +852,23 @@ defmodule TextexpWeb.DocumentLive do
        can_edit?: false,
        can_share?: false,
        sharing?: false,
+       moving?: false,
+       move_destinations: [],
+       inherited_accesses: [],
        search_open?: false,
        search_index: nil,
        search_tag: nil,
-       share_form: nil
+       share_form: nil,
+       # The sidebar's documents, by id: a map rather than a stream, to show
+       # them as trees (see document_items/1). The tag filtering them, if any,
+       # and the documents unfolded.
+       documents: Map.new(documents, &{&1.id, &1}),
+       list_tag: nil,
+       expanded: MapSet.new(),
+       ancestors: []
      )
      |> stream(:viewers, [])
-     |> stream(:members, [])
-     |> stream(:documents, documents)}
+     |> stream(:members, [])}
   end
 
   # /documents opens the document the user opened last, else the one they
@@ -487,15 +893,7 @@ defmodule TextexpWeb.DocumentLive do
   def handle_params(%{"id" => id}, _uri, socket) do
     case Document.get_document(id, socket.assigns.current_user) do
       {:ok, document} ->
-        previous = socket.assigns.document
-
-        socket =
-          socket
-          |> leave_document()
-          |> open_document(document)
-          |> mark_active(previous, document)
-
-        {:noreply, socket}
+        {:noreply, socket |> leave_document() |> open_document(document)}
 
       {:error, _} ->
         {:noreply,
@@ -516,13 +914,19 @@ defmodule TextexpWeb.DocumentLive do
       Presence.track_user(viewers_topic(document.id), user.id, %{id: user.id, email: user.email})
     end
 
+    # its parents, unfolded in the sidebar
+    ancestors = Document.list_ancestors(document, socket.assigns.current_user)
+
     socket
     |> close_search()
     |> assign(
+      ancestors: ancestors,
+      expanded: MapSet.union(socket.assigns.expanded, MapSet.new(ancestors, & &1.id)),
       document: document,
       can_edit?: Policy.can?(document.role, :write),
       can_share?: Policy.can?(document.role, :share),
       sharing?: false,
+      moving?: false,
       page_title: document.title || "Sans titre",
       last_update: document.updated_at,
       title_form: to_form(%{"title" => document.title})
@@ -570,18 +974,6 @@ defmodule TextexpWeb.DocumentLive do
     socket
   end
 
-  # The sidebar's active item depends on the open document: re-insert the items
-  # of the previous and new documents so that they are rendered again.
-  defp mark_active(socket, previous, document) do
-    if previous && previous.id != document.id do
-      socket
-      |> stream_insert(:documents, previous)
-      |> stream_insert(:documents, document)
-    else
-      socket
-    end
-  end
-
   def handle_info({:document_updated, document_id, at, title}, socket) do
     if socket.assigns.document.id == document_id do
       {:noreply, socket |> assign(last_update: at) |> put_saved_title(title)}
@@ -603,10 +995,14 @@ defmodule TextexpWeb.DocumentLive do
     end
   end
 
-  # Tags added or removed, on this page or another.
+  # Tags added or removed, on this page or another. The sidebar, filtered by
+  # a tag, may then list the document or no longer.
   def handle_info({:document_tags_changed, document_id}, socket) do
     if socket.assigns.document.id == document_id do
-      {:noreply, put_tags(socket, Document.list_tags(document_id))}
+      {:noreply,
+       socket
+       |> put_tags(Document.list_tags(document_id))
+       |> put_list(socket.assigns.list_tag)}
     else
       {:noreply, socket}
     end
@@ -614,7 +1010,7 @@ defmodule TextexpWeb.DocumentLive do
 
   # An empty document was left and deleted (see YPersistence).
   def handle_info({:document_deleted, document_id}, socket) do
-    socket = stream_delete_by_dom_id(socket, :documents, "documents-#{document_id}")
+    socket = update(socket, :documents, &Map.delete(&1, document_id))
 
     if socket.assigns.document.id == document_id do
       {:noreply, push_navigate(socket, to: ~p"/documents")}
@@ -622,6 +1018,11 @@ defmodule TextexpWeb.DocumentLive do
       {:noreply, socket}
     end
   end
+
+  # Moved on this page or another: the sidebar shows it under its new parent,
+  # and the breadcrumb follows if the open document is among those moved.
+  def handle_info({:document_moved, document_id, parent_id}, socket),
+    do: {:noreply, put_moved(socket, document_id, parent_id)}
 
   # The user's role on the open document changed: the page is opened again
   # with it, the editor along (its channel already applies it, see
@@ -681,7 +1082,7 @@ defmodule TextexpWeb.DocumentLive do
 
     {:noreply,
      socket
-     |> stream_insert(:documents, document, at: 0)
+     |> list_new_document(%{document | role: :owner})
      |> push_patch(to: ~p"/documents/#{document.id}")}
   end
 
@@ -694,7 +1095,7 @@ defmodule TextexpWeb.DocumentLive do
            Document.import_document(socket.assigns.current_user, title, snapshot) do
       {:reply, %{id: document.id},
        socket
-       |> stream_insert(:documents, document, at: 0)
+       |> list_new_document(%{document | role: :owner})
        |> put_flash(:info, "« #{title} » importé")}
     else
       _ -> {:reply, %{}, put_flash(socket, :error, "Impossible d'importer « #{name} »")}
@@ -770,27 +1171,98 @@ defmodule TextexpWeb.DocumentLive do
   def handle_event("close_share", _params, socket),
     do: {:noreply, assign(socket, sharing?: false)}
 
-  # The search modal's index lives while it is open (see SearchModal).
-  def handle_event("open_search", _params, socket), do: {:noreply, open_search(socket, nil)}
+  # The search modal's index lives while it is open (see SearchModal). It opens
+  # filtered by the tag filtering the sidebar, if any.
+  def handle_event("open_search", _params, socket),
+    do: {:noreply, open_search(socket, socket.assigns.list_tag)}
 
-  # A tag of the document: the search opens on the documents carrying it.
-  def handle_event("search_tag", %{"id" => id}, socket) do
+  # A tag of the document: the sidebar lists the documents carrying it.
+  def handle_event("filter_tag", %{"id" => id}, socket) do
     case Enum.find(Document.list_tags(socket.assigns.document.id), &(&1.id == id)) do
       nil ->
         {:noreply, socket}
 
       tag ->
         Document.record_tag_search(socket.assigns.current_user, tag.id)
-        {:noreply, open_search(socket, tag)}
+        {:noreply, put_list(socket, tag)}
+    end
+  end
+
+  def handle_event("clear_list_tag", _params, socket), do: {:noreply, put_list(socket, nil)}
+
+  def handle_event("toggle_document", %{"id" => id}, socket) do
+    expanded = socket.assigns.expanded
+
+    expanded =
+      if MapSet.member?(expanded, id),
+        do: MapSet.delete(expanded, id),
+        else: MapSet.put(expanded, id)
+
+    {:noreply, assign(socket, expanded: expanded)}
+  end
+
+  # Opened at once, under its parent unfolded.
+  def handle_event("new_sub_document", %{"id" => parent_id}, socket) do
+    case Document.create_sub_document(parent_id, socket.assigns.current_user) do
+      {:ok, document} ->
+        {:noreply,
+         socket
+         |> list_new_document(document)
+         |> update(:expanded, &MapSet.put(&1, parent_id))
+         |> push_patch(to: ~p"/documents/#{document.id}")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas ajouter de sous-document ici")}
     end
   end
 
   def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
 
+  def handle_event("open_move", _params, socket) do
+    {:noreply, assign(socket, moving?: true, move_destinations: move_destinations(socket))}
+  end
+
+  def handle_event("close_move", _params, socket), do: {:noreply, assign(socket, moving?: false)}
+
+  # From the sidebar (see the DocumentTree hook) or the move panel; an empty
+  # or missing parent is the root. The new parent is unfolded.
+  def handle_event("move_document", %{"id" => id} = params, socket) do
+    parent_id = if params["parent_id"] in [nil, ""], do: nil, else: params["parent_id"]
+
+    case Document.move_document(id, parent_id, socket.assigns.current_user) do
+      {:ok, document} ->
+        {:noreply,
+         socket
+         |> assign(moving?: false)
+         |> put_moved(document.id, document.parent_id)
+         |> update(:expanded, &if(parent_id, do: MapSet.put(&1, parent_id), else: &1))
+         |> put_flash(:info, "« #{document.title || "Sans titre"} » déplacé")}
+
+      {:error, :cycle} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Un document ne peut pas aller sous lui-même ou l'un de ses sous-documents"
+         )}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas déplacer ce document ici")}
+    end
+  end
+
   def handle_event("toggle_share", _params, socket) do
     {:noreply,
      socket
-     |> assign(sharing?: true, share_form: share_form())
+     |> assign(
+       sharing?: true,
+       share_form: share_form(),
+       inherited_accesses:
+         Document.list_inherited_accesses(
+           socket.assigns.current_user,
+           socket.assigns.document.id
+         )
+     )
      |> stream(:members, members(socket), reset: true)}
   end
 
@@ -848,7 +1320,105 @@ defmodule TextexpWeb.DocumentLive do
       page_title: document.title || "Sans titre",
       title_form: to_form(%{"title" => document.title})
     )
-    |> stream_insert(:documents, document)
+    |> list_document(document)
+  end
+
+  # The sidebar's documents: every document of the user, or those carrying `tag`.
+  defp put_list(socket, tag) do
+    user = socket.assigns.current_user
+
+    documents =
+      if tag,
+        do: Document.list_documents_tagged(user, tag.id),
+        else: Document.list_documents(user)
+
+    assign(socket, list_tag: tag, documents: Map.new(documents, &{&1.id, &1}))
+  end
+
+  # Updates `document` in the sidebar, unless the tag filtering it leaves the
+  # document out.
+  defp list_document(socket, document) do
+    %{documents: documents, list_tag: list_tag} = socket.assigns
+
+    if list_tag && not Map.has_key?(documents, document.id),
+      do: socket,
+      else:
+        assign(socket,
+          documents:
+            Map.update(
+              documents,
+              document.id,
+              document,
+              &%{&1 | title: document.title, updated_at: document.updated_at}
+            )
+        )
+  end
+
+  # A new document: shown, the filter removed if any.
+  defp list_new_document(%{assigns: %{list_tag: nil}} = socket, document),
+    do: update(socket, :documents, &Map.put(&1, document.id, document))
+
+  defp list_new_document(socket, _document), do: put_list(socket, nil)
+
+  # The document of `id` now under the document of `parent_id`, `nil` for the
+  # root, in the sidebar and, if it is the open document or one of its
+  # ancestors, in the breadcrumb.
+  defp put_moved(socket, id, parent_id) do
+    %{documents: documents, document: document, ancestors: ancestors} = socket.assigns
+
+    socket =
+      if Map.has_key?(documents, id),
+        do: assign(socket, documents: Map.update!(documents, id, &%{&1 | parent_id: parent_id})),
+        else: socket
+
+    cond do
+      is_nil(document) ->
+        socket
+
+      document.id == id or Enum.any?(ancestors, &(&1.id == id)) ->
+        document = if document.id == id, do: %{document | parent_id: parent_id}, else: document
+        ancestors = Document.list_ancestors(document, socket.assigns.current_user)
+
+        assign(socket,
+          document: document,
+          ancestors: ancestors,
+          expanded: MapSet.union(socket.assigns.expanded, MapSet.new(ancestors, & &1.id))
+        )
+
+      true ->
+        socket
+    end
+  end
+
+  # Where the open document can go: the documents its user can write, but
+  # neither it, its descendants nor its parent, each with the titles of its
+  # parents (`{document, path}`), by path.
+  defp move_destinations(socket) do
+    %{document: document, current_user: user} = socket.assigns
+    documents = Map.new(Document.list_documents(user), &{&1.id, &1})
+    children = Enum.group_by(Map.values(documents), & &1.parent_id, & &1.id)
+    excluded = MapSet.new([document.parent_id | subtree(children, document.id)])
+
+    documents
+    |> Map.values()
+    |> Enum.filter(&(Policy.can?(&1.role, :write) and not MapSet.member?(excluded, &1.id)))
+    |> Enum.map(&{&1, title_path(documents, &1)})
+    |> Enum.sort_by(fn {document, path} ->
+      String.downcase(Enum.join(path ++ [document.title || ""], "/"))
+    end)
+  end
+
+  # `id` and the ids of its descendants, `children` giving the ids of each
+  # document's sub-documents.
+  defp subtree(children, id),
+    do: [id | Enum.flat_map(Map.get(children, id, []), &subtree(children, &1))]
+
+  # The titles of the parents of `document` among `documents`, from the root.
+  defp title_path(documents, document) do
+    case Map.get(documents, document.parent_id) do
+      nil -> []
+      parent -> title_path(documents, parent) ++ [parent.title || "Sans titre"]
+    end
   end
 
   # The form of a member's role, in their row of the share panel.
@@ -859,6 +1429,7 @@ defmodule TextexpWeb.DocumentLive do
     )
   end
 
+  defp role_label(:owner), do: "propriétaire"
   defp role_label(:editor), do: "éditeur"
   defp role_label(:viewer), do: "lecteur"
 

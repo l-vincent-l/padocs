@@ -48,7 +48,7 @@ defmodule Textexp.MixProject do
   defp deps do
     [
       {:tantivy_ex, github: "l-vincent-l/tantivy_ex"},
-       # {:tantivy_ex, path: "../tantivy_ex"},
+      # {:tantivy_ex, path: "../tantivy_ex"},
       # Builds tantivy_ex's NIF; overrides the requirements of tantivy_ex
       # (0.36) and y_ex (0.37), both optional.
       {:rustler, "~> 0.37", runtime: false, override: true},

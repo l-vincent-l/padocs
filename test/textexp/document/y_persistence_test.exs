@@ -233,6 +233,17 @@ defmodule Textexp.Document.YPersistenceTest do
       refute saved(document.id)
     end
 
+    test "keeps an empty document that has sub-documents", %{document: document} do
+      owner = Textexp.SqliteRepo.preload(document, :owner).owner
+      {:ok, _child} = Document.create_sub_document(document.id, owner)
+
+      doc = Yex.Doc.new()
+      state = YPersistence.bind(%{}, document.id, doc)
+      YPersistence.unbind(state, document.id, doc)
+
+      assert saved(document.id)
+    end
+
     test "keeps an untitled document with text", %{document: document} do
       unbind_with_body(document, [{"paragraph", ""}, {"paragraph", "hello"}])
 
