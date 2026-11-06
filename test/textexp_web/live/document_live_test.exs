@@ -413,6 +413,19 @@ defmodule TextexpWeb.DocumentLiveTest do
     end
   end
 
+  describe "sidebar" do
+    test "can be folded and resized, by the Sidebar hook", %{conn: conn} do
+      owner = register_user()
+      document = Fixtures.create_document!(owner)
+      {:ok, view, _html} = live(log_in(conn, owner), ~p"/documents/#{document.id}")
+
+      assert has_element?(view, "#app-drawer[phx-hook]")
+      assert has_element?(view, "#sidebar-collapse[data-sidebar-toggle]")
+      assert has_element?(view, "#sidebar-expand[data-sidebar-toggle]")
+      assert has_element?(view, ~s(#sidebar #sidebar-resize[role="separator"]))
+    end
+  end
+
   describe "sub-documents" do
     setup %{conn: conn} do
       owner = register_user()
@@ -649,45 +662,19 @@ defmodule TextexpWeb.DocumentLiveTest do
       refute has_element?(view, "#tags-#{tag.id}")
     end
 
-    test "a tag filters the sidebar's list by it, until the filter is removed",
+    test "a tag opens the search on the documents carrying it",
          %{owner: owner, document: document, view: view} do
       other = Fixtures.create_document!(owner, %{title: "Autre"})
       untagged = Fixtures.create_document!(owner, %{title: "Sans tag"})
       {:ok, tag} = Document.add_tag(document.id, owner, "Recettes")
       {:ok, _} = Document.add_tag(other.id, owner, "Recettes")
 
-      view |> element("#tags-#{tag.id} button[phx-click=filter_tag]") |> render_click()
+      view |> element("#tags-#{tag.id} button[phx-click=search_tag]") |> render_click()
 
-      refute has_element?(view, "#search-panel")
-      assert has_element?(view, "#documents-filter-tag", "Recettes")
-      assert has_element?(view, "#documents-#{document.id}")
-      assert has_element?(view, "#documents-#{other.id}")
-      refute has_element?(view, "#documents-#{untagged.id}")
-
-      # the search opens filtered by it
-      view |> element("#search-button") |> render_click()
       assert has_element?(view, "#search-panel #search-active-tag", "Recettes")
+      assert has_element?(view, "#search-results a[href='/documents/#{document.id}']")
       assert has_element?(view, "#search-results a[href='/documents/#{other.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{untagged.id}']")
-      view |> element("#search-close") |> render_click()
-
-      view |> element("#documents-filter-clear") |> render_click()
-
-      refute has_element?(view, "#documents-filter")
-      view |> element("#search-button") |> render_click()
-      refute has_element?(view, "#search-active-tag")
-      assert has_element?(view, "#documents-#{untagged.id}")
-    end
-
-    test "the filtered list follows the tags of the open document",
-         %{owner: owner, document: document, view: view} do
-      {:ok, tag} = Document.add_tag(document.id, owner, "Recettes")
-      view |> element("#tags-#{tag.id} button[phx-click=filter_tag]") |> render_click()
-      assert has_element?(view, "#documents-#{document.id}")
-
-      view |> element("#tags-#{tag.id} button[phx-click=remove_tag]") |> render_click()
-
-      refute has_element?(view, "#documents-#{document.id}")
     end
 
     test "a viewer sees the tags without changing them",
