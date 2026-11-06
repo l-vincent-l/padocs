@@ -476,6 +476,97 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
       refute has_element?(view, "#documents-#{parent.id}-new")
+      refute has_element?(view, ~s(#documents-#{child.id} > div[draggable="true"]))
+      refute has_element?(view, "#move-button")
+    end
+  end
+
+  describe "moving documents" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      %{conn: log_in(conn, owner), owner: owner, parent: parent, child: child, other: other}
+    end
+
+    test "a document dropped onto another goes under it, unfolded",
+         %{conn: conn, owner: owner, parent: parent, other: other} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+      assert has_element?(view, ~s(#documents-#{parent.id} > div[draggable="true"]))
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("move_document", %{"id" => parent.id, "parent_id" => other.id})
+
+      assert has_element?(view, "#documents-#{other.id} #documents-#{parent.id}")
+      assert {:ok, %{parent_id: parent_id}} = Document.get_document(parent.id, owner)
+      assert parent_id == other.id
+    end
+
+    test "a document dropped onto the root leaves its parent",
+         %{conn: conn, parent: parent, child: child} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("move_document", %{"id" => child.id, "parent_id" => nil})
+
+      refute has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+      assert has_element?(view, "#documents > #documents-#{child.id}")
+    end
+
+    test "a document cannot go under one of its descendants",
+         %{conn: conn, parent: parent, child: child} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("move_document", %{"id" => parent.id, "parent_id" => child.id})
+
+      assert has_element?(view, "#documents > #documents-#{parent.id}")
+      assert has_element?(view, "#flash-error")
+    end
+
+    test "the move panel moves the open document, the breadcrumb following",
+         %{conn: conn, parent: parent, child: child, other: other} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+      assert has_element?(view, "#breadcrumb-#{parent.id}")
+
+      view |> element("#move-button") |> render_click()
+      # neither its parent nor itself
+      refute has_element?(view, "#move-to-#{parent.id}")
+      refute has_element?(view, "#move-to-#{child.id}")
+      assert has_element?(view, "#move-to-root")
+
+      view |> element("#move-to-#{other.id}") |> render_click()
+
+      refute has_element?(view, "#move-panel")
+      assert has_element?(view, "#breadcrumb-#{other.id}")
+      refute has_element?(view, "#breadcrumb-#{parent.id}")
+      assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
+    end
+
+    test "the move panel moves the open document to the root",
+         %{conn: conn, parent: parent, child: child} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+
+      view |> element("#move-button") |> render_click()
+      view |> element("#move-to-root") |> render_click()
+
+      refute has_element?(view, "#breadcrumb")
+      refute has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
+    end
+
+    test "a move on another page shows in the sidebar",
+         %{conn: conn, owner: owner, child: child, other: other} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{other.id}")
+
+      {:ok, _} = Document.move_document(child.id, other.id, owner)
+
+      # the message is handled before the click
+      view |> element("#documents-#{other.id}-toggle") |> render_click()
+      assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
     end
   end
 
