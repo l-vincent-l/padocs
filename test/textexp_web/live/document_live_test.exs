@@ -413,6 +413,19 @@ defmodule TextexpWeb.DocumentLiveTest do
     end
   end
 
+  describe "sidebar" do
+    test "can be folded and resized, by the Sidebar hook", %{conn: conn} do
+      owner = register_user()
+      document = Fixtures.create_document!(owner)
+      {:ok, view, _html} = live(log_in(conn, owner), ~p"/documents/#{document.id}")
+
+      assert has_element?(view, "#app-drawer[phx-hook]")
+      assert has_element?(view, "#sidebar-collapse[data-sidebar-toggle]")
+      assert has_element?(view, "#sidebar-expand[data-sidebar-toggle]")
+      assert has_element?(view, ~s(#sidebar #sidebar-resize[role="separator"]))
+    end
+  end
+
   describe "sub-documents" do
     setup %{conn: conn} do
       owner = register_user()

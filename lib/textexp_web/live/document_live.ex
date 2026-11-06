@@ -14,15 +14,21 @@ defmodule TextexpWeb.DocumentLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} full_width sidebar>
       <link phx-track-static rel="stylesheet" href={~p"/assets/js/blocknote.css"} />
-      <div class="drawer lg:drawer-open min-h-dvh">
+      <%!-- On large screens, the menu folds and is resized (see the Sidebar
+           hook): its width is --sidebar-width --%>
+      <div
+        id="app-drawer"
+        phx-hook=".Sidebar"
+        class="group/drawer drawer lg:drawer-open min-h-dvh [--sidebar-width:16rem]"
+      >
         <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
         <div class="drawer-content flex flex-col">
-          <%!-- The menu's open button (small screens only), and sharing on the right,
-               above the title --%>
+          <%!-- The menu's open button (small screens, or the menu folded), and
+               sharing on the right, above the title --%>
           <div class={[
             "flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4",
-            !@can_share? && "lg:hidden"
+            !@can_share? && "lg:hidden lg:group-data-[collapsed]/drawer:flex"
           ]}>
             <label
               id="sidebar-open"
@@ -32,6 +38,17 @@ defmodule TextexpWeb.DocumentLive do
             >
               <.icon name="hero-bars-3" class="size-5" />
             </label>
+            <button
+              id="sidebar-expand"
+              type="button"
+              data-sidebar-toggle
+              aria-controls="sidebar"
+              aria-label="Déplier le menu"
+              title="Déplier le menu (Ctrl+\)"
+              class="btn btn-square btn-ghost btn-sm -ml-1 hidden lg:group-data-[collapsed]/drawer:inline-flex"
+            >
+              <.icon name="hero-chevron-double-right" class="size-5" />
+            </button>
             <button
               :if={@can_share?}
               id="move-button"
@@ -235,19 +252,60 @@ defmodule TextexpWeb.DocumentLive do
 
         <div class="drawer-side z-20">
           <label for="sidebar-drawer" aria-label="Fermer le menu" class="drawer-overlay"></label>
-          <div class="flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4">
+          <div
+            id="sidebar"
+            class={[
+              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width)",
+              "lg:group-data-[ready]/drawer:transition-[margin-left,visibility] lg:duration-200 lg:ease-out",
+              "lg:group-data-[resizing]/drawer:transition-none",
+              "lg:group-data-[collapsed]/drawer:invisible lg:group-data-[collapsed]/drawer:-ml-(--sidebar-width)"
+            ]}
+          >
             <div class="mb-3 flex items-center justify-between">
               <Layouts.logo class="px-1" />
-              <button
-                id="search-button"
-                type="button"
-                phx-click="open_search"
-                aria-label="Rechercher"
-                title="Rechercher"
-                class="btn btn-ghost btn-sm btn-square"
-              >
-                <.icon name="hero-magnifying-glass" class="size-5" />
-              </button>
+              <div class="flex items-center">
+                <button
+                  id="search-button"
+                  type="button"
+                  phx-click="open_search"
+                  aria-label="Rechercher"
+                  title="Rechercher"
+                  class="btn btn-ghost btn-sm btn-square"
+                >
+                  <.icon name="hero-magnifying-glass" class="size-5" />
+                </button>
+                <button
+                  id="sidebar-collapse"
+                  type="button"
+                  data-sidebar-toggle
+                  aria-controls="sidebar"
+                  aria-label="Replier le menu"
+                  title="Replier le menu (Ctrl+\)"
+                  class="btn btn-ghost btn-sm btn-square -mr-1 hidden lg:inline-flex"
+                >
+                  <.icon name="hero-chevron-double-left" class="size-5" />
+                </button>
+              </div>
+            </div>
+            <%!-- Dragged, or moved with the arrows, to resize the menu; a
+                 double click gives it back its width --%>
+            <div
+              id="sidebar-resize"
+              data-sidebar-resize
+              role="separator"
+              aria-orientation="vertical"
+              aria-controls="sidebar"
+              aria-label="Largeur du menu"
+              aria-valuemin="192"
+              aria-valuemax="480"
+              tabindex="0"
+              title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
+              class={[
+                "absolute inset-y-0 right-0 z-10 hidden w-1.5 cursor-col-resize touch-none lg:block",
+                "transition-colors hover:bg-base-content/30 focus-visible:bg-base-content/50 focus-visible:outline-none",
+                "group-data-[resizing]/drawer:bg-base-content/50"
+              ]}
+            >
             </div>
             <div class="mb-3 flex gap-2">
               <button
@@ -379,6 +437,117 @@ defmodule TextexpWeb.DocumentLive do
                 },
                 destroyed() {
                   clearTimeout(this.unfold)
+                }
+              }
+            </script>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".Sidebar">
+              // Folds the menu (its buttons, or Ctrl+\) and resizes it (its
+              // handle, dragged or moved with the arrows), on large screens. The
+              // choice is kept in this browser. The attributes it sets go through
+              // this.js(), so that LiveView's patches keep them.
+              const KEY = "textexp:sidebar"
+              const MIN = 192
+              const MAX = 480
+              const DEFAULT = 256
+
+              export default {
+                mounted() {
+                  const saved = this.load()
+                  this.width = this.clamp(Number(saved.width) || DEFAULT)
+                  this.collapsed = saved.collapsed === true
+                  this.handle = this.el.querySelector("[data-sidebar-resize]")
+                  this.apply()
+                  // Not animated before: the menu opens as it was left
+                  requestAnimationFrame(() => this.js().setAttribute(this.el, "data-ready", ""))
+
+                  this.el.addEventListener("click", e => {
+                    if (e.target.closest("[data-sidebar-toggle]")) this.toggle(true)
+                  })
+                  this.onKey = e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === "\\") {
+                      e.preventDefault()
+                      this.toggle(false)
+                    }
+                  }
+                  window.addEventListener("keydown", this.onKey)
+
+                  this.handle.addEventListener("pointerdown", e => this.resize(e))
+                  this.handle.addEventListener("dblclick", () => this.setWidth(DEFAULT))
+                  this.handle.addEventListener("keydown", e => {
+                    const step = e.shiftKey ? 64 : 16
+                    const width = {
+                      ArrowLeft: this.width - step,
+                      ArrowRight: this.width + step,
+                      Home: MIN,
+                      End: MAX
+                    }[e.key]
+                    if (width === undefined) return
+                    e.preventDefault()
+                    this.setWidth(width)
+                  })
+                },
+                destroyed() {
+                  window.removeEventListener("keydown", this.onKey)
+                },
+                // Follows the pointer until released; the width is kept then.
+                resize(e) {
+                  if (e.button !== 0) return
+                  e.preventDefault()
+                  const {clientX: startX, pointerId} = e
+                  const startWidth = this.width
+                  this.handle.setPointerCapture(pointerId)
+                  this.js().setAttribute(this.el, "data-resizing", "")
+                  const move = e => {
+                    this.width = this.clamp(startWidth + e.clientX - startX)
+                    this.apply()
+                  }
+                  const end = () => {
+                    this.handle.removeEventListener("pointermove", move)
+                    this.handle.removeEventListener("pointerup", end)
+                    this.handle.removeEventListener("pointercancel", end)
+                    this.js().removeAttribute(this.el, "data-resizing")
+                    this.save()
+                  }
+                  this.handle.addEventListener("pointermove", move)
+                  this.handle.addEventListener("pointerup", end)
+                  this.handle.addEventListener("pointercancel", end)
+                },
+                setWidth(width) {
+                  this.width = this.clamp(width)
+                  this.apply()
+                  this.save()
+                },
+                // From a button, the focus goes to the one that undoes it.
+                toggle(moveFocus) {
+                  this.collapsed = !this.collapsed
+                  this.apply()
+                  this.save()
+                  if (moveFocus)
+                    document.getElementById(this.collapsed ? "sidebar-expand" : "sidebar-collapse")?.focus()
+                },
+                apply() {
+                  const js = this.js()
+                  js.setAttribute(this.el, "style", `--sidebar-width: ${this.width}px`)
+                  if (this.collapsed) js.setAttribute(this.el, "data-collapsed", "")
+                  else js.removeAttribute(this.el, "data-collapsed")
+                  js.setAttribute(this.handle, "aria-valuenow", String(this.width))
+                  for (const button of this.el.querySelectorAll("[data-sidebar-toggle]"))
+                    js.setAttribute(button, "aria-expanded", String(!this.collapsed))
+                },
+                clamp(width) {
+                  return Math.round(Math.min(MAX, Math.max(MIN, width)))
+                },
+                load() {
+                  try {
+                    return JSON.parse(localStorage.getItem(KEY)) || {}
+                  } catch {
+                    return {}
+                  }
+                },
+                save() {
+                  try {
+                    localStorage.setItem(KEY, JSON.stringify({width: this.width, collapsed: this.collapsed}))
+                  } catch {}
                 }
               }
             </script>
