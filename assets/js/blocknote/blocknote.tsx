@@ -18,6 +18,7 @@ import { PhoenixChannelProvider } from "y-phoenix-channel";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { Socket } from "phoenix";
 import { BlockNoteEditor, User } from "@blocknote/core";
+import { watchSyncStatus } from "./sync_status";
 
 const usercolors = [
   "#30bced",
@@ -116,6 +117,8 @@ export function mountEditor(
     ydoc,
     { updateThrottle: 50, awarenessThrottle: 100 },
   );
+  const statusEl = el.querySelector<HTMLElement>("[data-sync-status]");
+  const stopSyncStatus = statusEl ? watchSyncStatus(statusEl, provider) : () => {};
   const persistence = new IndexeddbPersistence(`document:${documentId}`, ydoc);
   const fragment = ydoc.getXmlFragment("document-store");
   // The comments are kept in the document itself, synced along with it.
@@ -181,6 +184,7 @@ export function mountEditor(
     try {
       root.unmount();
     } finally {
+      stopSyncStatus();
       // leaves the document's channel, which stops tracking us as a viewer
       provider.destroy();
       persistence.destroy();

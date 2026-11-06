@@ -192,6 +192,43 @@ defmodule TextexpWeb.DocumentLive do
                 <div class="h-4 w-2/3 bg-base-300"></div>
               </div>
               <div data-editor hidden></div>
+              <%!-- State of the sync with the server, set by the editor in
+                     data-state: hidden while all is well, shown when the
+                     connection is lost or the document's server does not
+                     answer, then briefly once synced again (see
+                     assets/js/blocknote/sync_status.ts). --%>
+              <div
+                data-sync-status
+                data-state="hidden"
+                role="status"
+                aria-live="polite"
+                class={[
+                  "group pointer-events-none fixed bottom-5 left-1/2 z-30 -translate-x-1/2",
+                  "flex max-w-[calc(100vw-2rem)] items-center gap-2 border-2 border-base-content px-3 py-1.5",
+                  "text-sm font-medium shadow-[3px_3px_0_0_var(--color-base-content)]",
+                  "bg-base-100 text-base-content transition duration-300 ease-out",
+                  "data-[state=hidden]:translate-y-3 data-[state=hidden]:opacity-0",
+                  "data-[state=offline]:bg-warning data-[state=offline]:text-warning-content",
+                  "data-[state=server_down]:bg-error data-[state=server_down]:text-error-content",
+                  "data-[state=synced]:bg-success data-[state=synced]:text-success-content"
+                ]}
+              >
+                <span class="hidden items-center gap-2 group-data-[state=offline]:inline-flex">
+                  <.icon name="hero-signal-slash" class="size-4 shrink-0" />
+                  Hors ligne — vos modifications sont gardées sur cet appareil
+                </span>
+                <span class="hidden items-center gap-2 group-data-[state=syncing]:inline-flex">
+                  <.icon name="hero-arrow-path" class="size-4 shrink-0 motion-safe:animate-spin" />
+                  Synchronisation…
+                </span>
+                <span class="hidden items-center gap-2 group-data-[state=server_down]:inline-flex">
+                  <.icon name="hero-exclamation-triangle" class="size-4 shrink-0" />
+                  Le serveur ne répond pas, nouvel essai bientôt
+                </span>
+                <span class="hidden items-center gap-2 group-data-[state=synced]:inline-flex">
+                  <.icon name="hero-check" class="size-4 shrink-0" /> Synchronisé
+                </span>
+              </div>
             </div>
           </div>
         </div>
