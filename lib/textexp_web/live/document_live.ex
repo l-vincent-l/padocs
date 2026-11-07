@@ -259,29 +259,6 @@ defmodule TextexpWeb.DocumentLive do
                 </button>
               </div>
             </div>
-            <%!-- Dragged, or moved with the arrows, to resize the menu; a
-                 double click gives it back its width --%>
-            <div
-              id="sidebar-resize"
-              data-sidebar-resize
-              role="separator"
-              aria-orientation="vertical"
-              aria-controls="sidebar"
-              aria-label="Largeur du menu"
-              aria-valuemin="192"
-              aria-valuemax="480"
-              tabindex="0"
-              title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
-              class="group/handle absolute inset-y-0 right-0 z-10 hidden w-3 cursor-col-resize touch-none focus-visible:outline-none lg:block"
-            >
-              <%!-- What shows of the handle: a strip along the edge, the rest of
-                   its width only widening the area to grab --%>
-              <span class={[
-                "absolute inset-y-0 right-0 w-1.5 transition-colors",
-                "group-hover/handle:bg-base-content/30 group-focus-visible/handle:bg-base-content/50",
-                "group-data-[resizing]/drawer:bg-base-content/50"
-              ]}></span>
-            </div>
             <div class="mb-3 flex gap-2">
               <button
                 id="new-document"
@@ -524,6 +501,32 @@ defmodule TextexpWeb.DocumentLive do
             </script>
             <Layouts.account current_user={@current_user} />
           </div>
+        </div>
+        <%!-- Dragged, or moved with the arrows, to resize the menu; a double
+             click gives it back its width. Fixed on the menu's edge, outside it
+             (it clips what overflows): 6 px on the menu's side, where its strip
+             shows, 8 px on the document's side, only widening the area to grab --%>
+        <div
+          id="sidebar-resize"
+          data-sidebar-resize
+          role="separator"
+          aria-orientation="vertical"
+          aria-controls="sidebar"
+          aria-label="Largeur du menu"
+          aria-valuemin="192"
+          aria-valuemax="480"
+          tabindex="0"
+          title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
+          class={[
+            "group/handle fixed inset-y-0 left-[calc(var(--sidebar-width)-0.375rem)] z-30 hidden w-3.5",
+            "cursor-col-resize touch-none focus-visible:outline-none lg:block lg:group-data-[collapsed]/drawer:hidden"
+          ]}
+        >
+          <span class={[
+            "absolute inset-y-0 left-0 w-1.5 transition-colors",
+            "group-hover/handle:bg-base-content/30 group-focus-visible/handle:bg-base-content/50",
+            "group-data-[resizing]/drawer:bg-base-content/50"
+          ]}></span>
         </div>
       </div>
     </Layouts.app>

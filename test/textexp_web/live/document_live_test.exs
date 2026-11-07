@@ -431,7 +431,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert has_element?(view, "#app-drawer[phx-hook]")
       assert has_element?(view, "#sidebar-collapse[data-sidebar-toggle]")
       assert has_element?(view, "#sidebar-expand[data-sidebar-toggle]")
-      assert has_element?(view, ~s(#sidebar #sidebar-resize[role="separator"]))
+      assert has_element?(view, ~s(#app-drawer > #sidebar-resize[role="separator"]))
     end
   end
 
