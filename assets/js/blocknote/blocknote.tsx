@@ -19,6 +19,7 @@ import { IndexeddbPersistence } from "y-indexeddb";
 import { Socket } from "phoenix";
 import { BlockNoteEditor, User } from "@blocknote/core";
 import { watchSyncStatus } from "./sync_status";
+import type { ExportFormat } from "./export";
 
 const usercolors = [
   "#30bced",
@@ -92,12 +93,16 @@ function Editor({
  * `data-user-id`, `data-user-name`, and `data-editable`, `"false"` for a
  * read-only editor), which holds the loading skeleton and the
  * hidden editor node. `resolveUsers` gives the users of the given ids. Returns
- * the function that tears it all down.
+ * the function that tears it all down, and the one exporting the document as
+ * a file (see export.ts).
  */
 export function mountEditor(
   el: HTMLElement,
   { resolveUsers }: { resolveUsers: ResolveUsers },
-): () => void {
+): {
+  unmount: () => void;
+  exportDocument: (format: ExportFormat, filename: string) => Promise<{ missingFiles: number }>;
+} {
   const { documentId, userId } = el.dataset;
   if (!documentId || !userId) {
     throw new Error("data-document-id or data-user-id missing on the editor element");
@@ -176,10 +181,17 @@ export function mountEditor(
     />,
   );
 
+  // Its exporters are only loaded when used.
+  const exportDocument = async (format: ExportFormat, filename: string) => {
+    if (!editor) throw new Error("the editor is not ready");
+    const { exportDocument } = await import("./export");
+    return exportDocument(editor, format, filename);
+  };
+
   // The document's channel and sync are torn down even if React fails to
   // unmount: otherwise they would keep running in the background, one more
   // for each document opened.
-  return () => {
+  const unmount = () => {
     el.removeEventListener("mousedown", editAtEnd);
     try {
       root.unmount();
@@ -191,4 +203,6 @@ export function mountEditor(
       ydoc.destroy();
     }
   };
+
+  return { unmount, exportDocument };
 }

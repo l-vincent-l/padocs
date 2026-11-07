@@ -25,6 +25,9 @@ defmodule TextexpWeb.Router do
       live "/documents", DocumentLive, :index
       live "/documents/:id", DocumentLive, :show
     end
+
+    # A document as a file: PDF, Markdown or Typst (see ExportController)
+    get "/documents/:id/export/:format", ExportController, :show
   end
 
   scope "/", TextexpWeb do
