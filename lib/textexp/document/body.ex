@@ -35,5 +35,8 @@ defmodule Textexp.Document.Body do
   @doc "See `YBlocknote.to_markdown/1`."
   def to_markdown(doc), do: doc |> fragment() |> YBlocknote.to_markdown()
 
+  @doc "See `YBlocknote.Typst.to_typst/2`."
+  def to_typst(doc, opts \\ []), do: doc |> fragment() |> YBlocknote.Typst.to_typst(opts)
+
   defp fragment(doc), do: Yex.Doc.get_xml_fragment(doc, @fragment)
 end

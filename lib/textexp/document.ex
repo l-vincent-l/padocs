@@ -387,17 +387,54 @@ defmodule Textexp.Document do
   @doc "The body of a document as Markdown, from its saved snapshot."
   def markdown(%Document{snapshot: snapshot}), do: body(snapshot, :markdown)
 
+  @doc """
+  A document as a Typst file, its title above its body, from its saved
+  snapshot (see `YBlocknote.Typst`).
+  """
+  def typst(%Document{snapshot: snapshot, title: title}),
+    do: body(snapshot, {:typst, title: title, lang: "fr"})
+
+  @doc """
+  The name of a file exported from a document, without extension: its title
+  without the characters file systems refuse, nor runs of spaces.
+  """
+  def export_filename(%{title: title}) do
+    case title && title |> String.replace(~r{[/\\:*?"<>|\x00-\x1f\s]+}, " ") |> String.trim() do
+      blank when blank in [nil, ""] -> "Sans titre"
+      name -> String.slice(name, 0, 120)
+    end
+  end
+
+  @doc """
+  A document as a PDF, compiled from `typst/1`: `{:ok, pdf}`, or
+  `{:error, reason}`.
+  """
+  def pdf(%Document{} = document) do
+    # Typst.render_to_pdf/3 runs its markup through EEx first: a `<%` written
+    # in a document must stay text, not become Elixir code.
+    markup = document |> typst() |> String.replace("<%", "<%%")
+
+    # Typst can read the files under its root directory: an empty one.
+    root = Path.join(System.tmp_dir!(), "textexp-typst-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(root)
+
+    try do
+      Typst.render_to_pdf(markup, [], root_dir: root)
+    after
+      File.rm_rf(root)
+    end
+  end
+
   # While the document is being edited, it can miss the changes of the last
   # seconds (see YPersistence).
-  defp body(nil, _format), do: ""
-
   defp body(snapshot, format) do
     doc = Yex.Doc.new()
-    Yex.apply_update(doc, snapshot)
+    if snapshot, do: Yex.apply_update(doc, snapshot)
 
     case format do
       :markdown -> Body.to_markdown(doc)
       :text -> Body.text(doc)
+      {:typst, opts} -> Body.to_typst(doc, opts)
     end
   end
 
