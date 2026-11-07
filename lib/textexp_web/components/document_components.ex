@@ -49,7 +49,18 @@ defmodule TextexpWeb.DocumentComponents do
         :if={is_list(@document.tags) and @document.tags != []}
         class="mt-1 flex flex-wrap gap-1 sm:mt-1.5"
       >
-        <.tag_badge :for={tag <- @document.tags} tag={tag} />
+        <%!-- On small screens, the first two, then how many others --%>
+        <.tag_badge
+          :for={{tag, index} <- Enum.with_index(@document.tags)}
+          tag={tag}
+          class={index >= 2 && "max-sm:hidden"}
+        />
+        <span
+          :if={length(@document.tags) > 2}
+          class="text-[0.6875rem] text-base-content/60 sm:hidden"
+        >
+          +{length(@document.tags) - 2}
+        </span>
       </div>
       <%!-- On one line: whitespace between the segments, or around the excerpt,
            would show --%>
