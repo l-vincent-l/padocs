@@ -81,7 +81,7 @@ defmodule TextexpWeb.SearchModal do
         role="dialog"
         aria-modal="true"
         aria-labelledby="search-title"
-        class="modal-box flex max-h-[80dvh] w-11/12 max-w-2xl flex-col border-2 border-base-content bg-base-100 p-5 shadow-hard sm:p-6"
+        class="modal-box flex max-h-[85dvh] w-11/12 max-w-2xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
       >
         <div class="flex items-start justify-between gap-4">
           <h2 id="search-title" class="text-sm uppercase">Rechercher</h2>
@@ -244,7 +244,7 @@ defmodule TextexpWeb.SearchModal do
           role="listbox"
           aria-label="Résultats"
           phx-update="stream"
-          class="-mr-2 -ml-1 mt-3 flex min-h-0 flex-col gap-3 overflow-y-auto pt-1 pr-2 pb-2 pl-1"
+          class="-mr-2 -ml-1 mt-3 flex min-h-0 flex-col gap-2 overflow-y-auto pt-1 pr-2 pb-2 pl-1 sm:gap-3"
         >
           <li
             id="search-results-empty"
@@ -294,15 +294,15 @@ defmodule TextexpWeb.SearchModal do
 
   defp trashed_card(assigns) do
     ~H"""
-    <div class="flex items-center justify-between gap-4 border-2 border-dashed border-base-content/50 bg-base-100 px-5 py-3">
+    <div class="flex items-center justify-between gap-2 border-2 border-dashed border-base-content/50 bg-base-100 px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
       <div class="min-w-0">
         <h3 class={[
-          "truncate text-base font-medium",
+          "line-clamp-2 text-sm font-medium sm:truncate sm:text-base",
           if(@document.title, do: "text-base-content/80", else: "text-base-content/50")
         ]}>
           {@document.title || "Sans titre"}
         </h3>
-        <p class="text-xs text-base-content/60">
+        <p class="text-[0.6875rem] text-base-content/60 sm:text-xs">
           Supprimé le {Calendar.strftime(@document.deleted_at, "%d/%m/%Y %H:%M")} UTC
         </p>
       </div>
@@ -313,9 +313,12 @@ defmodule TextexpWeb.SearchModal do
           phx-click="restore"
           phx-value-id={@document.id}
           phx-target={@myself}
-          class="btn btn-sm border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
+          aria-label={"Restaurer « #{@document.title || "Sans titre"} »"}
+          title="Restaurer"
+          class="btn btn-sm border-base-content bg-base-100 px-2 hover:bg-primary hover:text-primary-content sm:px-3"
         >
-          <.icon name="hero-arrow-uturn-left" class="size-4" /> Restaurer
+          <.icon name="hero-arrow-uturn-left" class="size-4" />
+          <span class="hidden sm:inline">Restaurer</span>
         </button>
         <button
           id={"purge-#{@document.id}"}
