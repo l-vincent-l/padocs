@@ -227,7 +227,7 @@ defmodule TextexpWeb.DocumentLive do
           <div
             id="sidebar"
             class={[
-              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width) lg:pr-7",
+              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width)",
               "lg:group-data-[ready]/drawer:transition-[margin-left,visibility] lg:duration-200 lg:ease-out",
               "lg:group-data-[resizing]/drawer:transition-none",
               "lg:group-data-[collapsed]/drawer:invisible lg:group-data-[collapsed]/drawer:-ml-(--sidebar-width)"
@@ -272,22 +272,15 @@ defmodule TextexpWeb.DocumentLive do
               aria-valuemax="480"
               tabindex="0"
               title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
-              class={[
-                "group/handle absolute inset-y-0 right-0 z-10 hidden w-3 cursor-col-resize touch-none lg:block",
-                "border-l border-dotted border-base-content/30 transition-colors",
-                "hover:bg-base-content/10 focus-visible:bg-base-content/10 focus-visible:outline-none",
-                "group-data-[resizing]/drawer:bg-base-content/10"
-              ]}
+              class="group/handle absolute inset-y-0 right-0 z-10 hidden w-3 cursor-col-resize touch-none focus-visible:outline-none lg:block"
             >
-              <%!-- The grip, in the middle of the screen --%>
+              <%!-- What shows of the handle: a strip along the edge, the rest of
+                   its width only widening the area to grab --%>
               <span class={[
-                "sticky top-1/2 mx-auto flex h-10 w-1.5 -translate-y-1/2 justify-between",
-                "*:w-px *:bg-base-content/40 *:transition-colors",
-                "group-hover/handle:*:bg-base-content group-focus-visible/handle:*:bg-base-content",
-                "group-data-[resizing]/drawer:*:bg-base-content"
-              ]}>
-                <span></span><span></span>
-              </span>
+                "absolute inset-y-0 right-0 w-1.5 transition-colors",
+                "group-hover/handle:bg-base-content/30 group-focus-visible/handle:bg-base-content/50",
+                "group-data-[resizing]/drawer:bg-base-content/50"
+              ]}></span>
             </div>
             <div class="mb-3 flex gap-2">
               <button
