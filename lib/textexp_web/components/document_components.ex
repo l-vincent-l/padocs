@@ -10,8 +10,9 @@ defmodule TextexpWeb.DocumentComponents do
     statics: TextexpWeb.static_paths()
 
   @doc """
-  A document of a list, as a card linking to it: its title, last update and
-  excerpt (the first lines of its body).
+  A document of a list, as a card linking to it: its title, last update, tags
+  if loaded (see `Textexp.Document.with_tags/1`) and excerpt (the first lines
+  of its body).
 
   The document needs its `title`, `excerpt` and `updated_at`. In search
   results, `snippet` replaces the excerpt: the fragment of the body where the
@@ -39,6 +40,12 @@ defmodule TextexpWeb.DocumentComponents do
         >
           {Calendar.strftime(@document.updated_at, "%d/%m/%Y %H:%M")} UTC
         </time>
+      </div>
+      <div
+        :if={is_list(@document.tags) and @document.tags != []}
+        class="mt-1.5 flex flex-wrap gap-1"
+      >
+        <.tag_badge :for={tag <- @document.tags} tag={tag} />
       </div>
       <%!-- On one line: whitespace between the segments would show --%>
       <p

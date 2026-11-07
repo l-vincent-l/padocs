@@ -871,6 +871,22 @@ defmodule Textexp.Document do
     |> Tag.sort_by_label()
   end
 
+  @doc "`documents` with their `tags`, each's by label, in two queries."
+  def with_tags(documents) do
+    tags =
+      Repo.all(
+        from t in Tag,
+          join: l in TagDocument,
+          on: l.tag_id == t.id,
+          where: l.document_id in ^Enum.map(documents, & &1.id),
+          select: {l.document_id, t}
+      )
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    for document <- documents,
+        do: %{document | tags: Tag.sort_by_label(Map.get(tags, document.id, []))}
+  end
+
   @doc "The tags `user` can see, by label: those of the documents they can read."
   def visible_tags(user), do: user |> visible_tags_query() |> Repo.all() |> Tag.sort_by_label()
 

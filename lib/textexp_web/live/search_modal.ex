@@ -420,7 +420,7 @@ defmodule TextexpWeb.SearchModal do
 
     socket
     |> assign(failed?: false, searched?: false, list_count: length(documents))
-    |> stream(:results, documents, reset: true)
+    |> stream(:results, Document.with_tags(documents), reset: true)
   end
 
   defp search(socket, query) do
@@ -480,7 +480,7 @@ defmodule TextexpWeb.SearchModal do
   defp show_results(socket, {:ok, documents}) do
     socket
     |> assign(loading?: false, failed?: false, searched?: true)
-    |> stream(:results, documents, reset: true)
+    |> stream(:results, Document.with_tags(documents), reset: true)
   end
 
   defp show_results(socket, {:error, _reason}) do

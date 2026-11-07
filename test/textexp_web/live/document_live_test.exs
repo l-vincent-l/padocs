@@ -932,8 +932,17 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       view = open_search(conn, open)
 
+      {:ok, tag} = Document.add_tag(open.id, user, "Recettes")
+
       view |> element("#search-list-own") |> render_click()
       assert has_element?(view, ~s(#search-list-own[aria-pressed="true"]))
+      # with their tags
+      assert has_element?(
+               view,
+               ~s(#search-results a[href='/documents/#{open.id}'] [data-color="#{tag.color}"]),
+               "Recettes"
+             )
+
       assert has_element?(view, "#search-results a[href='/documents/#{open.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
 
