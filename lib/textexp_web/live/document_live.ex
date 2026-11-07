@@ -26,10 +26,7 @@ defmodule TextexpWeb.DocumentLive do
         <div class="drawer-content flex flex-col">
           <%!-- The menu's open button (small screens only), and the document's
                actions on the right, above the title --%>
-          <div class={[
-            "flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4",
-            !@can_share? && "lg:hidden"
-          ]}>
+          <div class="flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4">
             <label
               id="sidebar-open"
               for="sidebar-drawer"
@@ -38,7 +35,7 @@ defmodule TextexpWeb.DocumentLive do
             >
               <.icon name="hero-bars-3" class="size-5" />
             </label>
-            <.document_actions :if={@can_share?} />
+            <.document_actions :if={@document} document={@document} can_share?={@can_share?} />
           </div>
 
           <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
@@ -722,9 +719,12 @@ defmodule TextexpWeb.DocumentLive do
     """
   end
 
-  # The menu of the document's actions, for its owner: sharing, moving it, and
-  # putting it in the trash.
-  # Opened and closed in the browser; closed by a click outside or Escape.
+  attr :document, :any, required: true
+  attr :can_share?, :boolean, required: true
+
+  # The menu of the document's actions: exporting it, and for its owner,
+  # sharing, moving it, and putting it in the trash. Opened and closed in the
+  # browser; closed by a click outside or Escape.
   defp document_actions(assigns) do
     ~H"""
     <div id="document-actions" class="relative ml-auto" phx-click-away={hide_actions()}>
@@ -735,7 +735,7 @@ defmodule TextexpWeb.DocumentLive do
         aria-expanded="false"
         aria-controls="document-actions-menu"
         aria-label="Actions du document"
-        title="Partager, déplacer…"
+        title={if(@can_share?, do: "Partager, déplacer, exporter…", else: "Exporter…")}
         phx-click={toggle_actions()}
         class="btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content aria-expanded:bg-primary aria-expanded:text-primary-content"
       >
@@ -747,16 +747,34 @@ defmodule TextexpWeb.DocumentLive do
         aria-labelledby="document-actions-button"
         phx-window-keydown={hide_actions()}
         phx-key="Escape"
-        class="absolute right-0 top-full z-30 mt-2 hidden w-56 border-2 border-base-content bg-base-100 py-1 shadow-hard"
+        class="absolute right-0 top-full z-30 mt-2 hidden w-60 border-2 border-base-content bg-base-100 py-1 shadow-hard"
       >
-        <.action_item id="share-button" icon="hero-user-plus" event="toggle_share">
-          Partager…
-        </.action_item>
-        <.action_item id="move-button" icon="hero-arrows-right-left" event="open_move">
-          Déplacer vers…
-        </.action_item>
-        <div class="my-1 border-t border-dotted border-base-content/30"></div>
+        <%= if @can_share? do %>
+          <.action_item id="share-button" icon="hero-user-plus" event="toggle_share">
+            Partager…
+          </.action_item>
+          <.action_item id="move-button" icon="hero-arrows-right-left" event="open_move">
+            Déplacer vers…
+          </.action_item>
+          <div class="my-1 border-t border-dotted border-base-content/30"></div>
+        <% end %>
+        <p class="px-3 pt-1.5 pb-0.5 text-xs text-base-content/60">Exporter en</p>
+        <%!-- PDF, Markdown and Typst: made on the server, downloaded; Word and
+             OpenDocument: made from the editor (see the DocumentEditor hook) --%>
+        <.export_link document={@document} format="pdf" icon="hero-document-arrow-down">
+          PDF
+        </.export_link>
+        <.export_item format="docx" icon="hero-document-text">Word (.docx)</.export_item>
+        <.export_item format="odt" icon="hero-document-text">OpenDocument (.odt)</.export_item>
+        <.export_link document={@document} format="md" icon="hero-hashtag">
+          Markdown (.md)
+        </.export_link>
+        <.export_link document={@document} format="typ" icon="hero-code-bracket">
+          Typst (.typ)
+        </.export_link>
+        <div :if={@can_share?} class="my-1 border-t border-dotted border-base-content/30"></div>
         <button
+          :if={@can_share?}
           id="trash-button"
           type="button"
           role="menuitem"
@@ -768,6 +786,47 @@ defmodule TextexpWeb.DocumentLive do
         </button>
       </div>
     </div>
+    """
+  end
+
+  attr :document, :any, required: true
+  attr :format, :string, required: true
+  attr :icon, :string, required: true
+  slot :inner_block, required: true
+
+  # A file made on the server (see ExportController).
+  defp export_link(assigns) do
+    ~H"""
+    <a
+      id={"export-#{@format}"}
+      href={~p"/documents/#{@document.id}/export/#{@format}"}
+      download
+      role="menuitem"
+      class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm no-underline transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+    >
+      <.icon name={@icon} class="size-4 shrink-0" />
+      {render_slot(@inner_block)}
+    </a>
+    """
+  end
+
+  attr :format, :string, required: true
+  attr :icon, :string, required: true
+  slot :inner_block, required: true
+
+  # A file made from the editor, in the browser.
+  defp export_item(assigns) do
+    ~H"""
+    <button
+      id={"export-#{@format}"}
+      type="button"
+      role="menuitem"
+      phx-click={hide_actions() |> JS.push("export", value: %{format: @format})}
+      class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+    >
+      <.icon name={@icon} class="size-4 shrink-0" />
+      {render_slot(@inner_block)}
+    </button>
     """
   end
 
@@ -1478,6 +1537,31 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
+
+  # A Word or OpenDocument file, made from the editor by the DocumentEditor
+  # hook, which answers with export_done or export_failed.
+  def handle_event("export", %{"format" => format}, socket) when format in ["docx", "odt"] do
+    {:noreply,
+     push_event(socket, "export_document", %{
+       format: format,
+       filename: Document.export_filename(socket.assigns.document)
+     })}
+  end
+
+  def handle_event("export_done", %{"missing_files" => missing}, socket)
+      when is_integer(missing) and missing > 0 do
+    message =
+      if missing == 1,
+        do: "Une image n'a pas pu être récupérée : l'export est sans elle",
+        else: "#{missing} images n'ont pas pu être récupérées : l'export est sans elles"
+
+    {:noreply, put_flash(socket, :error, message)}
+  end
+
+  def handle_event("export_done", _params, socket), do: {:noreply, socket}
+
+  def handle_event("export_failed", _params, socket),
+    do: {:noreply, put_flash(socket, :error, "L'export a échoué")}
 
   # With its sub-documents; the page then opens another document. The other
   # pages showing them leave them too (see the :document_deleted message).

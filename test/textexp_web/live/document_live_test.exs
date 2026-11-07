@@ -496,7 +496,11 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
       refute has_element?(view, "#documents-#{parent.id}-new")
       refute has_element?(view, ~s(#documents-#{child.id} > div[draggable="true"]))
-      refute has_element?(view, "#document-actions")
+      # the menu only exports
+      assert has_element?(view, "#export-pdf")
+      refute has_element?(view, "#share-button")
+      refute has_element?(view, "#move-button")
+      refute has_element?(view, "#trash-button")
     end
   end
 
@@ -1059,6 +1063,41 @@ defmodule TextexpWeb.DocumentLiveTest do
       :ok = Document.trash_document(open.id, user)
 
       assert_redirect(view, ~p"/documents")
+    end
+  end
+
+  describe "export" do
+    setup %{conn: conn} do
+      user = register_user()
+      document = Fixtures.create_document!(user, %{title: "Rapport: final"})
+      {:ok, view, _html} = live(log_in(conn, user), ~p"/documents/#{document.id}")
+      %{view: view, document: document}
+    end
+
+    test "PDF, Markdown and Typst are downloaded from the server",
+         %{view: view, document: document} do
+      for format <- ["pdf", "md", "typ"] do
+        assert has_element?(
+                 view,
+                 ~s(a#export-#{format}[download][href="/documents/#{document.id}/export/#{format}"])
+               )
+      end
+    end
+
+    test "Word and OpenDocument are made by the editor, which reports back",
+         %{view: view} do
+      view |> element("#export-docx") |> render_click()
+      assert_push_event(view, "export_document", %{format: "docx", filename: "Rapport final"})
+
+      view |> element("#export-odt") |> render_click()
+      assert_push_event(view, "export_document", %{format: "odt"})
+
+      editor = element(view, "[phx-hook=DocumentEditor]")
+      render_hook(editor, "export_done", %{"format" => "docx", "missing_files" => 2})
+      assert has_element?(view, "#flash-error", "2 images")
+
+      render_hook(editor, "export_failed", %{"format" => "odt"})
+      assert has_element?(view, "#flash-error", "L'export a échoué")
     end
   end
 end
