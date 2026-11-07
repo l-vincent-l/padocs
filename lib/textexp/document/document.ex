@@ -13,8 +13,8 @@ defmodule Textexp.Document.Document do
 
   A deleted document goes to the trash with its sub-documents: `deleted_at`
   is set on each, `deleted_by` is the user who deleted it. Nobody reads it
-  there; its owner or that user restores it, or deletes it for good (see
-  `Textexp.Document.trash_document/2`).
+  there; its owner, maybe by inheritance, restores it, or deletes it for good
+  (see `Textexp.Document.trash_document/2`).
 
   `role` is the reader's right on it, read along with it (see
   `Textexp.Document.get_document/2`); `snippet`, the fragment of its body

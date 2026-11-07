@@ -625,19 +625,24 @@ defmodule Textexp.Document do
   end
 
   # The documents in the trash `user` can restore or delete for good: those
-  # they own or deleted. Only those deleted with none of their parents, the
-  # others going with them.
+  # they are the owner of now, maybe by inheritance (ranks/1 ignores the
+  # trash), as was needed to put them there. Not by having deleted them: they
+  # may since have lost that right, e.g. the document moved away. Only those
+  # deleted with none of their parents, the others going with them.
   defp trash(user) do
     from d in Document,
       as: :document,
+      join: a in subquery(ranks(user)),
+      on: a.id == d.id and a.rank == ^@ranks.owner,
       left_join: p in Document,
       on: p.id == d.parent_id,
-      where:
-        not is_nil(d.deleted_at) and is_nil(p.deleted_at) and
-          (d.owner_id == ^user.id or d.deleted_by_id == ^user.id)
+      where: not is_nil(d.deleted_at) and is_nil(p.deleted_at)
   end
 
-  @doc "The documents in `user`'s trash, the last deleted first."
+  @doc """
+  The documents in `user`'s trash, the last deleted first: those they own now,
+  maybe by inheritance.
+  """
   def list_trash(user) do
     trash(user)
     |> order_by([document: d], desc: d.deleted_at)
