@@ -5,7 +5,13 @@ defmodule TextexpWeb.SearchModal do
   which stops it when the modal closes, freeing the index. Each search runs in
   a task, as it waits for the index while it is being built.
 
-  Under the empty field, the user's 4 most searched tags are offered (see
+  Under the empty field, lists of documents, picked by buttons: the user's
+  recent documents (first), their own, those shared with them, and their
+  trash, where a document is restored or deleted for good. Restoring one sends
+  `{:document_restored, message}` to the LiveView, whose sidebar may show it
+  again, and which shows `message`.
+
+  Under the empty field too, the user's 4 most searched tags are offered (see
   `Textexp.Document.top_tags/2`), and "…" lists all of them, by label. Under a
   query, the tags whose label contains it. One picked becomes a filter: the results are then the documents carrying it,
   those matching the query if there is one. The LiveView can open the modal
@@ -21,6 +27,13 @@ defmodule TextexpWeb.SearchModal do
   alias Textexp.Document
   alias Textexp.Document.SearchIndex
 
+  @lists [
+    recent: {"Récents", "hero-clock", "Aucun document ouvert récemment"},
+    own: {"Mes documents", "hero-user", "Vous n'avez pas encore de document"},
+    shared: {"Partagés", "hero-users", "Aucun document partagé avec vous"},
+    trash: {"Corbeille", "hero-trash", "La corbeille est vide"}
+  ]
+
   def mount(socket) do
     {:ok,
      socket
@@ -35,6 +48,10 @@ defmodule TextexpWeb.SearchModal do
        more_tags?: false,
        all_tags?: false,
        tag: nil,
+       # The list shown under the empty field (see @lists), and how many
+       # documents it has
+       list: :recent,
+       list_count: 0,
        initialized?: false
      )
      |> stream(:results, [])}
@@ -49,7 +66,7 @@ defmodule TextexpWeb.SearchModal do
     cond do
       socket.assigns.initialized? -> {:ok, socket}
       tag -> {:ok, socket |> assign(initialized?: true) |> put_tag(tag)}
-      true -> {:ok, socket |> assign(initialized?: true) |> put_top_tags()}
+      true -> {:ok, socket |> assign(initialized?: true) |> put_top_tags() |> put_list()}
     end
   end
 
@@ -160,6 +177,44 @@ defmodule TextexpWeb.SearchModal do
             …
           </button>
         </div>
+        <%!-- The lists of documents, under the empty field --%>
+        <div
+          :if={browsing?(assigns)}
+          id="search-lists"
+          class="mt-3 flex flex-wrap items-center gap-1.5"
+        >
+          <button
+            :for={{name, {label, icon, _empty}} <- lists()}
+            id={"search-list-#{name}"}
+            type="button"
+            phx-click={
+              JS.push("show_list", value: %{list: name}, target: @myself)
+              |> JS.focus(to: "#search-modal-query")
+            }
+            aria-pressed={to_string(@list == name)}
+            class={[
+              "flex cursor-pointer items-center gap-1.5 border-2 px-2.5 py-1 text-xs transition-colors",
+              if(@list == name,
+                do: "border-base-content bg-base-content text-base-100",
+                else:
+                  "border-base-content/30 text-base-content/70 hover:border-base-content hover:text-base-content"
+              )
+            ]}
+          >
+            <.icon name={icon} class="size-3.5" /> {label}
+          </button>
+          <button
+            :if={@list == :trash and @list_count > 0}
+            id="search-empty-trash"
+            type="button"
+            phx-click="empty_trash"
+            phx-target={@myself}
+            data-confirm="Supprimer définitivement tous les documents de la corbeille ?"
+            class="ml-auto cursor-pointer text-xs text-error decoration-dotted underline-offset-2 hover:underline"
+          >
+            Vider la corbeille
+          </button>
+        </div>
         <%!-- Best match first. ↑ ↓ and Enter in the field select and open them
              (see the SearchNav hook). Its padding leaves room for the selected or
              hovered card, raised with a shadow, which it would otherwise cut. --%>
@@ -180,17 +235,23 @@ defmodule TextexpWeb.SearchModal do
               <% @searched? -> %>
                 Aucun résultat
               <% true -> %>
-                Titres, contenu et tags des documents
+                {list_empty_text(@list)}
             <% end %>
           </li>
-          <li
-            :for={{id, document} <- @streams.results}
-            id={id}
-            role="option"
-            class="[&[aria-selected=true]>a]:-translate-x-0.5 [&[aria-selected=true]>a]:-translate-y-0.5 [&[aria-selected=true]>a]:shadow-hard"
-          >
-            <.document_card document={document} snippet={document.snippet} />
-          </li>
+          <%= for {id, document} <- @streams.results do %>
+            <%!-- In the trash, not opened: restored or deleted for good --%>
+            <li :if={document.deleted_at} id={id}>
+              <.trashed_card document={document} myself={@myself} />
+            </li>
+            <li
+              :if={!document.deleted_at}
+              id={id}
+              role="option"
+              class="[&[aria-selected=true]>a]:-translate-x-0.5 [&[aria-selected=true]>a]:-translate-y-0.5 [&[aria-selected=true]>a]:shadow-hard"
+            >
+              <.document_card document={document} snippet={document.snippet} />
+            </li>
+          <% end %>
         </ul>
         <p class="mt-3 hidden text-xs text-base-content/60 sm:block">
           ↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer
@@ -205,6 +266,90 @@ defmodule TextexpWeb.SearchModal do
       ></button>
     </div>
     """
+  end
+
+  attr :document, :map, required: true
+  attr :myself, :any, required: true
+
+  defp trashed_card(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between gap-4 border-2 border-dashed border-base-content/50 bg-base-100 px-5 py-3">
+      <div class="min-w-0">
+        <h3 class={[
+          "truncate text-base font-medium",
+          if(@document.title, do: "text-base-content/80", else: "text-base-content/50")
+        ]}>
+          {@document.title || "Sans titre"}
+        </h3>
+        <p class="text-xs text-base-content/60">
+          Supprimé le {Calendar.strftime(@document.deleted_at, "%d/%m/%Y %H:%M")} UTC
+        </p>
+      </div>
+      <div class="flex shrink-0 items-center gap-1">
+        <button
+          id={"restore-#{@document.id}"}
+          type="button"
+          phx-click="restore"
+          phx-value-id={@document.id}
+          phx-target={@myself}
+          class="btn btn-sm border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
+        >
+          <.icon name="hero-arrow-uturn-left" class="size-4" /> Restaurer
+        </button>
+        <button
+          id={"purge-#{@document.id}"}
+          type="button"
+          phx-click="purge"
+          phx-value-id={@document.id}
+          phx-target={@myself}
+          data-confirm={"Supprimer définitivement « #{@document.title || "Sans titre"} » et ses sous-documents ?"}
+          aria-label={"Supprimer définitivement « #{@document.title || "Sans titre"} »"}
+          title="Supprimer définitivement"
+          class="btn btn-ghost btn-sm btn-square text-error"
+        >
+          <.icon name="hero-x-mark" class="size-5" />
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp lists, do: @lists
+
+  defp list_empty_text(list), do: @lists |> Keyword.fetch!(list) |> elem(2)
+
+  # The field is empty, without tag: the lists are shown.
+  defp browsing?(%{tag: tag, form: form}),
+    do: is_nil(tag) and String.trim(form[:query].value || "") == ""
+
+  def handle_event("show_list", %{"list" => list}, socket) do
+    case Enum.find(Keyword.keys(@lists), &(Atom.to_string(&1) == list)) do
+      nil -> {:noreply, socket}
+      list -> {:noreply, socket |> assign(list: list) |> put_list()}
+    end
+  end
+
+  def handle_event("restore", %{"id" => id}, socket) do
+    case Document.restore_document(id, socket.assigns.user) do
+      {:ok, document} ->
+        # The LiveView shows it in its sidebar if it belongs there, and the
+        # flash, which a component's would not reach
+        send(self(), {:document_restored, "« #{document.title || "Sans titre"} » restauré"})
+        {:noreply, put_list(socket)}
+
+      {:error, _} ->
+        {:noreply, put_list(socket)}
+    end
+  end
+
+  def handle_event("purge", %{"id" => id}, socket) do
+    _ = Document.purge_document(id, socket.assigns.user)
+    {:noreply, put_list(socket)}
+  end
+
+  def handle_event("empty_trash", _params, socket) do
+    :ok = Document.empty_trash(socket.assigns.user)
+    {:noreply, put_list(socket)}
   end
 
   def handle_event("search", %{"search" => %{"query" => query}}, socket) do
@@ -261,6 +406,23 @@ defmodule TextexpWeb.SearchModal do
     assign(socket, tag_suggestions: Enum.take(tags, 4), more_tags?: length(tags) > 4)
   end
 
+  # The list picked, under the empty field.
+  defp put_list(socket) do
+    user = socket.assigns.user
+
+    documents =
+      case socket.assigns.list do
+        :recent -> Document.list_recent_documents(user)
+        :own -> Document.list_own_documents(user)
+        :shared -> Document.list_shared_documents(user)
+        :trash -> Document.list_trash(user)
+      end
+
+    socket
+    |> assign(failed?: false, searched?: false, list_count: length(documents))
+    |> stream(:results, documents, reset: true)
+  end
+
   defp search(socket, query) do
     socket = assign(socket, form: to_form(%{"query" => query}, as: "search"))
     %{user: user, tag: tag} = socket.assigns
@@ -268,9 +430,9 @@ defmodule TextexpWeb.SearchModal do
     case String.trim(query) do
       "" when is_nil(tag) ->
         socket
-        |> assign(loading?: false, searched?: false)
+        |> assign(loading?: false)
         |> put_top_tags()
-        |> stream(:results, [], reset: true)
+        |> put_list()
 
       # Every document carrying the tag
       "" ->

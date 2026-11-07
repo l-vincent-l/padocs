@@ -805,7 +805,8 @@ defmodule TextexpWeb.DocumentLiveTest do
       view |> element("#search-clear-tag") |> render_click()
 
       refute has_element?(view, "#search-active-tag")
-      refute has_element?(view, "#search-results [role=option]")
+      # the empty field shows the lists again
+      assert has_element?(view, "#search-lists")
     end
 
     test "with a tag picked, a query searches the documents carrying it",
@@ -891,5 +892,117 @@ defmodule TextexpWeb.DocumentLiveTest do
     )
 
     Yex.encode_state_as_update!(doc)
+  end
+
+  describe "lists of the search modal" do
+    setup %{conn: conn} do
+      user = register_user()
+      open = Fixtures.create_document!(user, %{title: "Ouvert"})
+      %{conn: log_in(conn, user), user: user, open: open}
+    end
+
+    defp open_search(conn, document) do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
+      view |> element("#search-button") |> render_click()
+      view
+    end
+
+    test "the empty field lists the recent documents, the last opened first",
+         %{conn: conn, user: user, open: open} do
+      older = Fixtures.create_document!(user, %{title: "Plus ancien"})
+      never = Fixtures.create_document!(user, %{title: "Jamais ouvert"})
+      Document.opened(user, older)
+
+      view = open_search(conn, open)
+
+      assert has_element?(view, ~s(#search-list-recent[aria-pressed="true"]))
+      assert has_element?(view, "#search-results a[href='/documents/#{open.id}']")
+      assert has_element?(view, "#search-results a[href='/documents/#{older.id}']")
+      refute has_element?(view, "#search-results a[href='/documents/#{never.id}']")
+
+      # a query replaces the lists
+      view |> form("#search-modal-form", search: %{query: "jamais"}) |> render_change()
+      refute has_element?(view, "#search-lists")
+    end
+
+    test "own and shared documents", %{conn: conn, user: user, open: open} do
+      other = register_user()
+      shared = Fixtures.create_document!(other, %{title: "Le leur"})
+      Fixtures.share!(other, shared, user, :viewer)
+
+      view = open_search(conn, open)
+
+      view |> element("#search-list-own") |> render_click()
+      assert has_element?(view, ~s(#search-list-own[aria-pressed="true"]))
+      assert has_element?(view, "#search-results a[href='/documents/#{open.id}']")
+      refute has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
+
+      view |> element("#search-list-shared") |> render_click()
+      assert has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
+      refute has_element?(view, "#search-results a[href='/documents/#{open.id}']")
+    end
+
+    test "a document put in the trash is restored from there",
+         %{conn: conn, user: user, open: open} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{open.id}")
+
+      assert {:error, {:live_redirect, %{to: "/documents"}}} =
+               view |> element("#trash-button") |> render_click()
+
+      assert {:error, :not_found} = Document.get_document(open.id, user)
+
+      other = Fixtures.create_document!(user, %{title: "Autre"})
+      view = open_search(conn, other)
+      view |> element("#search-list-trash") |> render_click()
+
+      refute has_element?(view, "#search-results a[href='/documents/#{open.id}']")
+      assert has_element?(view, "#restore-#{open.id}")
+
+      view |> element("#restore-#{open.id}") |> render_click()
+
+      refute has_element?(view, "#restore-#{open.id}")
+      assert has_element?(view, "#flash-info", "restauré")
+      assert {:ok, _} = Document.get_document(open.id, user)
+      # back in the sidebar if under the open document: here, not shown
+      refute has_element?(view, "#documents-#{open.id}")
+    end
+
+    test "the trash is emptied, or a document deleted for good",
+         %{conn: conn, user: user, open: open} do
+      first = Fixtures.create_document!(user, %{title: "Un"})
+      second = Fixtures.create_document!(user, %{title: "Deux"})
+      :ok = Document.trash_document(first.id, user)
+      :ok = Document.trash_document(second.id, user)
+
+      view = open_search(conn, open)
+      view |> element("#search-list-trash") |> render_click()
+
+      view |> element("#purge-#{first.id}") |> render_click()
+      refute has_element?(view, "#purge-#{first.id}")
+      assert has_element?(view, "#purge-#{second.id}")
+
+      view |> element("#search-empty-trash") |> render_click()
+      refute has_element?(view, "#purge-#{second.id}")
+      refute has_element?(view, "#search-empty-trash")
+      assert Document.list_trash(user) == []
+    end
+
+    test "a viewer of the document cannot put it in the trash",
+         %{user: user, open: open} do
+      viewer = register_user()
+      Fixtures.share!(user, open, viewer, :viewer)
+      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{open.id}")
+
+      refute has_element?(view, "#trash-button")
+    end
+
+    test "another page showing a document put in the trash leaves it",
+         %{conn: conn, user: user, open: open} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{open.id}")
+
+      :ok = Document.trash_document(open.id, user)
+
+      assert_redirect(view, ~p"/documents")
+    end
   end
 end

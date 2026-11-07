@@ -722,7 +722,8 @@ defmodule TextexpWeb.DocumentLive do
     """
   end
 
-  # The menu of the document's actions, for its owner: sharing and moving it.
+  # The menu of the document's actions, for its owner: sharing, moving it, and
+  # putting it in the trash.
   # Opened and closed in the browser; closed by a click outside or Escape.
   defp document_actions(assigns) do
     ~H"""
@@ -754,6 +755,17 @@ defmodule TextexpWeb.DocumentLive do
         <.action_item id="move-button" icon="hero-arrows-right-left" event="open_move">
           Déplacer vers…
         </.action_item>
+        <div class="my-1 border-t border-dotted border-base-content/30"></div>
+        <button
+          id="trash-button"
+          type="button"
+          role="menuitem"
+          phx-click={hide_actions() |> JS.push("trash_document")}
+          data-confirm="Mettre ce document et ses sous-documents à la corbeille ?"
+          class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm text-error transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+        >
+          <.icon name="hero-trash" class="size-4 shrink-0" /> Mettre à la corbeille
+        </button>
       </div>
     </div>
     """
@@ -1239,15 +1251,33 @@ defmodule TextexpWeb.DocumentLive do
     end
   end
 
-  # An empty document was left and deleted (see YPersistence).
+  # A document put in the trash, or an empty one left and deleted (see
+  # YPersistence): the latter is open nowhere, so an open one went to the
+  # trash, on this page (which said so) or another.
   def handle_info({:document_deleted, document_id}, socket) do
     socket = update(socket, :documents, &Map.delete(&1, document_id))
 
     if socket.assigns.document.id == document_id do
+      socket =
+        if Phoenix.Flash.get(socket.assigns.flash, :info),
+          do: socket,
+          else: put_flash(socket, :info, "Ce document a été mis à la corbeille")
+
       {:noreply, push_navigate(socket, to: ~p"/documents")}
     else
       {:noreply, socket}
     end
+  end
+
+  # A document restored from the trash (see SearchModal): the sidebar may show
+  # it again.
+  def handle_info({:document_restored, message}, socket) do
+    documents = Document.list_documents(socket.assigns.current_user)
+
+    {:noreply,
+     socket
+     |> assign(documents: Map.new(documents, &{&1.id, &1}))
+     |> put_flash(:info, message)}
   end
 
   # Moved on this page or another: the sidebar shows it under its new parent,
@@ -1444,6 +1474,23 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
+
+  # With its sub-documents; the page then opens another document. The other
+  # pages showing them leave them too (see the :document_deleted message).
+  def handle_event("trash_document", _params, socket) do
+    document = socket.assigns.document
+
+    case Document.trash_document(document.id, socket.assigns.current_user) do
+      :ok ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "« #{document.title || "Sans titre"} » mis à la corbeille")
+         |> push_navigate(to: ~p"/documents")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas supprimer ce document")}
+    end
+  end
 
   def handle_event("open_move", _params, socket) do
     {:noreply, assign(socket, moving?: true, move_destinations: move_destinations(socket))}
