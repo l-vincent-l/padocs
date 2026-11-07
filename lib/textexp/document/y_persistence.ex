@@ -44,8 +44,10 @@ defmodule Textexp.Document.YPersistence do
 
   @doc """
   PubSub topic on which `{:document_deleted, document_id}` is broadcast when an
-  empty document is deleted, and `{:document_moved, document_id, parent_id}`
-  when a document is moved (see `Textexp.Document.move_document/3`).
+  empty document is deleted, `{:document_moved, document_id, parent_id}`
+  when a document is moved (see `Textexp.Document.move_document/4`), and
+  `{:children_reordered, parent_id, ids}` when the order of sub-documents
+  changes (see `Textexp.Document.place_document/4`).
   """
   def documents_topic, do: "documents"
 
