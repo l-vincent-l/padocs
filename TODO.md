@@ -25,10 +25,3 @@
 - **Restoring under a parent since deleted for good.** Impossible today: a
   sub-document goes and comes back with its parent. If a sub-document can one
   day be restored alone, put it at the root when its parent is gone.
-
-## Tests
-
-- **Flaky "Database busy".** `Textexp.Document.SearchIndexTest` and
-  `TextexpWeb.YDocRoomChannelTest` sometimes fail with `Exqlite.Error`
-  "Database busy" when the whole suite runs: SQLite contention between async
-  tests. They pass when run again.
