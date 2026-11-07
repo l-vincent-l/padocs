@@ -25,40 +25,44 @@ defmodule TextexpWeb.DocumentComponents do
     ~H"""
     <.link
       navigate={~p"/documents/#{@document.id}"}
-      class="group block border-2 border-base-content bg-base-100 px-5 py-4 no-underline transition duration-150 ease-out hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content"
+      class="group block border-2 border-base-content bg-base-100 px-3 py-2.5 no-underline transition duration-150 ease-out hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content sm:px-5 sm:py-4"
     >
-      <div class="flex items-baseline justify-between gap-4">
+      <%!-- On small screens, the date under the title, which keeps the width --%>
+      <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <h2 class={[
-          "truncate text-base font-medium group-hover:underline group-hover:decoration-dotted",
+          "line-clamp-2 text-sm font-medium group-hover:underline group-hover:decoration-dotted sm:truncate sm:text-base",
           if(@document.title, do: "text-base-content", else: "text-base-content/50")
         ]}>
           {@document.title || "Sans titre"}
         </h2>
         <time
           datetime={DateTime.to_iso8601(@document.updated_at)}
-          class="shrink-0 text-xs tabular-nums text-base-content/60"
+          class="shrink-0 text-[0.6875rem] tabular-nums text-base-content/60 sm:text-xs"
         >
-          {Calendar.strftime(@document.updated_at, "%d/%m/%Y %H:%M")} UTC
+          {Calendar.strftime(@document.updated_at, "%d/%m/%Y")}
+          <span class="hidden sm:inline">
+            {Calendar.strftime(@document.updated_at, "%H:%M")} UTC
+          </span>
         </time>
       </div>
       <div
         :if={is_list(@document.tags) and @document.tags != []}
-        class="mt-1.5 flex flex-wrap gap-1"
+        class="mt-1 flex flex-wrap gap-1 sm:mt-1.5"
       >
         <.tag_badge :for={tag <- @document.tags} tag={tag} />
       </div>
-      <%!-- On one line: whitespace between the segments would show --%>
+      <%!-- On one line: whitespace between the segments, or around the excerpt,
+           would show --%>
       <p
         :if={@snippet}
-        class="mt-1.5 line-clamp-3 text-sm leading-relaxed text-base-content/75"
+        class="mt-1 line-clamp-2 text-xs leading-relaxed text-base-content/75 sm:mt-1.5 sm:line-clamp-3 sm:text-sm"
         phx-no-format
       ><%= for {kind, text} <- @snippet do %><mark :if={kind == :match} class="bg-base-300 px-0.5 font-medium text-base-content">{text}</mark><span :if={kind == :text}>{text}</span><% end %></p>
       <p
         :if={!@snippet && @document.excerpt}
-        class="mt-1.5 line-clamp-3 whitespace-pre-line text-sm leading-relaxed text-base-content/75"
-      >
-        {@document.excerpt}
-      </p>
+        class="mt-1 line-clamp-2 whitespace-pre-line text-xs leading-relaxed text-base-content/75 sm:mt-1.5 sm:line-clamp-3 sm:text-sm"
+        phx-no-format
+      >{@document.excerpt}</p>
     </.link>
     """
   end
