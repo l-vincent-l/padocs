@@ -4,15 +4,18 @@ defmodule TextexpWeb.DocumentComponents do
   """
   use Phoenix.Component
 
+  alias Phoenix.LiveView.JS
+
   use Phoenix.VerifiedRoutes,
     endpoint: TextexpWeb.Endpoint,
     router: TextexpWeb.Router,
     statics: TextexpWeb.static_paths()
 
   @doc """
-  A document of a list, as a card linking to it: its title, last update, tags
-  if loaded (see `Textexp.Document.with_tags/1`) and excerpt (the first lines
-  of its body).
+  A document of a list, as a card linking to it (its whole area): its title,
+  last update, tags if loaded (see `Textexp.Document.with_tags/1`) and
+  excerpt (the first lines of its body). On small screens, two tags show,
+  then a button unfolding the others.
 
   The document needs its `title`, `excerpt` and `updated_at`. In search
   results, `snippet` replaces the excerpt: the fragment of the body where the
@@ -23,17 +26,21 @@ defmodule TextexpWeb.DocumentComponents do
 
   def document_card(assigns) do
     ~H"""
-    <.link
-      navigate={~p"/documents/#{@document.id}"}
-      class="group block rounded-md border border-base-content/15 bg-base-100 px-3 py-2.5 no-underline transition-colors duration-150 hover:border-base-content/40 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content sm:px-4 sm:py-3"
-    >
+    <%!-- The title's link covers the whole card (its ::after); the button
+         unfolding the tags is above it --%>
+    <div class="group relative rounded-md border border-base-content/15 bg-base-100 px-3 py-2.5 transition-colors duration-150 hover:border-base-content/40 hover:bg-base-200 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-base-content sm:px-4 sm:py-3">
       <%!-- On small screens, the date under the title, which keeps the width --%>
       <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <h2 class={[
           "line-clamp-2 text-sm font-medium group-hover:underline group-hover:decoration-dotted sm:truncate sm:text-base",
           if(@document.title, do: "text-base-content", else: "text-base-content/50")
         ]}>
-          {@document.title || "Sans titre"}
+          <.link
+            navigate={~p"/documents/#{@document.id}"}
+            class="no-underline outline-none after:absolute after:inset-0"
+          >
+            {@document.title || "Sans titre"}
+          </.link>
         </h2>
         <time
           datetime={DateTime.to_iso8601(@document.updated_at)}
@@ -47,20 +54,30 @@ defmodule TextexpWeb.DocumentComponents do
       </div>
       <div
         :if={is_list(@document.tags) and @document.tags != []}
-        class="mt-1 flex flex-wrap gap-1 sm:mt-1.5"
+        id={"card-tags-#{@document.id}"}
+        class="mt-1 flex flex-wrap items-center gap-1 sm:mt-1.5"
       >
-        <%!-- On small screens, the first two, then how many others --%>
+        <%!-- On small screens, the first two, then how many others, which
+             unfolds them --%>
         <.tag_badge
           :for={{tag, index} <- Enum.with_index(@document.tags)}
           tag={tag}
+          data-extra-tag={index >= 2}
           class={index >= 2 && "max-sm:hidden"}
         />
-        <span
+        <button
           :if={length(@document.tags) > 2}
-          class="text-[0.6875rem] text-base-content/60 sm:hidden"
+          id={"card-tags-#{@document.id}-more"}
+          type="button"
+          phx-click={
+            JS.remove_class("max-sm:hidden", to: "#card-tags-#{@document.id} [data-extra-tag]")
+            |> JS.hide()
+          }
+          aria-label={"Afficher les #{length(@document.tags)} tags"}
+          class="relative z-10 cursor-pointer rounded px-1 text-[0.6875rem] text-base-content/60 transition-colors hover:bg-base-300 hover:text-base-content sm:hidden"
         >
           +{length(@document.tags) - 2}
-        </span>
+        </button>
       </div>
       <%!-- On one line: whitespace between the segments, or around the excerpt,
            would show --%>
@@ -74,7 +91,7 @@ defmodule TextexpWeb.DocumentComponents do
         class="mt-1 line-clamp-2 whitespace-pre-line text-xs leading-relaxed text-base-content/75 sm:mt-1.5 sm:line-clamp-3 sm:text-sm"
         phx-no-format
       >{@document.excerpt}</p>
-    </.link>
+    </div>
     """
   end
 

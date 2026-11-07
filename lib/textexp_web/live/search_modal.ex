@@ -291,7 +291,7 @@ defmodule TextexpWeb.SearchModal do
               :if={!document.deleted_at}
               id={id}
               role="option"
-              class="[&[aria-selected=true]>a]:border-base-content/40 [&[aria-selected=true]>a]:bg-base-200"
+              class="[&[aria-selected=true]>div]:border-base-content/40 [&[aria-selected=true]>div]:bg-base-200"
             >
               <.document_card document={document} snippet={document.snippet} />
             </li>

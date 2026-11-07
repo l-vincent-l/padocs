@@ -942,7 +942,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       # with their tags
       assert has_element?(
                view,
-               ~s(#search-results a[href='/documents/#{open.id}'] [data-color="#{tag.color}"]),
+               ~s(#search-results #card-tags-#{open.id} [data-color="#{tag.color}"]),
                "Recettes"
              )
 
@@ -954,6 +954,18 @@ defmodule TextexpWeb.DocumentLiveTest do
       view |> element("#search-scope-shared") |> render_click()
       assert has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{open.id}']")
+    end
+
+    test "a card shows two tags on small screens, a button unfolding the others",
+         %{conn: conn, user: user, open: open} do
+      for label <- ["Un", "Deux", "Trois", "Quatre"], do: Document.add_tag(open.id, user, label)
+
+      view = open_search(conn, open)
+
+      assert has_element?(view, "#card-tags-#{open.id} [data-extra-tag]", "Trois")
+      # a button, not in the link to the document
+      assert has_element?(view, "#card-tags-#{open.id} button#card-tags-#{open.id}-more", "+2")
+      refute has_element?(view, "#search-results a #card-tags-#{open.id}-more")
     end
 
     test "a query searches in the scope picked", %{conn: conn, user: user, open: open} do
