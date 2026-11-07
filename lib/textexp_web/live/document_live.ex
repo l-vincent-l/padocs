@@ -261,15 +261,13 @@ defmodule TextexpWeb.DocumentLive do
                 />
               </label>
             </div>
-            <%!-- The open document and its sub-documents, the others being found
-                 by the search. They are dragged onto one another to move them
+            <%!-- The tree of the open document, from its highest parent, the
+                 others being found by the search. They are dragged onto one another to move them
                  (see the DocumentTree hook) --%>
             <div id="documents-tree" phx-hook=".DocumentTree" class="group/tree">
               <ul id="documents" class="menu w-full p-0">
                 <.document_items
-                  documents={
-                    if(@document, do: [Map.get(@documents, @document.id, @document)], else: [])
-                  }
+                  documents={tree_root(@document, @ancestors, @documents)}
                   children={children(@documents)}
                   active_id={@document && @document.id}
                   expanded={@expanded}
@@ -663,6 +661,23 @@ defmodule TextexpWeb.DocumentLive do
       </ul>
     </li>
     """
+  end
+
+  # The first level of the sidebar: the highest of the open document's
+  # ancestors, so that it shows in their whole tree; itself without any. Only
+  # those linked to it without a gap: a parent the user cannot read would
+  # leave it out of the tree.
+  defp tree_root(nil, _ancestors, _documents), do: []
+
+  defp tree_root(document, ancestors, documents) do
+    root =
+      ancestors
+      |> Enum.reverse()
+      |> Enum.reduce_while(document, fn ancestor, child ->
+        if ancestor.id == child.parent_id, do: {:cont, ancestor}, else: {:halt, child}
+      end)
+
+    [Map.get(documents, root.id, root)]
   end
 
   # The sub-documents of each document, in their order (see Document.place_document/4).
@@ -1264,14 +1279,17 @@ defmodule TextexpWeb.DocumentLive do
       Presence.track_user(viewers_topic(document.id), user.id, %{id: user.id, email: user.email})
     end
 
-    # its parents, unfolded in the sidebar
+    # its parents, unfolded in the sidebar, where it shows in their tree
     ancestors = Document.list_ancestors(document, socket.assigns.current_user)
 
     socket
     |> close_search()
     |> assign(
       ancestors: ancestors,
-      expanded: MapSet.put(socket.assigns.expanded, document.id),
+      expanded:
+        socket.assigns.expanded
+        |> MapSet.union(MapSet.new(ancestors, & &1.id))
+        |> MapSet.put(document.id),
       document: document,
       can_edit?: Policy.can?(document.role, :write),
       can_share?: Policy.can?(document.role, :share),

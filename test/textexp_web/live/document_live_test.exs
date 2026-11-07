@@ -396,7 +396,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert owner_id == user.id
     end
 
-    test "the sidebar shows the open document and its sub-documents only",
+    test "the sidebar shows the tree of the open document, from its highest parent",
          %{conn: conn, user: user} do
       other = register_user()
       own = Fixtures.create_document!(user, %{title: "Mine"})
@@ -414,11 +414,12 @@ defmodule TextexpWeb.DocumentLiveTest do
       refute has_element?(view, "#documents-#{sibling.id}")
       refute has_element?(view, "#documents-#{shared.id}")
 
-      # a sub-document, opened, is the sidebar's first level
+      # a sub-document, opened, shows in the tree of its parents, unfolded
       render_patch(view, ~p"/documents/#{child.id}")
-      assert has_element?(view, "#documents > #documents-#{child.id}")
+      assert has_element?(view, "#documents > #documents-#{own.id}")
+      assert has_element?(view, "#documents-#{own.id} #documents-#{child.id} > div.menu-active")
       assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
-      refute has_element?(view, "#documents-#{own.id}")
+      refute has_element?(view, "#documents-#{sibling.id}")
     end
   end
 
@@ -453,7 +454,11 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       assert_patch(view, ~p"/documents/#{child.id}")
 
-      assert has_element?(view, "#documents > #documents-#{child.id} > div.menu-active")
+      assert has_element?(
+               view,
+               "#documents-#{parent.id} #documents-#{child.id} > div.menu-active"
+             )
+
       assert has_element?(view, "#breadcrumb-#{parent.id}", "Projet")
     end
 
@@ -482,6 +487,26 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       assert has_element?(view, "#breadcrumb-#{parent.id}")
       assert has_element?(view, "#breadcrumb-#{child.id}")
+      # and in the sidebar, the whole tree, unfolded down to it
+      assert has_element?(view, "#documents > #documents-#{parent.id}")
+
+      assert has_element?(
+               view,
+               "#documents-#{child.id} #documents-#{grandchild.id} > div.menu-active"
+             )
+    end
+
+    test "the tree starts below a parent the user cannot read",
+         %{owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      {:ok, grandchild} = Document.create_sub_document(child.id, owner)
+      member = register_user()
+      Fixtures.share!(owner, child, member, :editor)
+
+      {:ok, view, _html} = live(log_in(build_conn(), member), ~p"/documents/#{grandchild.id}")
+
+      assert has_element?(view, "#documents > #documents-#{child.id}")
+      assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
       refute has_element?(view, "#documents-#{parent.id}")
     end
 
@@ -605,7 +630,8 @@ defmodule TextexpWeb.DocumentLiveTest do
       refute has_element?(view, "#move-panel")
       assert has_element?(view, "#breadcrumb-#{other.id}")
       refute has_element?(view, "#breadcrumb-#{parent.id}")
-      assert has_element?(view, "#documents > #documents-#{child.id}")
+      assert has_element?(view, "#documents > #documents-#{other.id}")
+      assert has_element?(view, "#documents-#{other.id} #documents-#{child.id}")
     end
 
     test "the move panel moves the open document to the root",
