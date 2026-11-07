@@ -11,6 +11,11 @@ defmodule Textexp.Document.Document do
   A document can be the sub-document of another, its `parent`, from which it
   inherits the accesses (see `Textexp.Document`).
 
+  A deleted document goes to the trash with its sub-documents: `deleted_at`
+  is set on each, `deleted_by` is the user who deleted it. Nobody reads it
+  there; its owner or that user restores it, or deletes it for good (see
+  `Textexp.Document.trash_document/2`).
+
   `role` is the reader's right on it, read along with it (see
   `Textexp.Document.get_document/2`); `snippet`, the fragment of its body
   matching a search (see `Textexp.Document.Search`).
@@ -25,7 +30,9 @@ defmodule Textexp.Document.Document do
     field :excerpt, :string
     field :role, Ecto.Enum, values: [:owner, :editor, :viewer], virtual: true
     field :snippet, :any, virtual: true
+    field :deleted_at, :utc_datetime_usec
     belongs_to :owner, Textexp.Accounts.User
+    belongs_to :deleted_by, Textexp.Accounts.User
     belongs_to :parent, __MODULE__
     has_many :children, __MODULE__, foreign_key: :parent_id
     has_many :memberships, Textexp.Document.Membership

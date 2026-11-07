@@ -31,6 +31,7 @@ defmodule Textexp.Document do
     Tag,
     TagDocument,
     TagSearch,
+    Visit,
     YPersistence
   }
 
@@ -40,7 +41,7 @@ defmodule Textexp.Document do
   @max_import_bytes 5_000_000
 
   # Read without their snapshot, which only the editor loads.
-  @fields [:id, :title, :excerpt, :owner_id, :parent_id, :inserted_at, :updated_at]
+  @fields [:id, :title, :excerpt, :owner_id, :parent_id, :deleted_at, :inserted_at, :updated_at]
 
   # The roles, as ranks: the best is the highest.
   @ranks %{owner: 3, editor: 2, viewer: 1}
@@ -48,13 +49,15 @@ defmodule Textexp.Document do
   ## Reading
 
   # The documents `user` can read, each with `user`'s best `rank` on it (see
-  # @ranks), as `:access`.
+  # @ranks), as `:access`. Not those in the trash: a document goes there with
+  # its sub-documents, so none inherits an access from one there.
   defp readable_by(user) do
     from d in Document,
       as: :document,
       join: a in subquery(ranks(user)),
       as: :access,
-      on: a.id == d.id
+      on: a.id == d.id,
+      where: is_nil(d.deleted_at)
   end
 
   # The documents `user` can access: those they own or are a member of, and
@@ -87,6 +90,40 @@ defmodule Textexp.Document do
   @doc "The documents `user` can read, last updated first, with their `role` on each."
   def list_documents(user) do
     readable_by(user)
+    |> order_by(desc: :updated_at)
+    |> with_roles()
+  end
+
+  @doc """
+  The documents `user` opened last that they can still read, the last opened
+  first, at most `limit` (see `opened/2`).
+  """
+  def list_recent_documents(user, limit \\ 30) do
+    readable_by(user)
+    |> join(:inner, [document: d], v in Visit,
+      as: :visit,
+      on: v.document_id == d.id and v.user_id == ^user.id
+    )
+    |> order_by([visit: v], desc: v.opened_at)
+    |> limit(^limit)
+    |> with_roles()
+  end
+
+  @doc "The documents `user` owns, last updated first."
+  def list_own_documents(user) do
+    readable_by(user)
+    |> where([document: d], d.owner_id == ^user.id)
+    |> order_by(desc: :updated_at)
+    |> with_roles()
+  end
+
+  @doc """
+  The documents of others that `user` can read, shared with them or with one
+  of their parents, last updated first.
+  """
+  def list_shared_documents(user) do
+    readable_by(user)
+    |> where([document: d], d.owner_id != ^user.id)
     |> order_by(desc: :updated_at)
     |> with_roles()
   end
@@ -220,8 +257,12 @@ defmodule Textexp.Document do
 
   # The document of `id` and its ancestors: `{owner_id, member_id, role}` for
   # each of their members, `{owner_id, nil, nil}` for one without members.
+  # Nothing for a document in the trash, which nobody reads.
   defp chain(id) do
-    first = from d in Document, where: d.id == ^id, select: %{id: d.id, parent_id: d.parent_id}
+    first =
+      from d in Document,
+        where: d.id == ^id and is_nil(d.deleted_at),
+        select: %{id: d.id, parent_id: d.parent_id}
 
     next =
       from d in Document,
@@ -305,9 +346,19 @@ defmodule Textexp.Document do
     |> Repo.one()
   end
 
-  @doc "Remembers that `user` opened `document`, for `last_opened/1`."
+  @doc """
+  Remembers that `user` opened `document`, for `last_opened/1` and
+  `list_recent_documents/2`.
+  """
   def opened(user, %Document{id: id}) do
     Repo.update_all(from(u in User, where: u.id == ^user.id), set: [last_document_id: id])
+
+    Repo.insert!(
+      %Visit{user_id: user.id, document_id: id, opened_at: DateTime.utc_now()},
+      on_conflict: {:replace, [:opened_at]},
+      conflict_target: [:user_id, :document_id]
+    )
+
     :ok
   end
 
@@ -519,6 +570,10 @@ defmodule Textexp.Document do
     document
   end
 
+  @doc """
+  Deletes the document of `id` for good, with its sub-documents (`ON DELETE
+  CASCADE`).
+  """
   def delete_document(id) do
     Repo.transact(fn ->
       Repo.delete_all(from d in Document, where: d.id == ^id)
@@ -527,6 +582,112 @@ defmodule Textexp.Document do
     end)
 
     :ok
+  end
+
+  ## Trash
+
+  @doc """
+  Puts the document of `id` in the trash, with those of its sub-documents not
+  there yet, if `user` can share it (its owner, maybe by inheritance). Nobody
+  reads them then. `{:document_deleted, id}` is broadcast on
+  `YPersistence.documents_topic/0` for each, for the pages showing them.
+  """
+  def trash_document(id, user) do
+    now = DateTime.utc_now()
+
+    result =
+      authorized(id, user, :share, fn document ->
+        ids = subtree_ids(document.id)
+
+        {_, trashed} =
+          Repo.update_all(
+            from(d in Document,
+              where: d.id in ^ids and is_nil(d.deleted_at),
+              select: d.id
+            ),
+            set: [deleted_at: now, deleted_by_id: user.id]
+          )
+
+        {:ok, trashed}
+      end)
+
+    with {:ok, trashed} <- result do
+      for id <- trashed do
+        Phoenix.PubSub.broadcast(
+          Textexp.PubSub,
+          YPersistence.documents_topic(),
+          {:document_deleted, id}
+        )
+      end
+
+      :ok
+    end
+  end
+
+  # The documents in the trash `user` can restore or delete for good: those
+  # they own or deleted. Only those deleted with none of their parents, the
+  # others going with them.
+  defp trash(user) do
+    from d in Document,
+      as: :document,
+      left_join: p in Document,
+      on: p.id == d.parent_id,
+      where:
+        not is_nil(d.deleted_at) and is_nil(p.deleted_at) and
+          (d.owner_id == ^user.id or d.deleted_by_id == ^user.id)
+  end
+
+  @doc "The documents in `user`'s trash, the last deleted first."
+  def list_trash(user) do
+    trash(user)
+    |> order_by([document: d], desc: d.deleted_at)
+    |> select([document: d], struct(d, @fields))
+    |> Repo.all()
+  end
+
+  @doc """
+  Takes the document of `id` out of `user`'s trash, with the sub-documents
+  deleted along with it. `{:ok, document}`, or `{:error, :not_found}` for a
+  document not in their trash.
+  """
+  def restore_document(id, user) do
+    with {:ok, document} <- in_trash(id, user) do
+      ids = subtree_ids(document.id)
+
+      Repo.update_all(
+        from(d in Document, where: d.id in ^ids and d.deleted_at == ^document.deleted_at),
+        set: [deleted_at: nil, deleted_by_id: nil]
+      )
+
+      {:ok, %{document | deleted_at: nil}}
+    end
+  end
+
+  @doc """
+  Deletes for good the document of `id`, in `user`'s trash, with its
+  sub-documents. `:ok`, or `{:error, :not_found}`.
+  """
+  def purge_document(id, user) do
+    with {:ok, document} <- in_trash(id, user), do: delete_document(document.id)
+  end
+
+  @doc "Deletes for good the documents of `user`'s trash."
+  def empty_trash(user) do
+    for document <- list_trash(user), do: delete_document(document.id)
+    :ok
+  end
+
+  defp in_trash(id, user) do
+    with {:ok, id} <- Ecto.UUID.cast(id),
+         %Document{} = document <-
+           trash(user)
+           |> where([document: d], d.id == ^id)
+           |> select([document: d], struct(d, @fields))
+           |> Repo.one() do
+      {:ok, document}
+    else
+      _ -> {:error, :not_found}
+    end
   end
 
   ## Members
