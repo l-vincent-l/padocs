@@ -37,6 +37,38 @@ defmodule Textexp.Document.TrashTest do
       assert :not_found = Access.init(child.id)
     end
 
+    test "a running DocServer drops the roles, and gets them back on restore",
+         %{owner: owner, parent: parent, child: child} do
+      member = Fixtures.confirmed_user()
+      Fixtures.share!(owner, parent, member, :editor)
+      {:ok, rights} = Access.init(child.id)
+      assert Access.permission(rights, member) == :write
+
+      :ok = Document.trash_document(parent.id, owner)
+      child_id = child.id
+      assert_receive {:access_reloaded, ^child_id} = message
+      {:ok, rights} = Access.handle_info(message, rights)
+      assert Access.permission(rights, member) == :none
+      assert Access.permission(rights, owner) == :none
+
+      {:ok, _} = Document.restore_document(parent.id, owner)
+      assert_receive {:access_reloaded, ^child_id} = message
+      {:ok, rights} = Access.handle_info(message, rights)
+      assert Access.permission(rights, member) == :write
+    end
+
+    test "a share on an ancestor gives no role to a document in the trash",
+         %{owner: owner, parent: parent, child: child} do
+      :ok = Document.trash_document(child.id, owner)
+      Phoenix.PubSub.subscribe(Textexp.PubSub, Document.members_topic(child.id))
+
+      newcomer = Fixtures.confirmed_user()
+      Fixtures.share!(owner, parent, newcomer, :editor)
+
+      child_id = child.id
+      refute_receive {:member_changed, ^child_id, _, _}
+    end
+
     test "needs to share the document", %{owner: owner, parent: parent} do
       editor = Fixtures.confirmed_user()
       Fixtures.share!(owner, parent, editor, :editor)

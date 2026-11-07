@@ -287,13 +287,32 @@ defmodule Textexp.Document do
   broadcast when the role of a user on a document changed: a member added,
   changed or removed, on it or one of its ancestors. `role` is the user's
   role on it now, `nil` without access.
+
+  `{:access_reloaded, document_id}` is broadcast there when all the roles may
+  have changed: the document put in the trash, where it has none, or
+  restored. They are read again with `access_rights/1`.
   """
   def members_topic(document_id), do: "document_members:#{document_id}"
 
+  defp broadcast_access_reloaded(document_id) do
+    Phoenix.PubSub.broadcast(
+      Textexp.PubSub,
+      members_topic(document_id),
+      {:access_reloaded, document_id}
+    )
+  end
+
   # Broadcast for the document of `document_id` and its descendants, which
-  # inherit the change.
+  # inherit the change; not those in the trash, which keep no role (ranks/1
+  # ignores the trash).
   defp broadcast_member_changed(document_id, user_id) do
-    ids = subtree_ids(document_id)
+    ids =
+      Repo.all(
+        from d in Document,
+          where: d.id in ^subtree_ids(document_id) and is_nil(d.deleted_at),
+          select: d.id
+      )
+
     ranks = user_ranks(user_id, ids)
     for id <- ids, do: broadcast_role(id, user_id, role(ranks[id]))
     :ok
@@ -613,6 +632,9 @@ defmodule Textexp.Document do
 
     with {:ok, trashed} <- result do
       for id <- trashed do
+        # Their DocServers, if running, drop all the roles: the clients leave
+        broadcast_access_reloaded(id)
+
         Phoenix.PubSub.broadcast(
           Textexp.PubSub,
           YPersistence.documents_topic(),
@@ -659,11 +681,16 @@ defmodule Textexp.Document do
     with {:ok, document} <- in_trash(id, user) do
       ids = subtree_ids(document.id)
 
-      Repo.update_all(
-        from(d in Document, where: d.id in ^ids and d.deleted_at == ^document.deleted_at),
-        set: [deleted_at: nil, deleted_by_id: nil]
-      )
+      {_, restored} =
+        Repo.update_all(
+          from(d in Document,
+            where: d.id in ^ids and d.deleted_at == ^document.deleted_at,
+            select: d.id
+          ),
+          set: [deleted_at: nil, deleted_by_id: nil]
+        )
 
+      for id <- restored, do: broadcast_access_reloaded(id)
       {:ok, %{document | deleted_at: nil}}
     end
   end

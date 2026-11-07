@@ -4,7 +4,8 @@ defmodule Textexp.Document.Access do
   `YPhoenix.Access`): the role of each user, those of the document and those
   it inherits from its ancestors (see `Textexp.Document.access_rights/1`),
   loaded in one query then updated by the changes `Textexp.Document`
-  broadcasts on `Textexp.Document.members_topic/1`.
+  broadcasts on `Textexp.Document.members_topic/1`. A document in the trash
+  has none.
   """
   @behaviour YPhoenix.Access
 
@@ -46,6 +47,14 @@ defmodule Textexp.Document.Access do
         else: Map.delete(rights.roles, user_id)
 
     {:ok, %{rights | roles: roles}}
+  end
+
+  # Put in the trash, where it has no role, or restored.
+  def handle_info({:access_reloaded, document_id}, %{document_id: document_id} = rights) do
+    case Document.access_rights(document_id) do
+      {:ok, roles} -> {:ok, %{rights | roles: roles}}
+      :error -> {:ok, %{rights | roles: %{}}}
+    end
   end
 
   def handle_info(_msg, _rights), do: :ignore

@@ -1285,6 +1285,10 @@ defmodule TextexpWeb.DocumentLive do
   def handle_info({:document_moved, document_id, parent_id}, socket),
     do: {:noreply, put_moved(socket, document_id, parent_id)}
 
+  # The roles of the open document read again by its DocServer, as it was put
+  # in the trash (the page leaves it on :document_deleted) or restored.
+  def handle_info({:access_reloaded, _document_id}, socket), do: {:noreply, socket}
+
   # The user's role on the open document changed: the page is opened again
   # with it, the editor along (its channel already applies it, see
   # YDocRoomChannel). Without access, back to the list.
