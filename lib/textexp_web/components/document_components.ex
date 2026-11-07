@@ -25,7 +25,7 @@ defmodule TextexpWeb.DocumentComponents do
     ~H"""
     <.link
       navigate={~p"/documents/#{@document.id}"}
-      class="group block border-2 border-base-content bg-base-100 px-3 py-2.5 no-underline transition duration-150 ease-out hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-hard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content sm:px-5 sm:py-4"
+      class="group block rounded-md border border-base-content/15 bg-base-100 px-3 py-2.5 no-underline transition-colors duration-150 hover:border-base-content/40 hover:bg-base-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-base-content sm:px-4 sm:py-3"
     >
       <%!-- On small screens, the date under the title, which keeps the width --%>
       <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">

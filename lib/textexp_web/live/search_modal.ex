@@ -81,7 +81,7 @@ defmodule TextexpWeb.SearchModal do
         role="dialog"
         aria-modal="true"
         aria-labelledby="search-title"
-        class="modal-box flex max-h-[85dvh] w-11/12 max-w-2xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
+        class="modal-box flex max-h-[85dvh] w-11/12 max-w-2xl flex-col rounded-lg border border-base-content/15 bg-base-100 p-4 shadow-xl sm:max-h-[80dvh] sm:p-6"
       >
         <div class="flex items-start justify-between gap-4">
           <h2 id="search-title" class="text-sm uppercase">Rechercher</h2>
@@ -103,12 +103,12 @@ defmodule TextexpWeb.SearchModal do
           phx-target={@myself}
           class="mt-3"
         >
-          <label class="flex items-center gap-3 border-2 border-base-content bg-base-100 px-4 py-2.5">
+          <label class="flex items-center gap-3 rounded-md border border-base-content/25 bg-base-100 px-3 py-2 transition-colors focus-within:border-base-content/60 sm:px-4 sm:py-2.5">
             <.icon name="hero-magnifying-glass" class="size-5 shrink-0 text-base-content/50" />
             <span
               :if={@scope}
               id="search-active-scope"
-              class="flex shrink-0 items-center gap-1 border border-base-content/40 bg-base-200 px-1.5 py-0.5 text-[0.6875rem]"
+              class="flex shrink-0 items-center gap-1 rounded border border-base-content/20 bg-base-200 px-1.5 py-0.5 text-[0.6875rem]"
             >
               <.icon name={scope_icon(@scope)} class="size-3" />
               {scope_label(@scope)}
@@ -216,7 +216,7 @@ defmodule TextexpWeb.SearchModal do
               JS.push("pick_scope", value: %{scope: name}, target: @myself)
               |> JS.focus(to: "#search-modal-query")
             }
-            class="flex cursor-pointer items-center gap-1.5 border-2 border-base-content/30 px-2.5 py-1 text-xs text-base-content/70 transition-colors hover:border-base-content hover:text-base-content"
+            class="flex cursor-pointer items-center gap-1.5 rounded-md border border-base-content/20 px-2.5 py-1 text-xs text-base-content/70 transition-colors hover:border-base-content/50 hover:bg-base-200 hover:text-base-content"
           >
             <.icon name={icon} class="size-3.5" /> {label}
           </button>
@@ -237,14 +237,14 @@ defmodule TextexpWeb.SearchModal do
           </button>
         </div>
         <%!-- Best match first. ↑ ↓ and Enter in the field select and open them
-             (see the SearchNav hook). Its padding leaves room for the selected or
-             hovered card, raised with a shadow, which it would otherwise cut. --%>
+             (see the SearchNav hook). Its right padding keeps the scrollbar off the
+             cards. --%>
         <ul
           id="search-results"
           role="listbox"
           aria-label="Résultats"
           phx-update="stream"
-          class="-mr-2 -ml-1 mt-3 flex min-h-0 flex-col gap-2 overflow-y-auto pt-1 pr-2 pb-2 pl-1 sm:gap-3"
+          class="-mr-2 mt-3 flex min-h-0 flex-col gap-2 overflow-y-auto pr-2 pb-1"
         >
           <li
             id="search-results-empty"
@@ -268,7 +268,7 @@ defmodule TextexpWeb.SearchModal do
               :if={!document.deleted_at}
               id={id}
               role="option"
-              class="[&[aria-selected=true]>a]:-translate-x-0.5 [&[aria-selected=true]>a]:-translate-y-0.5 [&[aria-selected=true]>a]:shadow-hard"
+              class="[&[aria-selected=true]>a]:border-base-content/40 [&[aria-selected=true]>a]:bg-base-200"
             >
               <.document_card document={document} snippet={document.snippet} />
             </li>
@@ -294,7 +294,7 @@ defmodule TextexpWeb.SearchModal do
 
   defp trashed_card(assigns) do
     ~H"""
-    <div class="flex items-center justify-between gap-2 border-2 border-dashed border-base-content/50 bg-base-100 px-3 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
+    <div class="flex items-center justify-between gap-2 rounded-md border border-dashed border-base-content/30 bg-base-100 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
       <div class="min-w-0">
         <h3 class={[
           "line-clamp-2 text-sm font-medium sm:truncate sm:text-base",
