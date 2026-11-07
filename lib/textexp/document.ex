@@ -41,7 +41,17 @@ defmodule Textexp.Document do
   @max_import_bytes 5_000_000
 
   # Read without their snapshot, which only the editor loads.
-  @fields [:id, :title, :excerpt, :owner_id, :parent_id, :deleted_at, :inserted_at, :updated_at]
+  @fields [
+    :id,
+    :title,
+    :excerpt,
+    :owner_id,
+    :parent_id,
+    :position,
+    :deleted_at,
+    :inserted_at,
+    :updated_at
+  ]
 
   # The roles, as ranks: the best is the highest.
   @ranks %{owner: 3, editor: 2, viewer: 1}
@@ -452,10 +462,105 @@ defmodule Textexp.Document do
   """
   def create_sub_document(parent_id, user) do
     authorized(parent_id, user, :write, fn parent ->
-      with {:ok, document} <- Repo.insert(%Document{owner_id: user.id, parent_id: parent.id}) do
+      # after the other sub-documents
+      last =
+        Repo.one(from d in Document, where: d.parent_id == ^parent.id, select: max(d.position))
+
+      with {:ok, document} <-
+             Repo.insert(%Document{
+               owner_id: user.id,
+               parent_id: parent.id,
+               position: (last || -1) + 1
+             }) do
         {:ok, %{document | role: :owner}}
       end
     end)
+  end
+
+  @doc """
+  Puts the document of `id` just before or after (`place`, `:before` or
+  `:after`) the document of `sibling_id`, among the sub-documents of the
+  latter's parent: `{:ok, document}`.
+
+  Under the same parent, the accesses do not change: `user` must be able to
+  write the parent. Under another, it is a move (see `move_document/4`).
+  Documents at the root have no order (`{:error, :forbidden}`).
+  """
+  def place_document(id, sibling_id, place, user) when place in [:before, :after] do
+    with {:ok, sibling} <- get_document(sibling_id, user),
+         {:ok, document} <- get_document(id, user),
+         parent_id when not is_nil(parent_id) <- sibling.parent_id,
+         false <- sibling.id == document.id do
+      index =
+        parent_id
+        |> children_ids()
+        |> List.delete(document.id)
+        |> Enum.find_index(&(&1 == sibling.id))
+        |> Kernel.+(if place == :before, do: 0, else: 1)
+
+      if document.parent_id == parent_id,
+        do: reorder_document(document, index, user),
+        else: move_document(document.id, parent_id, user, index)
+    else
+      {:error, _} -> {:error, :not_found}
+      _ -> {:error, :forbidden}
+    end
+  end
+
+  defp reorder_document(document, index, user) do
+    parent_id = document.parent_id
+
+    result =
+      authorized(parent_id, user, :write, fn _parent ->
+        {:ok, put_position(parent_id, document.id, index)}
+      end)
+
+    with {:ok, ids} <- result do
+      broadcast_children(parent_id, ids)
+      {:ok, %{document | position: Enum.find_index(ids, &(&1 == document.id))}}
+    end
+  end
+
+  # The ids of the sub-documents of the document of `parent_id`, in their
+  # order: by position, then, for those without, by creation.
+  defp children_ids(parent_id) do
+    Repo.all(
+      from d in Document,
+        where: d.parent_id == ^parent_id,
+        order_by: [
+          asc: fragment("coalesce(?, 2147483647)", d.position),
+          asc: d.inserted_at,
+          asc: d.id
+        ],
+        select: d.id
+    )
+  end
+
+  # Puts the document of `id` at `index` among the sub-documents of the
+  # document of `parent_id` (at their end for `nil`), and numbers them again
+  # from 0. Their ids, in order. Documents at the root have no order.
+  defp put_position(nil, _id, _index), do: []
+
+  defp put_position(parent_id, id, index) do
+    others = parent_id |> children_ids() |> List.delete(id)
+    ids = List.insert_at(others, min(max(index || length(others), 0), length(others)), id)
+
+    for {child, position} <- Enum.with_index(ids) do
+      Repo.update_all(from(d in Document, where: d.id == ^child), set: [position: position])
+    end
+
+    ids
+  end
+
+  # The pages showing them follow the new order (see documents_topic/0).
+  defp broadcast_children(nil, _ids), do: :ok
+
+  defp broadcast_children(parent_id, ids) do
+    Phoenix.PubSub.broadcast(
+      Textexp.PubSub,
+      YPersistence.documents_topic(),
+      {:children_reordered, parent_id, ids}
+    )
   end
 
   @doc """
@@ -469,8 +574,12 @@ defmodule Textexp.Document do
 
   The roles changed by the move are broadcast on `members_topic/1`, and
   `{:document_moved, id, parent_id}` on `YPersistence.documents_topic/0`.
+
+  It goes at `position` among the sub-documents of its new parent, at their
+  end for `nil`; `{:children_reordered, parent_id, ids}` is then broadcast
+  there too, `ids` those sub-documents in order.
   """
-  def move_document(id, parent_id, user) do
+  def move_document(id, parent_id, user, position \\ nil) do
     result =
       authorized(id, user, :share, fn document ->
         ids = subtree_ids(document.id)
@@ -486,6 +595,8 @@ defmodule Textexp.Document do
             set: [parent_id: parent_id]
           )
 
+          children = put_position(parent_id, document.id, position)
+
           changes =
             for user_id <- users,
                 now = user_ranks(user_id, ids),
@@ -493,12 +604,14 @@ defmodule Textexp.Document do
                 now[id] != before[user_id][id],
                 do: {id, user_id, role(now[id])}
 
-          {:ok, {%{document | parent_id: parent_id}, changes}}
+          position = Enum.find_index(children, &(&1 == document.id))
+          {:ok, {%{document | parent_id: parent_id, position: position}, changes, children}}
         end
       end)
 
-    with {:ok, {document, changes}} <- result do
+    with {:ok, {document, changes, children}} <- result do
       for {id, user_id, role} <- changes, do: broadcast_role(id, user_id, role)
+      broadcast_children(document.parent_id, children)
 
       Phoenix.PubSub.broadcast(
         Textexp.PubSub,

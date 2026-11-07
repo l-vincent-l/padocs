@@ -11,6 +11,9 @@ defmodule Textexp.Document.Document do
   A document can be the sub-document of another, its `parent`, from which it
   inherits the accesses (see `Textexp.Document`).
 
+  The sub-documents of a document are in the order of their `position`, from
+  0 (see `Textexp.Document.place_document/4`).
+
   A deleted document goes to the trash with its sub-documents: `deleted_at`
   is set on each, `deleted_by` is the user who deleted it. Nobody reads it
   there; its owner, maybe by inheritance, restores it, or deletes it for good
@@ -31,6 +34,7 @@ defmodule Textexp.Document.Document do
     field :role, Ecto.Enum, values: [:owner, :editor, :viewer], virtual: true
     field :snippet, :any, virtual: true
     field :deleted_at, :utc_datetime_usec
+    field :position, :integer
     belongs_to :owner, Textexp.Accounts.User
     belongs_to :deleted_by, Textexp.Accounts.User
     belongs_to :parent, __MODULE__
