@@ -805,8 +805,8 @@ defmodule TextexpWeb.DocumentLiveTest do
       view |> element("#search-clear-tag") |> render_click()
 
       refute has_element?(view, "#search-active-tag")
-      # the empty field shows the lists again
-      assert has_element?(view, "#search-lists")
+      # the empty field offers the scopes again
+      assert has_element?(view, "#search-scopes")
     end
 
     test "with a tag picked, a query searches the documents carrying it",
@@ -915,14 +915,15 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       view = open_search(conn, open)
 
-      assert has_element?(view, ~s(#search-list-recent[aria-pressed="true"]))
+      assert has_element?(view, "#search-scopes")
+      refute has_element?(view, "#search-active-scope")
       assert has_element?(view, "#search-results a[href='/documents/#{open.id}']")
       assert has_element?(view, "#search-results a[href='/documents/#{older.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{never.id}']")
 
-      # a query replaces the lists
+      # a query replaces the scopes
       view |> form("#search-modal-form", search: %{query: "jamais"}) |> render_change()
-      refute has_element?(view, "#search-lists")
+      refute has_element?(view, "#search-scopes")
     end
 
     test "own and shared documents", %{conn: conn, user: user, open: open} do
@@ -934,8 +935,10 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       {:ok, tag} = Document.add_tag(open.id, user, "Recettes")
 
-      view |> element("#search-list-own") |> render_click()
-      assert has_element?(view, ~s(#search-list-own[aria-pressed="true"]))
+      view |> element("#search-scope-own") |> render_click()
+      # in the field, like a tag
+      assert has_element?(view, "#search-active-scope", "Mes documents")
+      refute has_element?(view, "#search-scopes")
       # with their tags
       assert has_element?(
                view,
@@ -946,9 +949,41 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert has_element?(view, "#search-results a[href='/documents/#{open.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
 
-      view |> element("#search-list-shared") |> render_click()
+      view |> element("#search-clear-scope") |> render_click()
+      assert has_element?(view, "#search-scopes")
+      view |> element("#search-scope-shared") |> render_click()
       assert has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{open.id}']")
+    end
+
+    test "a query searches in the scope picked", %{conn: conn, user: user, open: open} do
+      other = register_user()
+      shared = Fixtures.create_document!(other, %{title: "Recette partagée"})
+      Fixtures.share!(other, shared, user, :viewer)
+      own = Fixtures.create_document!(user, %{title: "Recette à moi"})
+      gone = Fixtures.create_document!(user, %{title: "Recette jetée"})
+      :ok = Document.trash_document(gone.id, user)
+
+      view = open_search(conn, open)
+      view |> element("#search-scope-shared") |> render_click()
+      view |> form("#search-modal-form", search: %{query: "recette"}) |> render_change()
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#search-active-scope", "Partagés avec moi")
+      assert has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
+      refute has_element?(view, "#search-results a[href='/documents/#{own.id}']")
+
+      view |> element("#search-clear-scope") |> render_click()
+      render_async(view, 2_000)
+      assert has_element?(view, "#search-results a[href='/documents/#{own.id}']")
+
+      # in the trash, by title
+      view |> form("#search-modal-form", search: %{query: ""}) |> render_change()
+      view |> element("#search-scope-trash") |> render_click()
+      view |> form("#search-modal-form", search: %{query: "jetée"}) |> render_change()
+      assert has_element?(view, "#restore-#{gone.id}")
+      view |> form("#search-modal-form", search: %{query: "autre"}) |> render_change()
+      refute has_element?(view, "#restore-#{gone.id}")
     end
 
     test "a document put in the trash is restored from there",
@@ -962,7 +997,7 @@ defmodule TextexpWeb.DocumentLiveTest do
 
       other = Fixtures.create_document!(user, %{title: "Autre"})
       view = open_search(conn, other)
-      view |> element("#search-list-trash") |> render_click()
+      view |> element("#search-scope-trash") |> render_click()
 
       refute has_element?(view, "#search-results a[href='/documents/#{open.id}']")
       assert has_element?(view, "#restore-#{open.id}")
@@ -984,7 +1019,7 @@ defmodule TextexpWeb.DocumentLiveTest do
       :ok = Document.trash_document(second.id, user)
 
       view = open_search(conn, open)
-      view |> element("#search-list-trash") |> render_click()
+      view |> element("#search-scope-trash") |> render_click()
 
       view |> element("#purge-#{first.id}") |> render_click()
       refute has_element?(view, "#purge-#{first.id}")
