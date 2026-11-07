@@ -24,10 +24,12 @@ defmodule TextexpWeb.DocumentLive do
         <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
         <div class="drawer-content flex flex-col">
-          <%!-- The buttons opening the menu (small screens) or folding and
-               unfolding it (large screens, one at a time at the same place), and
-               the document's actions on the right, above the title --%>
-          <div class="flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4">
+          <%!-- The menu's open button (small screens only), and the document's
+               actions on the right, above the title --%>
+          <div class={[
+            "flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4",
+            !@can_share? && "lg:hidden"
+          ]}>
             <label
               id="sidebar-open"
               for="sidebar-drawer"
@@ -36,28 +38,6 @@ defmodule TextexpWeb.DocumentLive do
             >
               <.icon name="hero-bars-3" class="size-5" />
             </label>
-            <button
-              id="sidebar-collapse"
-              type="button"
-              data-sidebar-toggle
-              aria-controls="sidebar"
-              aria-label="Replier le menu"
-              title="Replier le menu (Ctrl+\)"
-              class="btn btn-square btn-ghost btn-sm -ml-1 hidden lg:inline-flex lg:group-data-[collapsed]/drawer:hidden"
-            >
-              <.icon name="hero-chevron-double-left" class="size-5" />
-            </button>
-            <button
-              id="sidebar-expand"
-              type="button"
-              data-sidebar-toggle
-              aria-controls="sidebar"
-              aria-label="Déplier le menu"
-              title="Déplier le menu (Ctrl+\)"
-              class="btn btn-square btn-ghost btn-sm -ml-1 hidden lg:group-data-[collapsed]/drawer:inline-flex"
-            >
-              <.icon name="hero-chevron-double-right" class="size-5" />
-            </button>
             <.document_actions :if={@can_share?} />
           </div>
 
@@ -498,6 +478,42 @@ defmodule TextexpWeb.DocumentLive do
             <Layouts.account current_user={@current_user} />
           </div>
         </div>
+        <%!-- Tabs floating on the menu's edge, at mid-height (large screens):
+             one folds the menu, the other, on the screen's edge, unfolds it --%>
+        <button
+          id="sidebar-collapse"
+          type="button"
+          data-sidebar-toggle
+          aria-controls="sidebar"
+          aria-label="Replier le menu"
+          title="Replier le menu (Ctrl+\)"
+          class={[
+            "fixed top-1/2 left-[calc(var(--sidebar-width)-0.625rem)] z-40 hidden h-10 w-5 -translate-y-1/2",
+            "cursor-pointer items-center justify-center border border-base-content/40 bg-base-100 text-base-content/60",
+            "transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content",
+            "focus-visible:border-base-content focus-visible:outline-none",
+            "lg:flex lg:group-data-[collapsed]/drawer:hidden"
+          ]}
+        >
+          <.icon name="hero-chevron-left-micro" class="size-4" />
+        </button>
+        <button
+          id="sidebar-expand"
+          type="button"
+          data-sidebar-toggle
+          aria-controls="sidebar"
+          aria-label="Déplier le menu"
+          title="Déplier le menu (Ctrl+\)"
+          class={[
+            "fixed top-1/2 left-0 z-40 hidden h-10 w-5 -translate-y-1/2",
+            "cursor-pointer items-center justify-center border border-l-0 border-base-content/40 bg-base-100 text-base-content/60",
+            "transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content",
+            "focus-visible:border-base-content focus-visible:outline-none",
+            "lg:group-data-[collapsed]/drawer:flex"
+          ]}
+        >
+          <.icon name="hero-chevron-right-micro" class="size-4" />
+        </button>
         <%!-- Dragged, or moved with the arrows, to resize the menu; a double
              click gives it back its width. Fixed on the menu's edge, outside it
              (it clips what overflows): 6 px on the menu's side, where its strip
