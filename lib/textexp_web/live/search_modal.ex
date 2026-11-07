@@ -49,6 +49,8 @@ defmodule TextexpWeb.SearchModal do
        # those matching the query (at most 8, see Document.search_tags/2)
        tag_suggestions: [],
        more_tags?: false,
+       # How many tags show on small screens
+       mobile_tags: 2,
        all_tags?: false,
        tag: nil,
        # The scope picked (see @scopes), if any, and how many documents the
@@ -166,7 +168,9 @@ defmodule TextexpWeb.SearchModal do
             ></span>
           </label>
         </.form>
-        <%!-- Picking a tag empties the field (see the SearchNav hook) --%>
+        <%!-- Picking a tag empties the field (see the SearchNav hook). On small
+             screens, only the first two, unless all of them were asked for: the
+             others show with "…" --%>
         <div
           :if={@tag_suggestions != []}
           id="search-tags"
@@ -174,14 +178,18 @@ defmodule TextexpWeb.SearchModal do
         >
           <span class="text-xs text-base-content/60">Tags :</span>
           <button
-            :for={tag <- @tag_suggestions}
+            :for={{tag, index} <- Enum.with_index(@tag_suggestions)}
             id={"search-tag-#{tag.id}"}
             type="button"
             phx-click={
               JS.push("pick_tag", value: %{id: tag.id}, target: @myself)
               |> JS.focus(to: "#search-modal-query")
             }
-            class="flex cursor-pointer"
+            data-extra-tag={index >= @mobile_tags and !@all_tags?}
+            class={[
+              "flex cursor-pointer",
+              (index >= @mobile_tags and !@all_tags?) && "max-sm:hidden"
+            ]}
           >
             <.tag_badge
               tag={tag}
@@ -198,6 +206,21 @@ defmodule TextexpWeb.SearchModal do
             title="Tous les tags"
             aria-label="Afficher tous les tags"
             class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content"
+          >
+            …
+          </button>
+          <%!-- Small screens: shows the tags hidden there --%>
+          <button
+            :if={!@more_tags? and !@all_tags? and length(@tag_suggestions) > @mobile_tags}
+            id="search-more-tags-mobile"
+            type="button"
+            phx-click={
+              JS.remove_class("max-sm:hidden", to: "#search-tags [data-extra-tag]")
+              |> JS.hide()
+            }
+            title="Tous les tags"
+            aria-label="Afficher tous les tags"
+            class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content sm:hidden"
           >
             …
           </button>
