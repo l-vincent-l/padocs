@@ -24,6 +24,20 @@
   sub-document goes and comes back with its parent. If a sub-document can one
   day be restored alone, put it at the root when its parent is gone.
 
+## Export
+
+- **Images in the PDF.** They are links, not embedded: the server would have
+  to download them, with the care that takes (only http(s), size and time
+  limits, no internal addresses).
+- **Up-to-date server exports.** The PDF, Markdown and Typst read the saved
+  snapshot, which can miss the last seconds of edits: ask the running
+  DocServer for its state, or flush it first.
+- **Fonts in the Word file.** The DOCX exporter's embedded fonts (Inter,
+  Geist Mono) are left out: its Buffer polyfill is missing once bundled. Embed
+  them by loading the font files ourselves.
+- **Accessible PDF.** The `typst` package only offers PDF/A standards, not
+  PDF/UA-1, which Typst 0.15 supports.
+
 ## Import
 
 - **Open what is imported.** An imported file becomes a document, but the
