@@ -18,9 +18,10 @@
 - **Performance.** Rights come from a recursive CTE, plus one query per user
   concerned on a move or a member change. Measure on large trees.
 
-## Tests
+## Trash
 
-- **Flaky "Database busy".** `Textexp.Document.SearchIndexTest` and
-  `TextexpWeb.YDocRoomChannelTest` sometimes fail with `Exqlite.Error`
-  "Database busy" when the whole suite runs: SQLite contention between async
-  tests. They pass when run again.
+- **No automatic emptying.** Documents stay in the trash until restored or
+  deleted by hand. Delete those older than e.g. 30 days, in a periodic job.
+- **Restoring under a parent since deleted for good.** Impossible today: a
+  sub-document goes and comes back with its parent. If a sub-document can one
+  day be restored alone, put it at the root when its parent is gone.

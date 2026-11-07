@@ -5,7 +5,15 @@ defmodule TextexpWeb.SearchModal do
   which stops it when the modal closes, freeing the index. Each search runs in
   a task, as it waits for the index while it is being built.
 
-  Under the empty field, the user's 4 most searched tags are offered (see
+  Under the empty field, the user's recent documents, and buttons picking a
+  scope: their recent documents, their own, those shared with them, or their
+  trash. Picked, it shows in the field like a tag, and lists its documents;
+  a query, or a tag, then searches among them. In the trash, a document is
+  restored or deleted for good; restoring one sends `{:document_restored,
+  message}` to the LiveView, whose sidebar may show it again, and which shows
+  `message`.
+
+  Under the empty field too, the user's 4 most searched tags are offered (see
   `Textexp.Document.top_tags/2`), and "…" lists all of them, by label. Under a
   query, the tags whose label contains it. One picked becomes a filter: the results are then the documents carrying it,
   those matching the query if there is one. The LiveView can open the modal
@@ -21,6 +29,14 @@ defmodule TextexpWeb.SearchModal do
   alias Textexp.Document
   alias Textexp.Document.SearchIndex
 
+  # The scopes: their label, icon, and the text of their empty list
+  @scopes [
+    recent: {"Récents", "hero-clock", "Aucun document ouvert récemment"},
+    own: {"Mes documents", "hero-user", "Vous n'avez pas encore de document"},
+    shared: {"Partagés avec moi", "hero-users", "Aucun document partagé avec vous"},
+    trash: {"Corbeille", "hero-trash", "La corbeille est vide"}
+  ]
+
   def mount(socket) do
     {:ok,
      socket
@@ -35,6 +51,10 @@ defmodule TextexpWeb.SearchModal do
        more_tags?: false,
        all_tags?: false,
        tag: nil,
+       # The scope picked (see @scopes), if any, and how many documents the
+       # trash has, when it is the scope
+       scope: nil,
+       trash_count: 0,
        initialized?: false
      )
      |> stream(:results, [])}
@@ -49,7 +69,7 @@ defmodule TextexpWeb.SearchModal do
     cond do
       socket.assigns.initialized? -> {:ok, socket}
       tag -> {:ok, socket |> assign(initialized?: true) |> put_tag(tag)}
-      true -> {:ok, socket |> assign(initialized?: true) |> put_top_tags()}
+      true -> {:ok, socket |> assign(initialized?: true) |> search("")}
     end
   end
 
@@ -85,6 +105,25 @@ defmodule TextexpWeb.SearchModal do
         >
           <label class="flex items-center gap-3 border-2 border-base-content bg-base-100 px-4 py-2.5">
             <.icon name="hero-magnifying-glass" class="size-5 shrink-0 text-base-content/50" />
+            <span
+              :if={@scope}
+              id="search-active-scope"
+              class="flex shrink-0 items-center gap-1 border border-base-content/40 bg-base-200 px-1.5 py-0.5 text-[0.6875rem]"
+            >
+              <.icon name={scope_icon(@scope)} class="size-3" />
+              {scope_label(@scope)}
+              <button
+                id="search-clear-scope"
+                type="button"
+                phx-click={
+                  JS.push("clear_scope", target: @myself) |> JS.focus(to: "#search-modal-query")
+                }
+                aria-label={"Retirer « #{scope_label(@scope)} »"}
+                class="cursor-pointer opacity-60 transition-opacity hover:opacity-100"
+              >
+                <.icon name="hero-x-mark-micro" class="size-3" />
+              </button>
+            </span>
             <.tag_badge :if={@tag} id="search-active-tag" tag={@tag} class="shrink-0">
               <button
                 id="search-clear-tag"
@@ -104,7 +143,10 @@ defmodule TextexpWeb.SearchModal do
               type="search"
               value={@form[:query].value}
               placeholder={
-                if(@tag, do: "Rechercher parmi ces documents", else: "Rechercher dans les documents")
+                if(@tag || @scope,
+                  do: "Rechercher parmi ces documents",
+                  else: "Rechercher dans les documents"
+                )
               }
               autocomplete="off"
               phx-debounce="300"
@@ -160,6 +202,40 @@ defmodule TextexpWeb.SearchModal do
             …
           </button>
         </div>
+        <%!-- The scopes, under the empty field, before one is picked --%>
+        <div
+          :if={browsing?(assigns)}
+          id="search-scopes"
+          class="mt-3 flex flex-wrap items-center gap-1.5"
+        >
+          <button
+            :for={{name, {label, icon, _empty}} <- scopes()}
+            id={"search-scope-#{name}"}
+            type="button"
+            phx-click={
+              JS.push("pick_scope", value: %{scope: name}, target: @myself)
+              |> JS.focus(to: "#search-modal-query")
+            }
+            class="flex cursor-pointer items-center gap-1.5 border-2 border-base-content/30 px-2.5 py-1 text-xs text-base-content/70 transition-colors hover:border-base-content hover:text-base-content"
+          >
+            <.icon name={icon} class="size-3.5" /> {label}
+          </button>
+        </div>
+        <div
+          :if={@scope == :trash and @trash_count > 0}
+          class="mt-2 flex justify-end"
+        >
+          <button
+            id="search-empty-trash"
+            type="button"
+            phx-click="empty_trash"
+            phx-target={@myself}
+            data-confirm="Supprimer définitivement tous les documents de la corbeille ?"
+            class="cursor-pointer text-xs text-error decoration-dotted underline-offset-2 hover:underline"
+          >
+            Vider la corbeille
+          </button>
+        </div>
         <%!-- Best match first. ↑ ↓ and Enter in the field select and open them
              (see the SearchNav hook). Its padding leaves room for the selected or
              hovered card, raised with a shadow, which it would otherwise cut. --%>
@@ -180,17 +256,23 @@ defmodule TextexpWeb.SearchModal do
               <% @searched? -> %>
                 Aucun résultat
               <% true -> %>
-                Titres, contenu et tags des documents
+                {scope_empty_text(@scope || :recent)}
             <% end %>
           </li>
-          <li
-            :for={{id, document} <- @streams.results}
-            id={id}
-            role="option"
-            class="[&[aria-selected=true]>a]:-translate-x-0.5 [&[aria-selected=true]>a]:-translate-y-0.5 [&[aria-selected=true]>a]:shadow-hard"
-          >
-            <.document_card document={document} snippet={document.snippet} />
-          </li>
+          <%= for {id, document} <- @streams.results do %>
+            <%!-- In the trash, not opened: restored or deleted for good --%>
+            <li :if={document.deleted_at} id={id}>
+              <.trashed_card document={document} myself={@myself} />
+            </li>
+            <li
+              :if={!document.deleted_at}
+              id={id}
+              role="option"
+              class="[&[aria-selected=true]>a]:-translate-x-0.5 [&[aria-selected=true]>a]:-translate-y-0.5 [&[aria-selected=true]>a]:shadow-hard"
+            >
+              <.document_card document={document} snippet={document.snippet} />
+            </li>
+          <% end %>
         </ul>
         <p class="mt-3 hidden text-xs text-base-content/60 sm:block">
           ↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer
@@ -205,6 +287,107 @@ defmodule TextexpWeb.SearchModal do
       ></button>
     </div>
     """
+  end
+
+  attr :document, :map, required: true
+  attr :myself, :any, required: true
+
+  defp trashed_card(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between gap-4 border-2 border-dashed border-base-content/50 bg-base-100 px-5 py-3">
+      <div class="min-w-0">
+        <h3 class={[
+          "truncate text-base font-medium",
+          if(@document.title, do: "text-base-content/80", else: "text-base-content/50")
+        ]}>
+          {@document.title || "Sans titre"}
+        </h3>
+        <p class="text-xs text-base-content/60">
+          Supprimé le {Calendar.strftime(@document.deleted_at, "%d/%m/%Y %H:%M")} UTC
+        </p>
+      </div>
+      <div class="flex shrink-0 items-center gap-1">
+        <button
+          id={"restore-#{@document.id}"}
+          type="button"
+          phx-click="restore"
+          phx-value-id={@document.id}
+          phx-target={@myself}
+          class="btn btn-sm border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
+        >
+          <.icon name="hero-arrow-uturn-left" class="size-4" /> Restaurer
+        </button>
+        <button
+          id={"purge-#{@document.id}"}
+          type="button"
+          phx-click="purge"
+          phx-value-id={@document.id}
+          phx-target={@myself}
+          data-confirm={"Supprimer définitivement « #{@document.title || "Sans titre"} » et ses sous-documents ?"}
+          aria-label={"Supprimer définitivement « #{@document.title || "Sans titre"} »"}
+          title="Supprimer définitivement"
+          class="btn btn-ghost btn-sm btn-square text-error"
+        >
+          <.icon name="hero-x-mark" class="size-5" />
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  defp scopes, do: @scopes
+
+  defp scope_label(scope), do: @scopes |> Keyword.fetch!(scope) |> elem(0)
+  defp scope_icon(scope), do: @scopes |> Keyword.fetch!(scope) |> elem(1)
+  defp scope_empty_text(scope), do: @scopes |> Keyword.fetch!(scope) |> elem(2)
+
+  # Neither scope, tag nor query: the scopes are offered.
+  defp browsing?(%{scope: scope, tag: tag, form: form}),
+    do: is_nil(scope) and is_nil(tag) and String.trim(form[:query].value || "") == ""
+
+  # The field emptied, like for a tag.
+  def handle_event("pick_scope", %{"scope" => scope}, socket) do
+    case Enum.find(Keyword.keys(@scopes), &(Atom.to_string(&1) == scope)) do
+      nil ->
+        {:noreply, socket}
+
+      scope ->
+        {:noreply,
+         socket
+         |> assign(scope: scope)
+         |> push_event("search:clear", %{})
+         |> search("")}
+    end
+  end
+
+  def handle_event("clear_scope", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(scope: nil)
+     |> search(socket.assigns.form[:query].value)}
+  end
+
+  def handle_event("restore", %{"id" => id}, socket) do
+    case Document.restore_document(id, socket.assigns.user) do
+      {:ok, document} ->
+        # The LiveView shows it in its sidebar if it belongs there, and the
+        # flash, which a component's would not reach
+        send(self(), {:document_restored, "« #{document.title || "Sans titre"} » restauré"})
+        {:noreply, search_again(socket)}
+
+      {:error, _} ->
+        {:noreply, search_again(socket)}
+    end
+  end
+
+  def handle_event("purge", %{"id" => id}, socket) do
+    _ = Document.purge_document(id, socket.assigns.user)
+    {:noreply, search_again(socket)}
+  end
+
+  def handle_event("empty_trash", _params, socket) do
+    :ok = Document.empty_trash(socket.assigns.user)
+    {:noreply, search_again(socket)}
   end
 
   def handle_event("search", %{"search" => %{"query" => query}}, socket) do
@@ -237,18 +420,7 @@ defmodule TextexpWeb.SearchModal do
   # Filters by `tag`, the field emptied: every document carrying it. A query
   # then searches among them in the index, which does not follow the tags put
   # while the modal is open.
-  defp put_tag(socket, tag) do
-    documents = Document.list_documents_tagged(socket.assigns.user, tag.id)
-
-    socket
-    |> assign(
-      tag: tag,
-      form: to_form(%{"query" => ""}, as: "search"),
-      tag_suggestions: [],
-      more_tags?: false
-    )
-    |> show_results({:ok, documents})
-  end
+  defp put_tag(socket, tag), do: socket |> assign(tag: tag) |> search("")
 
   # The tags offered under the empty field: the 4 most searched, "…" showing
   # whether there are others; or all of them, by label.
@@ -256,31 +428,53 @@ defmodule TextexpWeb.SearchModal do
     assign(socket, tag_suggestions: Document.visible_tags(socket.assigns.user), more_tags?: false)
   end
 
+  defp put_top_tags(%{assigns: %{scope: :trash}} = socket),
+    do: assign(socket, tag_suggestions: [], more_tags?: false)
+
   defp put_top_tags(socket) do
     tags = Document.top_tags(socket.assigns.user, 5)
     assign(socket, tag_suggestions: Enum.take(tags, 4), more_tags?: length(tags) > 4)
   end
 
+  defp search_again(socket), do: search(socket, socket.assigns.form[:query].value)
+
   defp search(socket, query) do
     socket = assign(socket, form: to_form(%{"query" => query}, as: "search"))
-    %{user: user, tag: tag} = socket.assigns
+    %{user: user, tag: tag, scope: scope} = socket.assigns
 
-    case String.trim(query) do
-      "" when is_nil(tag) ->
+    case {String.trim(query), tag, scope} do
+      # In the trash, which the index does not hold: by title
+      {query, _tag, :trash} ->
+        documents =
+          user
+          |> Document.list_trash()
+          |> Document.with_tags()
+          |> Enum.filter(
+            &((is_nil(tag) or Enum.any?(&1.tags, fn t -> t.id == tag.id end)) and
+                title_matches?(&1, query))
+          )
+
         socket
-        |> assign(loading?: false, searched?: false)
+        |> assign(loading?: false, trash_count: length(Document.list_trash(user)))
         |> put_top_tags()
-        |> stream(:results, [], reset: true)
+        |> show_results({:ok, documents}, query != "" or tag != nil)
 
-      # Every document carrying the tag
-      "" ->
+      # The recent documents, or those of the scope
+      {"", nil, scope} ->
+        socket
+        |> assign(loading?: false)
+        |> put_top_tags()
+        |> show_results({:ok, scope_documents(user, scope || :recent)}, false)
+
+      # Every document carrying the tag, in the scope
+      {"", tag, scope} ->
         documents = Document.list_documents_tagged(user, tag.id)
 
         socket
-        |> assign(tag_suggestions: [], more_tags?: false)
-        |> show_results({:ok, documents})
+        |> assign(loading?: false, tag_suggestions: [], more_tags?: false)
+        |> show_results({:ok, in_scope(documents, user, scope)})
 
-      query ->
+      {query, tag, scope} ->
         index = socket.assigns.index
         tag_id = tag && tag.id
 
@@ -291,10 +485,33 @@ defmodule TextexpWeb.SearchModal do
           more_tags?: false
         )
         |> start_async(:search, fn ->
-          {query, SearchIndex.search(index, query, tag_id)}
+          result =
+            with {:ok, documents} <- SearchIndex.search(index, query, tag_id),
+                 do: {:ok, in_scope(documents, user, scope)}
+
+          {query, result}
         end)
     end
   end
+
+  defp scope_documents(user, :recent), do: Document.list_recent_documents(user)
+  defp scope_documents(user, :own), do: Document.list_own_documents(user)
+  defp scope_documents(user, :shared), do: Document.list_shared_documents(user)
+
+  # Those of `documents` in `scope`, in their order.
+  defp in_scope(documents, _user, nil), do: documents
+  defp in_scope(documents, user, :own), do: Enum.filter(documents, &(&1.owner_id == user.id))
+  defp in_scope(documents, user, :shared), do: Enum.reject(documents, &(&1.owner_id == user.id))
+
+  defp in_scope(documents, user, :recent) do
+    recent = MapSet.new(Document.list_recent_documents(user), & &1.id)
+    Enum.filter(documents, &MapSet.member?(recent, &1.id))
+  end
+
+  defp title_matches?(_document, ""), do: true
+
+  defp title_matches?(document, query),
+    do: String.contains?(String.downcase(document.title || ""), String.downcase(query))
 
   defp tag_suggestions(user, query, tag) do
     user
@@ -315,13 +532,16 @@ defmodule TextexpWeb.SearchModal do
   def handle_async(:search, {:exit, _reason}, socket),
     do: {:noreply, show_results(socket, {:error, :exit})}
 
-  defp show_results(socket, {:ok, documents}) do
+  # `searched?`: the results answer a query or a tag, rather than list a scope.
+  defp show_results(socket, result, searched? \\ true)
+
+  defp show_results(socket, {:ok, documents}, searched?) do
     socket
-    |> assign(loading?: false, failed?: false, searched?: true)
-    |> stream(:results, documents, reset: true)
+    |> assign(loading?: false, failed?: false, searched?: searched?)
+    |> stream(:results, Document.with_tags(documents), reset: true)
   end
 
-  defp show_results(socket, {:error, _reason}) do
+  defp show_results(socket, {:error, _reason}, _searched?) do
     socket
     |> assign(loading?: false, failed?: true)
     |> stream(:results, [], reset: true)

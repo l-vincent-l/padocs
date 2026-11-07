@@ -9,7 +9,12 @@ config :bcrypt_elixir, log_rounds: 1
 config :textexp, Textexp.SqliteRepo,
   database: Path.join(__DIR__, "../base_tests.sqlite"),
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 10
+  # One connection: SQLite has one writer at a time. With several, a test
+  # could write through one while the previous test's transaction, rolled back
+  # asynchronously when it ends, still held another: "Database busy". The
+  # tests using the database are not async and share the connection of the
+  # running test (see DataCase), so one is enough.
+  pool_size: 1
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

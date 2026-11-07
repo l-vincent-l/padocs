@@ -24,11 +24,11 @@ defmodule TextexpWeb.DocumentLive do
         <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
         <div class="drawer-content flex flex-col">
-          <%!-- The menu's open button (small screens, or the menu folded), and
-               the document's actions on the right, above the title --%>
+          <%!-- The menu's open button (small screens only), and the document's
+               actions on the right, above the title --%>
           <div class={[
             "flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4",
-            !@can_share? && "lg:hidden lg:group-data-[collapsed]/drawer:flex"
+            !@can_share? && "lg:hidden"
           ]}>
             <label
               id="sidebar-open"
@@ -38,17 +38,6 @@ defmodule TextexpWeb.DocumentLive do
             >
               <.icon name="hero-bars-3" class="size-5" />
             </label>
-            <button
-              id="sidebar-expand"
-              type="button"
-              data-sidebar-toggle
-              aria-controls="sidebar"
-              aria-label="Déplier le menu"
-              title="Déplier le menu (Ctrl+\)"
-              class="btn btn-square btn-ghost btn-sm -ml-1 hidden lg:group-data-[collapsed]/drawer:inline-flex"
-            >
-              <.icon name="hero-chevron-double-right" class="size-5" />
-            </button>
             <.document_actions :if={@can_share?} />
           </div>
 
@@ -227,7 +216,7 @@ defmodule TextexpWeb.DocumentLive do
           <div
             id="sidebar"
             class={[
-              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width) lg:pr-7",
+              "relative flex min-h-full w-64 flex-col border-r border-base-content/20 bg-base-100 p-4 lg:w-(--sidebar-width)",
               "lg:group-data-[ready]/drawer:transition-[margin-left,visibility] lg:duration-200 lg:ease-out",
               "lg:group-data-[resizing]/drawer:transition-none",
               "lg:group-data-[collapsed]/drawer:invisible lg:group-data-[collapsed]/drawer:-ml-(--sidebar-width)"
@@ -235,59 +224,16 @@ defmodule TextexpWeb.DocumentLive do
           >
             <div class="mb-3 flex items-center justify-between">
               <Layouts.logo class="px-1" />
-              <div class="flex items-center">
-                <button
-                  id="search-button"
-                  type="button"
-                  phx-click="open_search"
-                  aria-label="Rechercher"
-                  title="Rechercher"
-                  class="btn btn-ghost btn-sm btn-square"
-                >
-                  <.icon name="hero-magnifying-glass" class="size-5" />
-                </button>
-                <button
-                  id="sidebar-collapse"
-                  type="button"
-                  data-sidebar-toggle
-                  aria-controls="sidebar"
-                  aria-label="Replier le menu"
-                  title="Replier le menu (Ctrl+\)"
-                  class="btn btn-ghost btn-sm btn-square -mr-1 hidden lg:inline-flex"
-                >
-                  <.icon name="hero-chevron-double-left" class="size-5" />
-                </button>
-              </div>
-            </div>
-            <%!-- Dragged, or moved with the arrows, to resize the menu; a
-                 double click gives it back its width --%>
-            <div
-              id="sidebar-resize"
-              data-sidebar-resize
-              role="separator"
-              aria-orientation="vertical"
-              aria-controls="sidebar"
-              aria-label="Largeur du menu"
-              aria-valuemin="192"
-              aria-valuemax="480"
-              tabindex="0"
-              title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
-              class={[
-                "group/handle absolute inset-y-0 right-0 z-10 hidden w-3 cursor-col-resize touch-none lg:block",
-                "border-l border-dotted border-base-content/30 transition-colors",
-                "hover:bg-base-content/10 focus-visible:bg-base-content/10 focus-visible:outline-none",
-                "group-data-[resizing]/drawer:bg-base-content/10"
-              ]}
-            >
-              <%!-- The grip, in the middle of the screen --%>
-              <span class={[
-                "sticky top-1/2 mx-auto flex h-10 w-1.5 -translate-y-1/2 justify-between",
-                "*:w-px *:bg-base-content/40 *:transition-colors",
-                "group-hover/handle:*:bg-base-content group-focus-visible/handle:*:bg-base-content",
-                "group-data-[resizing]/drawer:*:bg-base-content"
-              ]}>
-                <span></span><span></span>
-              </span>
+              <button
+                id="search-button"
+                type="button"
+                phx-click="open_search"
+                aria-label="Rechercher"
+                title="Rechercher"
+                class="btn btn-ghost btn-sm btn-square"
+              >
+                <.icon name="hero-magnifying-glass" class="size-5" />
+              </button>
             </div>
             <div class="mb-3 flex gap-2">
               <button
@@ -532,6 +478,68 @@ defmodule TextexpWeb.DocumentLive do
             <Layouts.account current_user={@current_user} />
           </div>
         </div>
+        <%!-- Tabs floating on the menu's edge, at mid-height (large screens):
+             one folds the menu, the other, on the screen's edge, unfolds it --%>
+        <button
+          id="sidebar-collapse"
+          type="button"
+          data-sidebar-toggle
+          aria-controls="sidebar"
+          aria-label="Replier le menu"
+          title="Replier le menu (Ctrl+\)"
+          class={[
+            "fixed top-1/2 left-[calc(var(--sidebar-width)-0.625rem)] z-40 hidden h-10 w-5 -translate-y-1/2",
+            "cursor-pointer items-center justify-center border border-base-content/40 bg-base-100 text-base-content/60",
+            "transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content",
+            "focus-visible:border-base-content focus-visible:outline-none",
+            "lg:flex lg:group-data-[collapsed]/drawer:hidden"
+          ]}
+        >
+          <.icon name="hero-chevron-left-micro" class="size-4" />
+        </button>
+        <button
+          id="sidebar-expand"
+          type="button"
+          data-sidebar-toggle
+          aria-controls="sidebar"
+          aria-label="Déplier le menu"
+          title="Déplier le menu (Ctrl+\)"
+          class={[
+            "fixed top-1/2 left-0 z-40 hidden h-10 w-5 -translate-y-1/2",
+            "cursor-pointer items-center justify-center border border-l-0 border-base-content/40 bg-base-100 text-base-content/60",
+            "transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content",
+            "focus-visible:border-base-content focus-visible:outline-none",
+            "lg:group-data-[collapsed]/drawer:flex"
+          ]}
+        >
+          <.icon name="hero-chevron-right-micro" class="size-4" />
+        </button>
+        <%!-- Dragged, or moved with the arrows, to resize the menu; a double
+             click gives it back its width. Fixed on the menu's edge, outside it
+             (it clips what overflows): 6 px on the menu's side, where its strip
+             shows, 8 px on the document's side, only widening the area to grab --%>
+        <div
+          id="sidebar-resize"
+          data-sidebar-resize
+          role="separator"
+          aria-orientation="vertical"
+          aria-controls="sidebar"
+          aria-label="Largeur du menu"
+          aria-valuemin="192"
+          aria-valuemax="480"
+          tabindex="0"
+          title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
+          class={[
+            "group/handle fixed inset-y-0 left-[calc(var(--sidebar-width)-0.375rem)] z-30 hidden w-3.5",
+            "cursor-col-resize touch-none focus-visible:outline-none lg:block lg:group-data-[collapsed]/drawer:hidden"
+          ]}
+        >
+          <span class={[
+            "absolute inset-y-0 left-0 w-1.5 transition-colors",
+            "group-hover/handle:bg-base-content/30 group-focus-visible/handle:bg-base-content/50",
+            "group-data-[resizing]/drawer:bg-base-content/50"
+          ]}></span>
+        </div>
       </div>
     </Layouts.app>
     """
@@ -714,7 +722,8 @@ defmodule TextexpWeb.DocumentLive do
     """
   end
 
-  # The menu of the document's actions, for its owner: sharing and moving it.
+  # The menu of the document's actions, for its owner: sharing, moving it, and
+  # putting it in the trash.
   # Opened and closed in the browser; closed by a click outside or Escape.
   defp document_actions(assigns) do
     ~H"""
@@ -746,6 +755,17 @@ defmodule TextexpWeb.DocumentLive do
         <.action_item id="move-button" icon="hero-arrows-right-left" event="open_move">
           Déplacer vers…
         </.action_item>
+        <div class="my-1 border-t border-dotted border-base-content/30"></div>
+        <button
+          id="trash-button"
+          type="button"
+          role="menuitem"
+          phx-click={hide_actions() |> JS.push("trash_document")}
+          data-confirm="Mettre ce document et ses sous-documents à la corbeille ?"
+          class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm text-error transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
+        >
+          <.icon name="hero-trash" class="size-4 shrink-0" /> Mettre à la corbeille
+        </button>
       </div>
     </div>
     """
@@ -1231,21 +1251,43 @@ defmodule TextexpWeb.DocumentLive do
     end
   end
 
-  # An empty document was left and deleted (see YPersistence).
+  # A document put in the trash, or an empty one left and deleted (see
+  # YPersistence): the latter is open nowhere, so an open one went to the
+  # trash, on this page (which said so) or another.
   def handle_info({:document_deleted, document_id}, socket) do
     socket = update(socket, :documents, &Map.delete(&1, document_id))
 
     if socket.assigns.document.id == document_id do
+      socket =
+        if Phoenix.Flash.get(socket.assigns.flash, :info),
+          do: socket,
+          else: put_flash(socket, :info, "Ce document a été mis à la corbeille")
+
       {:noreply, push_navigate(socket, to: ~p"/documents")}
     else
       {:noreply, socket}
     end
   end
 
+  # A document restored from the trash (see SearchModal): the sidebar may show
+  # it again.
+  def handle_info({:document_restored, message}, socket) do
+    documents = Document.list_documents(socket.assigns.current_user)
+
+    {:noreply,
+     socket
+     |> assign(documents: Map.new(documents, &{&1.id, &1}))
+     |> put_flash(:info, message)}
+  end
+
   # Moved on this page or another: the sidebar shows it under its new parent,
   # and the breadcrumb follows if the open document is among those moved.
   def handle_info({:document_moved, document_id, parent_id}, socket),
     do: {:noreply, put_moved(socket, document_id, parent_id)}
+
+  # The roles of the open document read again by its DocServer, as it was put
+  # in the trash (the page leaves it on :document_deleted) or restored.
+  def handle_info({:access_reloaded, _document_id}, socket), do: {:noreply, socket}
 
   # The user's role on the open document changed: the page is opened again
   # with it, the editor along (its channel already applies it, see
@@ -1436,6 +1478,23 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
+
+  # With its sub-documents; the page then opens another document. The other
+  # pages showing them leave them too (see the :document_deleted message).
+  def handle_event("trash_document", _params, socket) do
+    document = socket.assigns.document
+
+    case Document.trash_document(document.id, socket.assigns.current_user) do
+      :ok ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "« #{document.title || "Sans titre"} » mis à la corbeille")
+         |> push_navigate(to: ~p"/documents")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas supprimer ce document")}
+    end
+  end
 
   def handle_event("open_move", _params, socket) do
     {:noreply, assign(socket, moving?: true, move_destinations: move_destinations(socket))}

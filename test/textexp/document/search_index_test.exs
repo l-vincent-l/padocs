@@ -10,7 +10,7 @@ defmodule Textexp.Document.SearchIndexTest do
   end
 
   test "searches the documents of its user", %{user: user, document: document} do
-    {:ok, index} = SearchIndex.start_link(user)
+    index = start_supervised!({SearchIndex, user})
 
     assert {:ok, [%{id: id}]} = SearchIndex.search(index, "tarte")
     assert id == document.id
@@ -20,7 +20,7 @@ defmodule Textexp.Document.SearchIndexTest do
   test "finds the other forms of a word, whatever its accents", %{user: user} do
     statuts = Fixtures.create_document!(user, %{title: "Les statuts de l'association"})
     ecole = Fixtures.create_document!(user, %{title: "Rentrée à l'École"})
-    {:ok, index} = SearchIndex.start_link(user)
+    index = start_supervised!({SearchIndex, user})
 
     assert {:ok, [%{id: id}]} = SearchIndex.search(index, "statut")
     assert id == statuts.id
@@ -30,7 +30,7 @@ defmodule Textexp.Document.SearchIndexTest do
 
   test "takes apostrophes as word separators, not quotes", %{user: user} do
     statuts = Fixtures.create_document!(user, %{title: "Les statuts de l'association"})
-    {:ok, index} = SearchIndex.start_link(user)
+    index = start_supervised!({SearchIndex, user})
 
     assert {:ok, [%{id: id}]} = SearchIndex.search(index, "l'association")
     assert id == statuts.id
@@ -38,7 +38,7 @@ defmodule Textexp.Document.SearchIndexTest do
 
   test "finds the words its last word starts", %{user: user} do
     association = Fixtures.create_document!(user, %{title: "Les statuts de l'association"})
-    {:ok, index} = SearchIndex.start_link(user)
+    index = start_supervised!({SearchIndex, user})
 
     assert {:ok, [%{id: id}]} = SearchIndex.search(index, "associa")
     assert id == association.id
@@ -52,7 +52,7 @@ defmodule Textexp.Document.SearchIndexTest do
   test "searches among the documents carrying a tag", %{user: user, document: document} do
     for n <- 1..20, do: Fixtures.create_document!(user, %{title: "Tarte n°#{n}"})
     {:ok, tag} = Textexp.Document.add_tag(document.id, user, "Desserts")
-    {:ok, index} = SearchIndex.start_link(user)
+    index = start_supervised!({SearchIndex, user})
 
     # filtered before the 20 best matches are kept
     assert {:ok, [%{id: id}]} = SearchIndex.search(index, "tarte", tag.id)
@@ -62,6 +62,9 @@ defmodule Textexp.Document.SearchIndexTest do
 
   test "stop/1 ends it at once, without ending its caller", %{user: user} do
     {:ok, index} = SearchIndex.start_link(user)
+    # Built: stopped in the middle of its query, it would cut the connection
+    # of the next test
+    {:ok, _} = SearchIndex.search(index, "tarte")
     ref = Process.monitor(index)
 
     assert :ok = SearchIndex.stop(index)
@@ -76,6 +79,7 @@ defmodule Textexp.Document.SearchIndexTest do
     owner =
       spawn(fn ->
         {:ok, index} = SearchIndex.start_link(user)
+        {:ok, _} = SearchIndex.search(index, "tarte")
         send(test, {:index, index})
         receive do: (:stop -> exit(:shutdown))
       end)
