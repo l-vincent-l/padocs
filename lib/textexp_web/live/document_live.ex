@@ -285,9 +285,11 @@ defmodule TextexpWeb.DocumentLive do
               </div>
             </div>
             <script :type={Phoenix.LiveView.ColocatedHook} name=".DocumentTree">
-              // Drags a document of the sidebar onto another, or onto the root's
-              // zone, then asks the server to move it there. The attributes it sets
-              // go through this.js(), so that LiveView's patches keep them.
+              // Drags a document of the sidebar: into another, before or after
+              // another (the top, middle or bottom of its row), or onto the root's
+              // zone; then asks the server to move it there. The rows tell what
+              // they allow (see document_items/1). The attributes it sets go
+              // through this.js(), so that LiveView's patches keep them.
               export default {
                 mounted() {
                   this.el.addEventListener("dragstart", e => {
@@ -296,7 +298,7 @@ defmodule TextexpWeb.DocumentLive do
                     this.dragged = row
                     e.dataTransfer.effectAllowed = "move"
                     e.dataTransfer.setData("text/plain", row.dataset.documentId)
-                    const toRoot = "canRoot" in row.dataset && row.dataset.parentId
+                    const toRoot = this.canMove() && "canRoot" in row.dataset && row.dataset.parentId
                     this.js().setAttribute(this.el, "data-dragging", toRoot ? "root" : "")
                     this.js().setAttribute(row, "data-dragged", "")
                   })
@@ -314,39 +316,68 @@ defmodule TextexpWeb.DocumentLive do
                     const target = this.target(e)
                     if (!target) return
                     e.preventDefault()
-                    const root = target.dataset.dropTarget === "root"
-                    this.pushEvent("move_document", {
-                      id: this.dragged.dataset.documentId,
-                      parent_id: root ? null : target.dataset.documentId
-                    })
+                    const id = this.dragged.dataset.documentId
+                    if (target.place === "root")
+                      this.pushEvent("move_document", {id, parent_id: null})
+                    else if (target.place === "into")
+                      this.pushEvent("move_document", {id, parent_id: target.el.dataset.documentId})
+                    else
+                      this.pushEvent("place_document", {
+                        id,
+                        sibling_id: target.el.dataset.documentId,
+                        place: target.place
+                      })
                     this.end()
                   })
                   this.el.addEventListener("dragend", () => this.end())
                 },
-                // Where the dragged document may go, under the pointer: a document
-                // its user may write, but neither itself, one of its descendants nor
-                // its parent; or the root, if it may and is not there.
+                // Its owner can move it under another parent; whoever can write its
+                // parent can order it there.
+                canMove() {
+                  return "canMove" in this.dragged.dataset
+                },
+                // Where the dragged document may go, under the pointer, as `{el,
+                // place}`: before or after a document whose parent its user can
+                // write (to order it among its siblings, or move it there); into a
+                // document they can write; or the root. Never itself nor one of its
+                // descendants.
                 target(e) {
                   if (!this.dragged) return null
-                  const target = e.target.closest?.("[data-drop-target]")
-                  if (!target) return null
-                  if (target.dataset.dropTarget === "root")
-                    return this.el.dataset.dragging === "root" ? target : null
-                  if (this.dragged.closest("li").contains(target)) return null
-                  if (target.dataset.documentId === this.dragged.dataset.parentId) return null
-                  return target
+                  const zone = e.target.closest?.('[data-drop-target="root"]')
+                  if (zone)
+                    return this.el.dataset.dragging === "root" ? {el: zone, place: "root"} : null
+                  const row = e.target.closest?.("[data-document-row]")
+                  if (!row || this.dragged.closest("li").contains(row)) return null
+
+                  const sameParent = row.dataset.parentId === this.dragged.dataset.parentId
+                  const inOrder =
+                    "inOrder" in row.dataset &&
+                    (sameParent ? "inOrder" in this.dragged.dataset : this.canMove())
+                  const into =
+                    row.dataset.dropTarget === "document" &&
+                    this.canMove() &&
+                    row.dataset.documentId !== this.dragged.dataset.parentId
+
+                  const rect = row.getBoundingClientRect()
+                  const y = (e.clientY - rect.top) / rect.height
+                  const edge = into ? 0.25 : 0.5
+                  if (inOrder && y < edge) return {el: row, place: "before"}
+                  if (inOrder && y > 1 - edge) return {el: row, place: "after"}
+                  return into ? {el: row, place: "into"} : null
                 },
-                // Highlights `target`; a folded document held under the pointer
-                // unfolds, to drop into its sub-documents.
+                // Highlights `target`; a folded document held under the pointer, to
+                // drop into, unfolds, to drop among its sub-documents.
                 over(target) {
-                  if (target === this.current) return
-                  if (this.current) this.js().removeAttribute(this.current, "data-drop-over")
+                  const same =
+                    target && this.current && target.el === this.current.el && target.place === this.current.place
+                  if (same || (!target && !this.current)) return
+                  if (this.current) this.js().removeAttribute(this.current.el, "data-drop-over")
                   clearTimeout(this.unfold)
                   this.current = target
                   if (!target) return
-                  this.js().setAttribute(target, "data-drop-over", "")
-                  if ("folded" in target.dataset) {
-                    const id = target.dataset.documentId
+                  this.js().setAttribute(target.el, "data-drop-over", target.place)
+                  if (target.place === "into" && "folded" in target.el.dataset) {
+                    const id = target.el.dataset.documentId
                     this.unfold = setTimeout(() => this.pushEvent("toggle_document", {id}), 700)
                   }
                 },
@@ -548,10 +579,16 @@ defmodule TextexpWeb.DocumentLive do
   attr :expanded, :any, required: true, doc: "the ids of the documents unfolded"
   attr :user_id, :string, required: true
 
+  attr :parent_writable?, :boolean,
+    default: false,
+    doc: "whether the user can write the parent of these documents, to order them"
+
   # Documents of the sidebar, each with its sub-documents under it when
-  # unfolded, and for an editor a button creating one. Its owner drags a
-  # document onto one they can write to move it there (see the DocumentTree
-  # hook); only its real owner to the root, see Document.move_document/3.
+  # unfolded, and for an editor a button creating one. A document is dragged
+  # (see the DocumentTree hook) onto another to move it in (by its owner, onto
+  # one they can write; to the root, by its real owner, see
+  # Document.move_document/4), or before or after another to order them (by
+  # whoever can write their parent, see Document.place_document/4).
   defp document_items(assigns) do
     ~H"""
     <li :for={document <- @documents} id={"documents-#{document.id}"}>
@@ -561,11 +598,15 @@ defmodule TextexpWeb.DocumentLive do
         data-parent-id={document.parent_id}
         data-can-root={document.owner_id == @user_id}
         data-drop-target={Policy.can?(document.role, :write) && "document"}
+        data-can-move={Policy.can?(document.role, :share)}
+        data-in-order={@parent_writable?}
         data-folded={@children[document.id] && !MapSet.member?(@expanded, document.id)}
-        draggable={to_string(Policy.can?(document.role, :share))}
+        draggable={to_string(Policy.can?(document.role, :share) or @parent_writable?)}
         class={[
           "group gap-1 py-1 pr-1 pl-1 transition-[opacity,box-shadow] duration-150",
-          "data-[drop-over]:bg-base-200 data-[drop-over]:ring-2 data-[drop-over]:ring-base-content data-[drop-over]:ring-inset",
+          "data-[drop-over=into]:bg-base-200 data-[drop-over=into]:ring-2 data-[drop-over=into]:ring-base-content data-[drop-over=into]:ring-inset",
+          "data-[drop-over=before]:shadow-[inset_0_2px_0_0_var(--color-base-content)]",
+          "data-[drop-over=after]:shadow-[inset_0_-2px_0_0_var(--color-base-content)]",
           "data-[dragged]:opacity-40",
           @active_id == document.id && "menu-active"
         ]}
@@ -617,18 +658,21 @@ defmodule TextexpWeb.DocumentLive do
           active_id={@active_id}
           expanded={@expanded}
           user_id={@user_id}
+          parent_writable?={Policy.can?(document.role, :write)}
         />
       </ul>
     </li>
     """
   end
 
-  # The sub-documents of each document, in the order they were created.
+  # The sub-documents of each document, in their order (see Document.place_document/4).
   defp children(documents) do
     documents
     |> Map.values()
     |> Enum.filter(&(&1.parent_id && Map.has_key?(documents, &1.parent_id)))
-    |> Enum.sort_by(& &1.inserted_at, DateTime)
+    |> Enum.sort_by(
+      &{&1.position || 2_147_483_647, DateTime.to_unix(&1.inserted_at, :microsecond)}
+    )
     |> Enum.group_by(& &1.parent_id)
   end
 
@@ -1339,6 +1383,22 @@ defmodule TextexpWeb.DocumentLive do
      |> put_flash(:info, message)}
   end
 
+  # Sub-documents ordered or moved, on this page or another: the sidebar shows
+  # those it lists in their new order.
+  def handle_info({:children_reordered, _parent_id, ids}, socket) do
+    positions = ids |> Enum.with_index() |> Map.new()
+
+    {:noreply,
+     update(socket, :documents, fn documents ->
+       Map.new(documents, fn {id, document} ->
+         case positions do
+           %{^id => position} -> {id, %{document | position: position}}
+           _ -> {id, document}
+         end
+       end)
+     end)}
+  end
+
   # Moved on this page or another: the sidebar shows it under its new parent,
   # and the breadcrumb follows if the open document is among those moved.
   def handle_info({:document_moved, document_id, parent_id}, socket),
@@ -1585,6 +1645,33 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   def handle_event("close_move", _params, socket), do: {:noreply, assign(socket, moving?: false)}
+
+  # Before or after another document, from the sidebar (see the DocumentTree
+  # hook): ordered among its siblings, or moved there.
+  def handle_event(
+        "place_document",
+        %{"id" => id, "sibling_id" => sibling_id, "place" => place},
+        socket
+      )
+      when place in ["before", "after"] do
+    place = if place == "before", do: :before, else: :after
+
+    case Document.place_document(id, sibling_id, place, socket.assigns.current_user) do
+      {:ok, _document} ->
+        {:noreply, socket}
+
+      {:error, :cycle} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Un document ne peut pas aller sous lui-même ou l'un de ses sous-documents"
+         )}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas déplacer ce document ici")}
+    end
+  end
 
   # From the sidebar (see the DocumentTree hook) or the move panel; an empty
   # or missing parent is the root. The new parent is unfolded.

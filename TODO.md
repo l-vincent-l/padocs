@@ -2,8 +2,6 @@
 
 ## Sub-documents
 
-- **Order of siblings.** Sub-documents are sorted by creation date. Add a
-  position, and drag a document above or below another, not only into it.
 - **Hierarchy in the search.** The sidebar only shows the open document and
   its sub-documents, so documents are mostly found through the search, whose
   results are flat: show the titles of the parents under each, as in the move

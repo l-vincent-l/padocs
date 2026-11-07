@@ -1100,4 +1100,87 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert has_element?(view, "#flash-error", "L'export a échoué")
     end
   end
+
+  describe "ordering sub-documents" do
+    setup %{conn: conn} do
+      owner = register_user()
+      parent = Fixtures.create_document!(owner, %{title: "Projet"})
+
+      [a, b, c] =
+        for title <- ["A", "B", "C"] do
+          {:ok, child} = Document.create_sub_document(parent.id, owner)
+          {:ok, child} = Document.rename_document(child, owner, title)
+          child
+        end
+
+      %{conn: log_in(conn, owner), owner: owner, parent: parent, a: a, b: b, c: c}
+    end
+
+    # The titles of the sub-documents of `parent` in the sidebar, in order.
+    defp sidebar_order(view, parent) do
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#documents-#{parent.id} > ul > li > [data-document-row] a span.truncate")
+      |> Enum.map(&LazyHTML.text/1)
+    end
+
+    test "the sidebar shows them in their order", %{conn: conn, parent: parent} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+      assert sidebar_order(view, parent) == ["A", "B", "C"]
+    end
+
+    test "a document dropped before or after another takes its place",
+         %{conn: conn, parent: parent, a: a, c: c} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("place_document", %{"id" => c.id, "sibling_id" => a.id, "place" => "before"})
+
+      assert sidebar_order(view, parent) == ["C", "A", "B"]
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("place_document", %{"id" => c.id, "sibling_id" => a.id, "place" => "after"})
+
+      assert sidebar_order(view, parent) == ["A", "C", "B"]
+    end
+
+    test "an order changed on another page shows",
+         %{conn: conn, owner: owner, parent: parent, a: a, b: b} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+
+      {:ok, _} = Document.place_document(b.id, a.id, :before, owner)
+
+      assert sidebar_order(view, parent) == ["B", "A", "C"]
+    end
+
+    test "the rows say what they allow", %{owner: owner, parent: parent, a: a} do
+      editor = register_user()
+      Fixtures.share!(owner, parent, editor, :editor)
+      {:ok, view, _html} = live(log_in(build_conn(), editor), ~p"/documents/#{parent.id}")
+
+      # the open document heads the sidebar: nothing goes before or after it
+      refute has_element?(view, "#documents-#{parent.id} > [data-in-order]")
+      # its sub-documents: the editor orders them, without moving them elsewhere
+      assert has_element?(view, ~s(#documents-#{a.id} > [data-in-order][draggable="true"]))
+      refute has_element?(view, "#documents-#{a.id} > [data-can-move]")
+    end
+
+    test "refused for a viewer", %{owner: owner, parent: parent, a: a, c: c} do
+      viewer = register_user()
+      Fixtures.share!(owner, parent, viewer, :viewer)
+      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{parent.id}")
+
+      refute has_element?(view, ~s(#documents-#{a.id} > [draggable="true"]))
+
+      view
+      |> element("#documents-tree")
+      |> render_hook("place_document", %{"id" => c.id, "sibling_id" => a.id, "place" => "before"})
+
+      assert has_element?(view, "#flash-error")
+      assert sidebar_order(view, parent) == ["A", "B", "C"]
+    end
+  end
 end
