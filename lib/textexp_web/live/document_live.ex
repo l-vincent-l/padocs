@@ -24,12 +24,10 @@ defmodule TextexpWeb.DocumentLive do
         <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
         <div class="drawer-content flex flex-col">
-          <%!-- The menu's open button (small screens, or the menu folded), and
+          <%!-- The buttons opening the menu (small screens) or folding and
+               unfolding it (large screens, one at a time at the same place), and
                the document's actions on the right, above the title --%>
-          <div class={[
-            "flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4",
-            !@can_share? && "lg:hidden lg:group-data-[collapsed]/drawer:flex"
-          ]}>
+          <div class="flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4">
             <label
               id="sidebar-open"
               for="sidebar-drawer"
@@ -38,6 +36,17 @@ defmodule TextexpWeb.DocumentLive do
             >
               <.icon name="hero-bars-3" class="size-5" />
             </label>
+            <button
+              id="sidebar-collapse"
+              type="button"
+              data-sidebar-toggle
+              aria-controls="sidebar"
+              aria-label="Replier le menu"
+              title="Replier le menu (Ctrl+\)"
+              class="btn btn-square btn-ghost btn-sm -ml-1 hidden lg:inline-flex lg:group-data-[collapsed]/drawer:hidden"
+            >
+              <.icon name="hero-chevron-double-left" class="size-5" />
+            </button>
             <button
               id="sidebar-expand"
               type="button"
@@ -235,29 +244,16 @@ defmodule TextexpWeb.DocumentLive do
           >
             <div class="mb-3 flex items-center justify-between">
               <Layouts.logo class="px-1" />
-              <div class="flex items-center">
-                <button
-                  id="search-button"
-                  type="button"
-                  phx-click="open_search"
-                  aria-label="Rechercher"
-                  title="Rechercher"
-                  class="btn btn-ghost btn-sm btn-square"
-                >
-                  <.icon name="hero-magnifying-glass" class="size-5" />
-                </button>
-                <button
-                  id="sidebar-collapse"
-                  type="button"
-                  data-sidebar-toggle
-                  aria-controls="sidebar"
-                  aria-label="Replier le menu"
-                  title="Replier le menu (Ctrl+\)"
-                  class="btn btn-ghost btn-sm btn-square -mr-1 hidden lg:inline-flex"
-                >
-                  <.icon name="hero-chevron-double-left" class="size-5" />
-                </button>
-              </div>
+              <button
+                id="search-button"
+                type="button"
+                phx-click="open_search"
+                aria-label="Rechercher"
+                title="Rechercher"
+                class="btn btn-ghost btn-sm btn-square"
+              >
+                <.icon name="hero-magnifying-glass" class="size-5" />
+              </button>
             </div>
             <div class="mb-3 flex gap-2">
               <button
