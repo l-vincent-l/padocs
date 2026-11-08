@@ -35,6 +35,32 @@ DocServer and SQLite.
   piece, when) and the undo of one user's changes need Yjs 14: wait until
   yrs (y_ex) and BlockNote support it.
 
+## Hosting and several nodes
+
+- **Continuous backup with Litestream.** The reference hosting is one node,
+  SQLite and [Litestream](https://litestream.io) streaming the database to
+  S3: lose about a second on a crash, restore elsewhere (the Yjs clients
+  resend their edits on reconnecting). Document it in the README, or offer it
+  in the Docker image.
+- **Several nodes sharing a database.** The `fusion-snapshots` branch (not
+  pushed, see its README) keeps `:syn` and makes the saves conditional, merging
+  the saved snapshot on a conflict: no edit lost when a partition heals.
+  To do: rebase it on main (trash, order, roles reloaded by the DocServer);
+  try the conditional `UPDATE` on libSQL / Bunny Database (`ecto_hrana`);
+  check whether the tantivy index is per node, and share it or broadcast the
+  indexing. The `durable-server` branch holds the lock-based alternative, set
+  aside.
+- **A Yjs log per document.** Take the content out of the database: each
+  DocServer appends its updates to an object store (a local folder by
+  default, S3 if configured), `doc/<id>/<n>`, compacted from time to time.
+  Conditional writes (`If-None-Match`, `If-Match`) let two DocServers of a
+  document detect each other, merge and retry, as in `fusion-snapshots`; and
+  the store is the backup. The database keeps the relational data (users,
+  members, tree, tags, trash), which does not merge, with far fewer writes.
+  Behind `YPersistence`: a storage interface, local and S3 adapters (Req), the
+  log and its compaction, migrating the existing snapshots. Not a SQLite file
+  per document, nor rewriting Litestream in Elixir.
+
 ## Trash
 
 - **No automatic emptying.** Documents stay in the trash until restored or
