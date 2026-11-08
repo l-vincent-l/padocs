@@ -18,6 +18,23 @@
 - **Performance.** Rights come from a recursive CTE, plus one query per user
   concerned on a move or a member change. Measure on large trees.
 
+## History
+
+Ideas from [y/hub](https://github.com/yjs/yhub), Yjs's own server (Redis,
+PostgreSQL, S3: too heavy to adopt, see its API.md), to build on the
+DocServer and SQLite.
+
+- **History of a document.** Only the merged state is kept: keep snapshots
+  (e.g. on each save, thinned out over time) to show the document at a past
+  moment and restore it, as y/hub's activity and rollback do.
+- **Named versions.** Let a user name a point of the history ("sent to the
+  client"), to find it again and compare with it (y/hub's versions).
+- **Suggestions.** A copy of the document where a user proposes changes,
+  accepted or not by an editor, then merged: y/hub's branches.
+- **Who wrote what.** y/hub's attributions (who inserted or deleted each
+  piece, when) and the undo of one user's changes need Yjs 14: wait until
+  yrs (y_ex) and BlockNote support it.
+
 ## Trash
 
 - **No automatic emptying.** Documents stay in the trash until restored or
