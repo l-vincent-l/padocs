@@ -1,10 +1,16 @@
-# Many editors in one document: every virtual user (VU) signs in as one of
-# the accounts of loadtest/seed.exs, joins the document's channel as the
-# editor does (y-phoenix-channel), syncs, then types a word every second or
-# so, for 2 minutes, before leaving and joining again.
+# Editors in documents: every virtual user (VU) signs in as one of the
+# accounts of loadtest/seed.exs, joins the channel of one of the documents as
+# the editor does (y-phoenix-channel), syncs, then types a word every second
+# or so, for 2 minutes, before leaving and joining again. The VUs are spread
+# over the documents in turn (VU 1 in the first, VU 2 in the second...), or
+# with LOADTEST_PER_DOCUMENT, that many in each (VUs 1 to 5 in the first, 6
+# to 10 in the second...), so that more VUs make more documents in use.
 #
-# All the VUs go through the document's one DocServer, which applies every
-# edit and sends it to all the others: its mailbox is the expected limit.
+# The VUs of a document go through its one DocServer, which applies every
+# edit and sends it to all the others.
+#
+# With LOADTEST_WRITERS, only that many VUs type in each document (the first
+# ones to join it); the others read.
 #
 # Measures, besides Stampede's own (`ws.connect`, `channel.join`):
 #
@@ -25,19 +31,22 @@
 #
 # Run with loadtest/app.sh, which starts the application and seeds it:
 #
-#   LOADTEST_DOCUMENT=<id> mix stampede.run loadtest/one_document.exs
+#   LOADTEST_DOCUMENTS=<ids> mix stampede.run loadtest/editing.exs
 #
-# Environment: LOADTEST_URL (http://localhost:4000), LOADTEST_DOCUMENT (the
-# id printed by the seed), LOADTEST_USERS (50: how many accounts the seed
-# made; VUs beyond that share them), LOADTEST_OBSERVERS (10).
-defmodule Loadtest.OneDocument do
+# Environment: LOADTEST_URL (http://localhost:4000), LOADTEST_DOCUMENTS (the
+# ids printed by the seed, separated by commas), LOADTEST_USERS (50: how many
+# accounts the seed made; VUs beyond that share them), LOADTEST_OBSERVERS
+# (10), LOADTEST_WRITERS (all), LOADTEST_PER_DOCUMENT, LOADTEST_TYPING_MS (1000: the time between two
+# words, give or take half).
+Code.require_file("session.exs", __DIR__)
+
+defmodule Loadtest.Editing do
   use Stampede.Scenario
 
-  @password "loadtest-password"
+  alias Loadtest.Session
+
   # How long a VU stays in the document before leaving and joining again
   @session_ms 120_000
-  # Time between two words typed by a VU, give or take half
-  @typing_ms 1_000
   @words ~w(le la les un une de du et à texte document charge réunion projet note)
 
   @impl true
@@ -57,74 +66,28 @@ defmodule Loadtest.OneDocument do
   # costly, and it is not what is measured here.
   @impl true
   def setup(_opts) do
-    {:ok, _apps} = Application.ensure_all_started(:req)
-    url = System.get_env("LOADTEST_URL", "http://localhost:4000")
+    url = Session.url()
+    documents = Session.documents()
+    sessions = Session.sign_in_all(url, elem(documents, 0))
 
-    document =
-      System.get_env("LOADTEST_DOCUMENT") ||
-        raise "LOADTEST_DOCUMENT is missing: the id printed by loadtest/seed.exs"
-
-    users = String.to_integer(System.get_env("LOADTEST_USERS", "50"))
-    observers = String.to_integer(System.get_env("LOADTEST_OBSERVERS", "10"))
-
-    sessions =
-      1..users
-      |> Task.async_stream(&sign_in(url, document, &1), max_concurrency: 4, timeout: 60_000)
-      |> Enum.map(fn {:ok, session} -> session end)
-      |> List.to_tuple()
-
-    %{url: url, document: document, sessions: sessions, observers: observers}
-  end
-
-  # The session cookie of the account, and the CSRF token of the document's
-  # page, which the socket asks for to read the session.
-  defp sign_in(url, document, i) do
-    req = Req.new(base_url: url, redirect: false, retry: false)
-
-    page = Req.get!(req, url: "/sign-in")
-    cookie = session_cookie(page, nil)
-
-    response =
-      Req.post!(req,
-        url: "/sign-in",
-        headers: [cookie: cookie],
-        form: [
-          _csrf_token: csrf_token(page.body),
-          "user[email]": "loadtest-#{i}@example.com",
-          "user[password]": @password
-        ]
-      )
-
-    if response.status != 302, do: raise("sign-in of loadtest-#{i} failed: #{response.status}")
-    cookie = session_cookie(response, cookie)
-
-    page = Req.get!(req, url: "/documents/#{document}", headers: [cookie: cookie])
-    if page.status != 200, do: raise("document page for loadtest-#{i}: #{page.status}")
-
-    %{cookie: session_cookie(page, cookie), csrf_token: csrf_token(page.body)}
-  end
-
-  defp session_cookie(response, previous) do
-    response
-    |> Req.Response.get_header("set-cookie")
-    |> Enum.find_value(previous, fn header ->
-      case Regex.run(~r/^(_textexp_key=[^;]+)/, header) do
-        [_, cookie] -> cookie
-        nil -> nil
-      end
-    end)
-  end
-
-  defp csrf_token(html) do
-    [_, token] = Regex.run(~r/<meta name="csrf-token" content="([^"]+)"/, html)
-    token
+    %{
+      url: url,
+      documents: documents,
+      sessions: sessions,
+      observers: Session.env_integer("LOADTEST_OBSERVERS", 10),
+      writers: Session.env_integer("LOADTEST_WRITERS", nil),
+      per_document: Session.env_integer("LOADTEST_PER_DOCUMENT", nil),
+      typing_ms: Session.env_integer("LOADTEST_TYPING_MS", 1_000)
+    }
   end
 
   @impl true
   def run(vu) do
-    %{url: url, document: document, sessions: sessions} = vu.data
-    session = elem(sessions, rem(vu.id - 1, tuple_size(sessions)))
-    topic = "y_doc_room:#{document}"
+    %{url: url, documents: documents, sessions: sessions} = vu.data
+    session = Session.for_vu(sessions, vu.id)
+    {document, rank} = place(vu.id, tuple_size(documents), vu.data.per_document)
+    topic = "y_doc_room:#{elem(documents, document)}"
+    writer? = vu.data.writers == nil or rank < vu.data.writers
 
     observer? = vu.id <= vu.data.observers
 
@@ -145,13 +108,23 @@ defmodule Loadtest.OneDocument do
       doc: doc,
       key: "vu-#{vu.id}",
       seen: %{},
-      observer?: observer?
+      observer?: observer?,
+      typing_ms: vu.data.typing_ms
     }
 
     state = sync(state)
     stop_at = now() + @session_ms
-    loop(state, now() + next_word_in(), stop_at)
+    # a VU that only reads never reaches its next word
+    next_word_at = if writer?, do: now() + next_word_in(state), else: stop_at
+    loop(state, next_word_at, stop_at)
   end
+
+  # The index of the VU's document, and the VU's rank among those of the
+  # document: the documents in turn, or filled `per_document` at a time.
+  defp place(id, documents, nil), do: {rem(id - 1, documents), div(id - 1, documents)}
+
+  defp place(id, documents, per_document),
+    do: {rem(div(id - 1, per_document), documents), rem(id - 1, per_document)}
 
   # Sync step 1 and 2: what a VU that is not an observer keeps of the messages
   # it receives.
@@ -179,7 +152,7 @@ defmodule Loadtest.OneDocument do
 
       now() >= next_word_at ->
         type_word(state)
-        loop(state, now() + next_word_in(), stop_at)
+        loop(state, now() + next_word_in(state), stop_at)
 
       state.observer? ->
         state |> receive_until(:any, next_word_at) |> loop(next_word_at, stop_at)
@@ -283,6 +256,6 @@ defmodule Loadtest.OneDocument do
     )
   end
 
-  defp next_word_in, do: div(@typing_ms, 2) + :rand.uniform(@typing_ms)
+  defp next_word_in(state), do: div(state.typing_ms, 2) + :rand.uniform(state.typing_ms)
   defp now, do: System.monotonic_time(:millisecond)
 end
