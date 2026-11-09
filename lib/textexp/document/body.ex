@@ -1,7 +1,7 @@
 defmodule Textexp.Document.Body do
   @moduledoc """
   The body of a document: the XmlFragment written by the BlockNote editor
-  (blocknote.tsx), read with `YBlocknote`.
+  (blocknote.tsx), read with `YexBlockNote`.
   """
 
   # The fragment the editor syncs (see withCollaboration in blocknote.tsx)
@@ -9,8 +9,8 @@ defmodule Textexp.Document.Body do
   @excerpt_lines 3
   @excerpt_length 280
 
-  @doc "See `YBlocknote.empty?/1`."
-  def empty?(doc), do: doc |> fragment() |> YBlocknote.empty?()
+  @doc "See `YexBlockNote.empty?/1`."
+  def empty?(doc), do: doc |> fragment() |> YexBlockNote.empty?()
 
   @doc """
   The first non-blank lines of the body, one per block, joined with newlines,
@@ -19,7 +19,8 @@ defmodule Textexp.Document.Body do
   def excerpt(doc) do
     doc
     |> fragment()
-    |> YBlocknote.text_lines()
+    |> YexBlockNote.to_text()
+    |> String.split("\n")
     |> Enum.take(@excerpt_lines)
     |> Enum.join("\n")
     |> String.slice(0, @excerpt_length)
@@ -29,14 +30,14 @@ defmodule Textexp.Document.Body do
     end
   end
 
-  @doc "See `YBlocknote.to_text/1`."
-  def text(doc), do: doc |> fragment() |> YBlocknote.to_text()
+  @doc "See `YexBlockNote.to_text/1`."
+  def text(doc), do: doc |> fragment() |> YexBlockNote.to_text()
 
-  @doc "See `YBlocknote.to_markdown/1`."
-  def to_markdown(doc), do: doc |> fragment() |> YBlocknote.to_markdown()
+  @doc "See `YexBlockNote.to_markdown/1`."
+  def to_markdown(doc), do: doc |> fragment() |> YexBlockNote.to_markdown()
 
-  @doc "See `YBlocknote.Typst.to_typst/2`."
-  def to_typst(doc, opts \\ []), do: doc |> fragment() |> YBlocknote.Typst.to_typst(opts)
+  @doc "See `YexBlockNote.to_typst/2`."
+  def to_typst(doc, opts \\ []), do: doc |> fragment() |> YexBlockNote.to_typst(opts)
 
   defp fragment(doc), do: Yex.Doc.get_xml_fragment(doc, @fragment)
 end

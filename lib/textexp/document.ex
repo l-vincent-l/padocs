@@ -399,7 +399,7 @@ defmodule Textexp.Document do
 
   @doc """
   A document as a Typst file, its title above its body, from its saved
-  snapshot (see `YBlocknote.Typst`).
+  snapshot (see `YexBlockNote.to_typst/2`).
   """
   def typst(%Document{snapshot: snapshot, title: title}),
     do: body(snapshot, {:typst, title: title, lang: "fr"})

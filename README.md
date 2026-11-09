@@ -43,7 +43,7 @@ From a document's "⋯" menu:
 
 | Format | Made by |
 |---|---|
-| PDF | the server: the document as [Typst](https://typst.app) (`YBlocknote.Typst`), compiled by the `typst` package (a NIF) |
+| PDF | the server: the document as [Typst](https://typst.app) (`YexBlockNote.to_typst/2`), compiled by the `typst` package (a NIF) |
 | Markdown, Typst | the server, from the saved snapshot |
 | Word (.docx), OpenDocument (.odt) | the browser, from the editor, with BlockNote's `@blocknote/xl-docx-exporter` and `@blocknote/xl-odt-exporter` |
 

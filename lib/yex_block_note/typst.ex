@@ -1,17 +1,13 @@
-defmodule YBlocknote.Typst do
-  @moduledoc """
-  A document written by the BlockNote editor (see `YBlocknote`) as
-  [Typst](https://typst.app) markup, to compile into a PDF.
+defmodule YexBlockNote.Typst do
+  @moduledoc false
 
-  The text of the document is never markup: each piece is a Typst string
-  (`#"…"`), where only `\\` and `"` need escaping, so no character typed by a
-  user (`#`, `*`, `$`, `/`…) can be read as formatting or code. Formatting and
-  blocks are Typst functions around those strings (`#strong[…]`,
-  `#heading(…)[…]`, `#table(…)`).
+  # The text of the document is never markup: each piece is a Typst string
+  # (`#"…"`), where only `\\` and `"` need escaping, so no character typed by
+  # a user (`#`, `*`, `$`, `/`…) can be read as formatting or code. Formatting
+  # and blocks are Typst functions around those strings (`#strong[…]`,
+  # `#heading(…)[…]`, `#table(…)`).
 
-  Files (images, videos…) are not embedded: they become links to their URL,
-  which compiling would otherwise have to download.
-  """
+  alias YexBlockNote.Text
 
   # BlockNote's default colors (COLORS_DEFAULT in @blocknote/core)
   @text_colors %{
@@ -38,22 +34,8 @@ defmodule YBlocknote.Typst do
     "pink" => "#f4dfeb"
   }
 
-  @doc """
-  The document as a Typst file: page and text settings, the title if given,
-  then its blocks, nested ones under their parent.
-
-  ## Options
-
-    * `:title` - shown above the document, and set as the PDF's title
-    * `:lang` - the language of the text, for hyphenation and quotes.
-      Defaults to `"fr"`.
-  """
-  def to_typst(%Yex.XmlFragment{} = fragment, opts \\ []) do
-    body =
-      fragment
-      |> Yex.XmlFragment.children()
-      |> Enum.flat_map(&blocks/1)
-      |> join_blocks()
+  def to_typst(blocks, opts \\ []) do
+    body = blocks |> Enum.flat_map(&block_with_children/1) |> join_blocks()
 
     preamble(opts[:title], Keyword.get(opts, :lang, "fr")) <> body <> "\n"
   end
@@ -91,31 +73,20 @@ defmodule YBlocknote.Typst do
     Enum.join(settings ++ heading, "\n") <> "\n\n"
   end
 
-  # The blocks of a blockGroup, as `{kind, typst}`, kind telling which list
-  # an item belongs to.
-  defp blocks(%Yex.XmlElement{} = group) do
-    group
-    |> Yex.XmlElement.children()
-    |> Enum.flat_map(&block_container/1)
-  end
+  # A block as `{kind, typst}`, kind telling which list an item belongs to,
+  # its nested blocks under it. A block without content leaves its nested
+  # blocks in its place.
+  defp block_with_children(%{type: type, children: children} = block) do
+    children = Enum.flat_map(children, &block_with_children/1)
 
-  defp blocks(_text), do: []
-
-  # A blockContainer holds its block, then the blockGroup of its nested
-  # blocks if it has some. A block without content leaves its nested blocks
-  # in its place.
-  defp block_container(container) do
-    [block | nested] = container |> Yex.XmlElement.children() |> Enum.to_list()
-    children = nested |> Enum.flat_map(&blocks/1)
-
-    case block(Yex.XmlElement.get_tag(block), block) do
+    case block(type, block) do
       nil -> children
       {kind, typst} -> [{kind, nest(typst, join_blocks(children), kind)}]
     end
   end
 
   defp block("heading", block) do
-    level = block |> Yex.XmlElement.get_attribute("level") |> heading_level()
+    level = (block.props["level"] || 1) |> max(1) |> min(6)
     with_text(block, &{:block, "#heading(level: #{level})[#{&1}]"})
   end
 
@@ -124,7 +95,7 @@ defmodule YBlocknote.Typst do
   defp block("numberedListItem", block), do: with_text(block, &{:list, "+ " <> &1})
 
   defp block("checkListItem", block) do
-    box = if checked?(block), do: "☑ ", else: "☐ "
+    box = if block.props["checked"], do: "☑ ", else: "☐ "
     with_text(block, &{:list, "- #" <> string(box) <> &1})
   end
 
@@ -132,29 +103,20 @@ defmodule YBlocknote.Typst do
 
   defp block("codeBlock", block) do
     lang =
-      case Yex.XmlElement.get_attribute(block, "language") do
+      case block.props["language"] do
         language when language in [nil, "", "text"] -> ""
         language -> "lang: #{string(language)}, "
       end
 
-    {:block, "#raw(block: true, #{lang}#{string(plain_text(block))})"}
+    {:block, "#raw(block: true, #{lang}#{string(Text.inline(block.content))})"}
   end
 
-  defp block("table", block), do: {:block, table(block)}
+  defp block("table", block), do: {:block, table(block.content.rows)}
   defp block("divider", _block), do: {:block, "#line(length: 100%, stroke: 0.5pt + gray)"}
 
-  defp block(tag, block) when tag in ["image", "video", "audio", "file"] do
-    url = Yex.XmlElement.get_attribute(block, "url")
-
-    name =
-      Enum.find(
-        [
-          Yex.XmlElement.get_attribute(block, "caption"),
-          Yex.XmlElement.get_attribute(block, "name"),
-          url
-        ],
-        &(&1 not in [nil, ""])
-      )
+  defp block(tag, %{props: props}) when tag in ["image", "video", "audio", "file"] do
+    url = props["url"]
+    name = Enum.find([props["caption"], props["name"], url], &(&1 not in [nil, ""]))
 
     label = %{"image" => "Image", "video" => "Vidéo", "audio" => "Son", "file" => "Fichier"}
 
@@ -167,7 +129,7 @@ defmodule YBlocknote.Typst do
   # as in the editor.
   defp block(_tag, block) do
     with_text(block, fn text ->
-      case Yex.XmlElement.get_attribute(block, "textAlignment") do
+      case block.props["textAlignment"] do
         "center" -> {:block, "#align(center)[#{text}]"}
         "right" -> {:block, "#align(right)[#{text}]"}
         "justify" -> {:block, "#par(justify: true)[#{text}]"}
@@ -178,11 +140,11 @@ defmodule YBlocknote.Typst do
 
   # The block made by `fun` from the formatted text of `block`; none when it
   # has no text.
-  defp with_text(block, fun) do
-    if String.trim(plain_text(block)) == "", do: nil, else: fun.(inline(block))
+  defp with_text(%{content: content}, fun) when is_list(content) do
+    if String.trim(Text.inline(content)) == "", do: nil, else: fun.(inline(content))
   end
 
-  defp checked?(block), do: to_string(Yex.XmlElement.get_attribute(block, "checked")) == "true"
+  defp with_text(_block, _fun), do: nil
 
   # Nested blocks: under a list item, indented in the same item; under
   # another block, in an indented block after it.
@@ -215,69 +177,36 @@ defmodule YBlocknote.Typst do
     |> then(&(first <> &1))
   end
 
-  # The rows of a table, the first one as its header; each cell holds its
-  # text in a tableParagraph.
-  defp table(table) do
-    rows =
-      for row <- Yex.XmlElement.children(table) do
-        for cell <- Yex.XmlElement.children(row) do
-          "[" <> (cell |> Yex.XmlElement.children() |> Enum.map_join(" ", &inline/1)) <> "]"
-        end
-      end
+  # The rows of a table, the first one as its header.
+  defp table([]), do: ""
 
-    case rows do
-      [] ->
-        ""
+  defp table([header | body] = rows) do
+    cell = &("[" <> inline(&1) <> "]")
+    columns = rows |> Enum.map(&length/1) |> Enum.max()
 
-      [header | body] ->
-        columns = rows |> Enum.map(&length/1) |> Enum.max()
+    cells =
+      [
+        "table.header(" <> Enum.map_join(header, ", ", cell) <> ")"
+        | Enum.flat_map(body, &Enum.map(&1, cell))
+      ]
+      |> Enum.join(",\n  ")
 
-        cells =
-          ["table.header(" <> Enum.join(header, ", ") <> ")" | List.flatten(body)]
-          |> Enum.join(",\n  ")
-
-        "#table(\n  columns: #{columns},\n  #{cells}\n)"
-    end
+    "#table(\n  columns: #{columns},\n  #{cells}\n)"
   end
 
-  # BlockNote stores the level as a number, which y_ex reads as a float (or an
-  # integer before y_ex 0.13); older documents may hold it as text.
-  defp heading_level(level) when is_integer(level), do: clamp_level(level)
-  defp heading_level(level) when is_float(level), do: clamp_level(trunc(level))
-
-  defp heading_level(level) when is_binary(level) do
-    case Integer.parse(level) do
-      {level, _rest} -> clamp_level(level)
-      :error -> 1
-    end
-  end
-
-  defp heading_level(_level), do: 1
-
-  defp clamp_level(level), do: level |> max(1) |> min(6)
-
-  # The text of an element, formatted.
-  defp inline(%Yex.XmlElement{} = element) do
-    element
-    |> Yex.XmlElement.children()
-    |> Enum.map_join(&inline/1)
-  end
-
-  defp inline(%Yex.XmlText{} = text) do
-    for %{insert: insert} = part when is_binary(insert) <- Yex.XmlText.to_delta(text),
-        into: "",
-        do: format(insert, Map.get(part, :attributes, %{}))
-  end
-
-  defp plain_text(element) do
-    for %Yex.XmlText{} = text <- Yex.XmlElement.children(element), into: "", do: xml_text(text)
+  # Inline content, formatted.
+  defp inline(content) do
+    Enum.map_join(content, fn
+      %{text: text, styles: styles} -> format(text, styles)
+      %{content: content} -> inline(content)
+    end)
   end
 
   # A piece of text with its marks, applied inside out. Line breaks within a
   # block (shift+enter) are explicit; code keeps them.
-  defp format(text, attributes) do
+  defp format(text, styles) do
     core =
-      if mark?(attributes, "code") do
+      if mark?(styles, "code") do
         "#raw(#{string(text)})"
       else
         text
@@ -293,14 +222,14 @@ defmodule YBlocknote.Typst do
       {"strike", &"#strike[#{&1}]"}
     ]
     |> Enum.reduce(core, fn {mark, wrap}, core ->
-      if mark?(attributes, mark), do: wrap.(core), else: core
+      if mark?(styles, mark), do: wrap.(core), else: core
     end)
-    |> color(@text_colors[color_name(attributes["textColor"])], "text")
-    |> color(@background_colors[color_name(attributes["backgroundColor"])], "highlight")
-    |> link(attributes["link"])
+    |> color(@text_colors[color_name(styles["textColor"])], "text")
+    |> color(@background_colors[color_name(styles["backgroundColor"])], "highlight")
+    |> link(styles["link"])
   end
 
-  defp mark?(attributes, mark), do: attributes[mark] not in [nil, false]
+  defp mark?(styles, mark), do: styles[mark] not in [nil, false]
 
   # A color mark holds its name, as `{stringValue: name}` (or the name itself).
   defp color_name(%{"stringValue" => name}), do: name
@@ -316,11 +245,4 @@ defmodule YBlocknote.Typst do
     do: "#link(#{string(href)})[#{typst}]"
 
   defp link(typst, _), do: typst
-
-  # Plain text, without formatting or embeds (mentions, images...).
-  defp xml_text(xml_text) do
-    for %{insert: insert} when is_binary(insert) <- Yex.XmlText.to_delta(xml_text),
-        into: "",
-        do: insert
-  end
 end
