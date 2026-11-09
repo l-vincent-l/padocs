@@ -1,63 +1,22 @@
-defmodule YBlocknote.TypstTest do
+defmodule YexBlockNote.TypstTest do
   use ExUnit.Case, async: true
 
-  alias YBlocknote.Typst, as: T
+  alias YexBlockNote.Typst, as: T
 
-  # Document as written by the BlockNote editor: one block per
-  # `{tag, text, nested blocks, attributes}`, the last two being optional; a
-  # text is a string, or a delta (a list of `%{insert, attributes}`).
-  defp fragment_with(blocks) do
-    fragment = new_fragment()
-    Yex.XmlFragment.push(fragment, Yex.XmlElementPrelim.empty("blockGroup"))
-    {:ok, group} = Yex.XmlFragment.fetch(fragment, 0)
-    push_blocks(group, blocks)
-
-    fragment
-  end
-
-  defp new_fragment, do: Yex.Doc.get_xml_fragment(Yex.Doc.new(), "blocknote")
-
-  # Attributes are set once the elements exist: Yex ignores those of prelims.
-  defp push_blocks(group, blocks) do
-    for block <- blocks do
-      {tag, text, children, attributes} =
-        case block do
-          {tag, text} -> {tag, text, [], %{}}
-          {tag, text, children} -> {tag, text, children, %{}}
-          block -> block
-        end
-
-      Yex.XmlElement.push(group, Yex.XmlElementPrelim.empty("blockContainer"))
-      {:ok, container} = Yex.XmlElement.fetch(group, Yex.XmlElement.length(group) - 1)
-
-      content =
-        case text do
-          "" -> []
-          [_ | _] = delta -> [Yex.XmlTextPrelim.from(delta)]
-          text -> [Yex.XmlTextPrelim.from(text)]
-        end
-
-      Yex.XmlElement.push(container, Yex.XmlElementPrelim.new(tag, content))
-      {:ok, element} = Yex.XmlElement.fetch(container, 0)
-      for {key, value} <- attributes, do: Yex.XmlElement.insert_attribute(element, key, value)
-
-      if children != [] do
-        Yex.XmlElement.push(container, Yex.XmlElementPrelim.empty("blockGroup"))
-        {:ok, nested} = Yex.XmlElement.fetch(container, 1)
-        push_blocks(nested, children)
-      end
-    end
-  end
+  import YexBlockNote.Fixtures
 
   # The markup after the page and text settings.
   defp body(fragment, opts \\ []) do
-    [_preamble, body] = fragment |> T.to_typst(opts) |> String.split("\n\n", parts: 2)
+    [_preamble, body] =
+      fragment |> YexBlockNote.to_typst(opts) |> String.split("\n\n", parts: 2)
+
     String.trim_trailing(body, "\n")
   end
 
   # The markup compiles, into a PDF.
   defp assert_compiles(fragment, opts \\ []) do
-    assert {:ok, "%PDF" <> _} = fragment |> T.to_typst(opts) |> Typst.render_to_pdf()
+    assert {:ok, "%PDF" <> _} =
+             fragment |> YexBlockNote.to_typst(opts) |> Typst.render_to_pdf()
   end
 
   test "string/1 escapes what a Typst string literal needs" do
@@ -75,12 +34,12 @@ defmodule YBlocknote.TypstTest do
 
   test "settings, and the title when given" do
     fragment = fragment_with([{"paragraph", "Text"}])
-    typst = T.to_typst(fragment, title: ~S|Le "titre" #1|, lang: "fr")
+    typst = fragment |> YexBlockNote.to_typst(title: ~S|Le "titre" #1|, lang: "fr")
 
     assert typst =~ ~S|#set document(title: "Le \"titre\" #1")|
     assert typst =~ ~S|#set text(lang: "fr", size: 11pt)|
     assert typst =~ ~S|text(size: 1.8em, weight: "bold", "Le \"titre\" #1")|
-    assert T.to_typst(new_fragment()) =~ "#set document(title: none)"
+    assert YexBlockNote.to_typst([]) =~ "#set document(title: none)"
 
     assert_compiles(fragment, title: "Titre")
     assert_compiles(new_fragment())
