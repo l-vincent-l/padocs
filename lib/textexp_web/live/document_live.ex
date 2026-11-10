@@ -23,7 +23,11 @@ defmodule TextexpWeb.DocumentLive do
       >
         <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
-        <div class="drawer-content flex flex-col">
+        <%!-- Room for the history panel, on large screens --%>
+        <div class={[
+          "drawer-content flex flex-col transition-[padding] duration-200 ease-out",
+          @history_open? && "lg:pr-80"
+        ]}>
           <%!-- The menu's open button (small screens only), and the document's
                actions on the right, above the title --%>
           <div class="flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4">
@@ -136,8 +140,14 @@ defmodule TextexpWeb.DocumentLive do
                 inherited={@inherited_accesses}
                 current_user_id={@current_user.id}
               />
+              <.history_panel :if={@history_open?} versions={@streams.versions} />
               <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
             </div>
+            <.version_banner
+              :if={@viewed_version}
+              version={@viewed_version}
+              can_edit?={@can_edit?}
+            />
             <%!-- Managed by the DocumentEditor hook: LiveView must not touch it. Its
                    id changes with the document so that LiveView replaces it, and the
                    hook mounts a new editor. The skeleton is removed and the editor
@@ -817,6 +827,10 @@ defmodule TextexpWeb.DocumentLive do
           </.action_item>
           <div class="my-1 border-t border-dotted border-base-content/30"></div>
         <% end %>
+        <.action_item id="history-button" icon="hero-clock" event="open_history">
+          Historique…
+        </.action_item>
+        <div class="my-1 border-t border-dotted border-base-content/30"></div>
         <p class="px-3 pt-1.5 pb-0.5 text-xs text-base-content/60">Exporter en</p>
         <%!-- PDF, Markdown and Typst: made on the server, downloaded; Word and
              OpenDocument: made from the editor (see the DocumentEditor hook) --%>
@@ -928,6 +942,148 @@ defmodule TextexpWeb.DocumentLive do
       transition: {"transition ease-in duration-75", "opacity-100", "opacity-0"}
     )
     |> JS.set_attribute({"aria-expanded", "false"}, to: "#document-actions-button")
+  end
+
+  attr :versions, :any, required: true
+
+  # The points of the document's history, the last first, by day (see
+  # Document.list_versions/2). Choosing one shows it in place of the editor
+  # (see version_banner/1). Closed by its button or Escape.
+  defp history_panel(assigns) do
+    ~H"""
+    <aside
+      id="history-panel"
+      role="dialog"
+      aria-labelledby="history-title"
+      phx-window-keydown="close_history"
+      phx-key="Escape"
+      phx-mounted={
+        JS.transition(
+          {"transition ease-out duration-200", "translate-x-full opacity-0",
+           "translate-x-0 opacity-100"},
+          time: 200
+        )
+        |> JS.focus_first(to: "#history-versions")
+      }
+      class="fixed inset-y-0 right-0 z-40 flex w-80 max-w-[calc(100vw-2rem)] flex-col border-l-2 border-base-content bg-base-100 shadow-hard"
+    >
+      <div class="flex items-start justify-between gap-4 border-b-2 border-dotted border-base-content/40 px-4 py-3">
+        <div class="min-w-0">
+          <h2 id="history-title" class="text-sm uppercase">Historique</h2>
+          <p class="mt-0.5 text-xs text-base-content/60">
+            Les modifications, par minute, puis par heure, jour et semaine en vieillissant (UTC).
+          </p>
+        </div>
+        <button
+          id="history-close"
+          type="button"
+          phx-click="close_history"
+          aria-label="Fermer l'historique"
+          class="btn btn-ghost btn-sm btn-square -mt-1 -mr-2"
+        >
+          <.icon name="hero-x-mark" class="size-5" />
+        </button>
+      </div>
+      <ul id="history-versions" phx-update="stream" class="flex-1 overflow-y-auto px-2 py-2">
+        <li id="history-empty" class="hidden px-2 py-3 text-sm text-base-content/60 only:block">
+          Aucune modification enregistrée pour l'instant.
+        </li>
+        <li :for={{dom_id, version} <- @versions} id={dom_id}>
+          <p
+            :if={version.first_of_day?}
+            class="px-2 pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-base-content/60 first:pt-1"
+          >
+            {day_label(version.ended_at)}
+          </p>
+          <button
+            id={"show-version-#{version.id}"}
+            type="button"
+            phx-click={
+              JS.push("show_version", value: %{id: version.id})
+              |> JS.remove_attribute("aria-current", to: "#history-versions [aria-current]")
+              |> JS.set_attribute({"aria-current", "true"})
+            }
+            class={[
+              "group flex w-full cursor-pointer items-center justify-between gap-2 border-2 border-transparent px-2 py-1.5 text-left text-sm",
+              "transition-colors duration-100 hover:bg-base-200 focus-visible:border-base-content focus-visible:outline-none",
+              "aria-[current]:border-base-content aria-[current]:bg-primary aria-[current]:text-primary-content"
+            ]}
+          >
+            <span class="tabular-nums">{range_label(version)}</span>
+            <span
+              :if={version.last?}
+              class="text-xs text-base-content/60 group-aria-[current]:text-primary-content/80"
+            >
+              la plus récente
+            </span>
+          </button>
+        </li>
+      </ul>
+    </aside>
+    """
+  end
+
+  attr :version, :map, required: true
+  attr :can_edit?, :boolean, required: true
+
+  # Above the version shown in place of the editor: what it is, restoring it
+  # (for those who can write), going back to the document.
+  defp version_banner(assigns) do
+    ~H"""
+    <div
+      id="version-banner"
+      role="status"
+      class="sticky top-0 z-20 mx-2 mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-base-content bg-base-200 px-3 py-2 text-sm shadow-hard lg:mx-[54px]"
+    >
+      <.icon name="hero-clock" class="size-4 shrink-0" />
+      <span class="min-w-0 flex-1 basis-56">
+        Version du {Calendar.strftime(@version.ended_at, "%d/%m/%Y à %H:%M")} UTC
+        <span class="text-base-content/60">— lecture seule</span>
+      </span>
+      <button
+        :if={@can_edit?}
+        id="restore-version"
+        type="button"
+        phx-click="restore_version"
+        data-confirm="Remplacer le contenu du document par cette version ? Les modifications faites depuis restent dans l'historique."
+        class="btn btn-sm border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
+      >
+        <.icon name="hero-arrow-uturn-left" class="size-4" /> Restaurer cette version
+      </button>
+      <button
+        id="leave-version"
+        type="button"
+        phx-click="hide_version"
+        class="btn btn-sm btn-ghost"
+      >
+        Revenir au document
+      </button>
+    </div>
+    """
+  end
+
+  defp day_label(at) do
+    today = Date.utc_today()
+
+    case Date.diff(today, DateTime.to_date(at)) do
+      0 -> "Aujourd'hui"
+      1 -> "Hier"
+      _ -> Calendar.strftime(at, "%d/%m/%Y")
+    end
+  end
+
+  # The minutes of the range of edits, its day if it spans several.
+  defp range_label(%{started_at: started_at, ended_at: ended_at}) do
+    cond do
+      DateTime.to_date(started_at) != DateTime.to_date(ended_at) ->
+        "#{Calendar.strftime(started_at, "%d/%m %H:%M")} – #{Calendar.strftime(ended_at, "%d/%m %H:%M")}"
+
+      Calendar.strftime(started_at, "%H:%M") == Calendar.strftime(ended_at, "%H:%M") ->
+        Calendar.strftime(ended_at, "%H:%M")
+
+      true ->
+        "#{Calendar.strftime(started_at, "%H:%M")} – #{Calendar.strftime(ended_at, "%H:%M")}"
+    end
   end
 
   attr :document, :any, required: true
@@ -1226,6 +1382,10 @@ defmodule TextexpWeb.DocumentLive do
        search_index: nil,
        search_tag: nil,
        share_form: nil,
+       history_open?: false,
+       # the versions listed, by id, and the one shown in place of the editor
+       versions: %{},
+       viewed_version: nil,
        # The sidebar's documents, by id: a map rather than a stream, to show
        # them as trees (see document_items/1), and the documents unfolded.
        documents: Map.new(documents, &{&1.id, &1}),
@@ -1233,7 +1393,8 @@ defmodule TextexpWeb.DocumentLive do
        ancestors: []
      )
      |> stream(:viewers, [])
-     |> stream(:members, [])}
+     |> stream(:members, [])
+     |> stream(:versions, [])}
   end
 
   # /documents opens the document the user opened last, else the one they
@@ -1295,6 +1456,9 @@ defmodule TextexpWeb.DocumentLive do
       can_share?: Policy.can?(document.role, :share),
       sharing?: false,
       moving?: false,
+      history_open?: false,
+      versions: %{},
+      viewed_version: nil,
       page_title: document.title || "Sans titre",
       last_update: document.updated_at,
       title_form: to_form(%{"title" => document.title})
@@ -1325,6 +1489,37 @@ defmodule TextexpWeb.DocumentLive do
   defp close_search(socket) do
     SearchIndex.stop(socket.assigns.search_index)
     assign(socket, search_open?: false, search_index: nil, search_tag: nil)
+  end
+
+  # Lists the versions of the open document, each with whether it is the
+  # first of its day (the list being the last first) and the last of all.
+  defp open_history(socket) do
+    %{document: document, current_user: user} = socket.assigns
+
+    case Document.list_versions(document.id, user) do
+      {:ok, versions} ->
+        versions =
+          versions
+          |> Enum.with_index()
+          |> Enum.map_reduce(nil, fn {version, index}, previous_day ->
+            day = DateTime.to_date(version.ended_at)
+            {Map.merge(version, %{first_of_day?: day != previous_day, last?: index == 0}), day}
+          end)
+          |> elem(0)
+
+        socket
+        |> assign(history_open?: true, versions: Map.new(versions, &{&1.id, &1}))
+        |> stream(:versions, versions, reset: true)
+
+      {:error, _} ->
+        put_flash(socket, :error, "Vous ne pouvez plus lire ce document")
+    end
+  end
+
+  defp hide_version(%{assigns: %{viewed_version: nil}} = socket), do: socket
+
+  defp hide_version(socket) do
+    socket |> assign(viewed_version: nil) |> push_event("hide_version", %{})
   end
 
   defp leave_document(%{assigns: %{document: nil}} = socket), do: socket
@@ -1657,6 +1852,64 @@ defmodule TextexpWeb.DocumentLive do
         {:noreply, put_flash(socket, :error, "Vous ne pouvez pas supprimer ce document")}
     end
   end
+
+  def handle_event("open_history", _params, socket), do: {:noreply, open_history(socket)}
+
+  def handle_event("close_history", _params, socket) do
+    {:noreply, socket |> hide_version() |> assign(history_open?: false, versions: %{})}
+  end
+
+  # The version's state goes to the DocumentEditor hook, which shows it read
+  # only in place of the editor.
+  def handle_event("show_version", %{"id" => id}, socket) when is_integer(id) do
+    %{document: document, current_user: user, versions: versions} = socket.assigns
+
+    case {versions[id], Document.version_state(document.id, id, user)} do
+      {%{} = version, {:ok, state}} ->
+        {:noreply,
+         socket
+         |> assign(viewed_version: version)
+         |> push_event("show_version", %{state: Base.encode64(state)})}
+
+      {_, {:error, :forbidden}} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez plus lire ce document")}
+
+      _ ->
+        {:noreply,
+         socket
+         |> open_history()
+         |> put_flash(:info, "Cette version a été regroupée avec une plus récente")}
+    end
+  end
+
+  def handle_event("hide_version", _params, socket), do: {:noreply, hide_version(socket)}
+
+  # Done by the editor, as an edit of this user: the content of the version
+  # replaces the document's (see the DocumentEditor hook), which tells when it
+  # is done.
+  def handle_event("restore_version", _params, socket) do
+    if socket.assigns.can_edit? and socket.assigns.viewed_version do
+      {:noreply, push_event(socket, "restore_version", %{})}
+    else
+      {:noreply, put_flash(socket, :error, "Vous ne pouvez pas modifier ce document")}
+    end
+  end
+
+  def handle_event("version_restored", _params, socket) do
+    message =
+      case socket.assigns.viewed_version do
+        %{ended_at: at} -> "Version du #{Calendar.strftime(at, "%d/%m/%Y à %H:%M")} UTC restaurée"
+        nil -> "Version restaurée"
+      end
+
+    {:noreply,
+     socket
+     |> assign(viewed_version: nil, history_open?: false, versions: %{})
+     |> put_flash(:info, message)}
+  end
+
+  def handle_event("restore_failed", _params, socket),
+    do: {:noreply, put_flash(socket, :error, "La version n'a pas pu être restaurée")}
 
   def handle_event("open_move", _params, socket) do
     {:noreply, assign(socket, moving?: true, move_destinations: move_destinations(socket))}

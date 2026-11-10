@@ -20,9 +20,6 @@ Ideas from [y/hub](https://github.com/yjs/yhub), Yjs's own server (Redis,
 PostgreSQL, S3: too heavy to adopt, see its API.md), to build on the
 DocServer and SQLite.
 
-- **History of a document.** Only the merged state is kept: keep snapshots
-  (e.g. on each save, thinned out over time) to show the document at a past
-  moment and restore it, as y/hub's activity and rollback do.
 - **Named versions.** Let a user name a point of the history ("sent to the
   client"), to find it again and compare with it (y/hub's versions).
 - **Suggestions.** A copy of the document where a user proposes changes,
@@ -46,37 +43,15 @@ DocServer and SQLite.
   check whether the tantivy index is per node, and share it or broadcast the
   indexing. The `durable-server` branch holds the lock-based alternative, set
   aside.
-- **A Yjs log per document.** Today a document is one full snapshot,
-  rewritten at most every 10 s (`YPersistence`, as y-sweet). Keep instead a
-  snapshot plus the updates since, as
-  [y-phoenix-channel](https://github.com/satoren/y-phoenix-channel)
-  (`lib/y_phoenix/y_ecto.ex`: one row per update, compacted past 400) and
-  y/hub do:
-  - The DocServer appends its updates, grouped (e.g. every second, merged
-    with `Yex.merge_updates`) rather than one row per keystroke as
-    y-phoenix-channel, which on Bunny Database would be an HTTP round trip
-    each.
-  - Appending never overwrites: two DocServers of a document, on two nodes,
-    cannot lose each other's edits, with no conditional write. Loading
-    replays the snapshot and the updates. A crash loses at most a second.
-  - Compacting folds the updates up to id N into the snapshot, then deletes
-    `id <= N` (not by date: y-phoenix-channel deletes by `inserted_at`, to
-    the second, which leaves duplicates, harmless to Yjs). Only that rewrite
-    of the snapshot stays conditional, as in `fusion-snapshots`.
-  - The updates are raw material for the history (see History): keep points
-    of it instead of folding everything.
-  - Still, a DocServer that only appends does not read the other node's
-    updates until it reloads.
-
-  Two possible stores, behind `YPersistence`:
-  - SQLite (or libSQL): a table of updates next to `documents`. The least
-    work.
-  - An object store (a local folder by default, S3 if configured),
-    `doc/<id>/<n>`: conditional writes (`If-None-Match`, `If-Match`) play
-    the part of the conditional `UPDATE`, and the store is the backup. The
-    database keeps only the relational data (users, members, tree, tags,
-    trash), which does not merge. Takes a storage interface, local and S3
-    adapters (Req), migrating the existing snapshots.
+- **Updates of the other node.** Each document has a Yjs log
+  (`Document.History`): two DocServers of a document, on two nodes, cannot
+  lose each other's edits. Still, a DocServer that only appends does not read
+  the other node's updates until it reloads.
+- **An object store for the log.** A local folder by default, S3 if
+  configured, `doc/<id>/<n>`: conditional writes (`If-None-Match`,
+  `If-Match`) play the part of the conditional `UPDATE`, and the store is the
+  backup. The database would keep only the relational data. Takes a storage
+  interface, local and S3 adapters (Req), migrating the log.
 
   Not a SQLite file per document, nor rewriting Litestream in Elixir.
 

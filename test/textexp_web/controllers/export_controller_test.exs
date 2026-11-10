@@ -6,7 +6,7 @@ defmodule TextexpWeb.ExportControllerTest do
   setup %{conn: conn} do
     owner = Fixtures.confirmed_user()
     document = Fixtures.create_document!(owner, %{title: ~S|Rapport: "2026"/final|})
-    Document.save_snapshot(document.id, state("Le chat dort"), "Le chat dort")
+    Document.History.append(document.id, state("Le chat dort"), "Le chat dort")
     %{conn: Fixtures.log_in(conn, owner), owner: owner, document: document}
   end
 
@@ -47,7 +47,7 @@ defmodule TextexpWeb.ExportControllerTest do
 
   test "text looking like EEx or Typst code stays text", %{conn: conn, document: document} do
     text = ~S|<%= raise "boom" %> #read("/etc/passwd")|
-    Document.save_snapshot(document.id, state(text), text)
+    Document.History.append(document.id, state(text), text)
 
     conn = get(conn, ~p"/documents/#{document.id}/export/pdf")
     assert "%PDF" <> _ = response(conn, 200)

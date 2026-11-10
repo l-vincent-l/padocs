@@ -88,13 +88,42 @@ function Editor({
   return <BlockNoteView editor={editor} editable={editable} theme="light" />;
 }
 
+type VersionProps = {
+  fragment: Y.XmlFragment;
+  threadStore: ThreadStore;
+  resolveUsers: ResolveUsers;
+};
+
+// A past version of the document, read only: its own Y.Doc, without provider.
+function Version({ fragment, threadStore, resolveUsers }: VersionProps) {
+  const editor = useCreateBlockNote(
+    withCollaboration({
+      collaboration: { fragment, user: { name: "", color: "#9ca3af" } },
+      // its comment marks need the comments' schema
+      extensions: [CommentsExtension({ threadStore, resolveUsers })],
+    }),
+  );
+
+  return <BlockNoteView editor={editor} editable={false} theme="light" />;
+}
+
+// The fragment the editor syncs (see Textexp.Document.Body on the server).
+const FRAGMENT = "document-store";
+
+function docFromState(state: Uint8Array): Y.Doc {
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, state);
+  return doc;
+}
+
 /**
  * Mounts the editor of the document described by `el` (`data-document-id`,
  * `data-user-id`, `data-user-name`, and `data-editable`, `"false"` for a
  * read-only editor), which holds the loading skeleton and the
  * hidden editor node. `resolveUsers` gives the users of the given ids. Returns
  * the function that tears it all down, and the one exporting the document as
- * a file (see export.ts).
+ * a file (see export.ts), and those showing a past version of the document
+ * in place of the editor, and restoring it.
  */
 export function mountEditor(
   el: HTMLElement,
@@ -102,6 +131,9 @@ export function mountEditor(
 ): {
   unmount: () => void;
   exportDocument: (format: ExportFormat, filename: string) => Promise<{ missingFiles: number }>;
+  showVersion: (state: Uint8Array) => void;
+  hideVersion: () => void;
+  restoreVersion: () => void;
 } {
   const { documentId, userId } = el.dataset;
   if (!documentId || !userId) {
@@ -125,7 +157,7 @@ export function mountEditor(
   const statusEl = el.querySelector<HTMLElement>("[data-sync-status]");
   const stopSyncStatus = statusEl ? watchSyncStatus(statusEl, provider) : () => {};
   const persistence = new IndexeddbPersistence(`document:${documentId}`, ydoc);
-  const fragment = ydoc.getXmlFragment("document-store");
+  const fragment = ydoc.getXmlFragment(FRAGMENT);
   // The comments are kept in the document itself, synced along with it.
   const threadStore = new YjsThreadStore(
     userId,
@@ -188,12 +220,66 @@ export function mountEditor(
     return exportDocument(editor, format, filename);
   };
 
+  // A past version (its Yjs state, from the server) is shown read only in
+  // place of the editor, which keeps syncing meanwhile.
+  let version: { state: Uint8Array; doc: Y.Doc; root: ReturnType<typeof createRoot>; node: HTMLElement } | null =
+    null;
+
+  const hideVersion = () => {
+    if (!version) return;
+    const { doc, root, node } = version;
+    version = null;
+    root.unmount();
+    node.remove();
+    doc.destroy();
+    editorNode.hidden = false;
+  };
+
+  const showVersion = (state: Uint8Array) => {
+    hideVersion();
+    const doc = docFromState(state);
+    const node = document.createElement("div");
+    node.dataset.version = "";
+    editorNode.after(node);
+    editorNode.hidden = true;
+    el.querySelector("[data-skeleton]")?.remove();
+
+    const versionRoot = createRoot(node);
+    versionRoot.render(
+      <Version
+        fragment={doc.getXmlFragment(FRAGMENT)}
+        threadStore={
+          new YjsThreadStore(userId, doc.getMap("threads"), new DefaultThreadStoreAuth(userId, "comment"))
+        }
+        resolveUsers={resolveUsers}
+      />,
+    );
+    version = { state, doc, root: versionRoot, node };
+  };
+
+  // The content of the version shown replaces the document's, as an edit of
+  // this user, synced as any other: a copy of its blocks, from a fresh Y.Doc
+  // (the one shown may have been touched by its editor). The comments stay.
+  const restoreVersion = () => {
+    if (!version) throw new Error("no version shown");
+    if (!editable) throw new Error("the document is read only");
+    const past = docFromState(version.state);
+    const nodes = past.getXmlFragment(FRAGMENT).toArray().map((node) => node.clone());
+    ydoc.transact(() => {
+      fragment.delete(0, fragment.length);
+      fragment.insert(0, nodes);
+    });
+    past.destroy();
+    hideVersion();
+  };
+
   // The document's channel and sync are torn down even if React fails to
   // unmount: otherwise they would keep running in the background, one more
   // for each document opened.
   const unmount = () => {
     el.removeEventListener("mousedown", editAtEnd);
     try {
+      hideVersion();
       root.unmount();
     } finally {
       stopSyncStatus();
@@ -204,5 +290,5 @@ export function mountEditor(
     }
   };
 
-  return { unmount, exportDocument };
+  return { unmount, exportDocument, showVersion, hideVersion, restoreVersion };
 }

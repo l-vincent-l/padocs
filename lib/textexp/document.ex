@@ -26,11 +26,13 @@ defmodule Textexp.Document do
   alias Textexp.Document.{
     Body,
     Document,
+    History,
     Membership,
     Policy,
     Tag,
     TagDocument,
     TagSearch,
+    Update,
     Visit,
     YPersistence
   }
@@ -161,8 +163,10 @@ defmodule Textexp.Document do
   def list_documents_with_text(user) do
     documents =
       readable_by(user)
-      |> select([document: d], struct(d, [:snapshot | @fields]))
+      |> select([document: d], struct(d, [:snapshot, :snapshot_update_id | @fields]))
       |> Repo.all()
+
+    contents = History.contents(documents)
 
     tag_ids =
       from(l in TagDocument,
@@ -173,7 +177,7 @@ defmodule Textexp.Document do
       |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
 
     Enum.map(documents, fn document ->
-      {%{document | snapshot: nil}, body(document.snapshot, :text),
+      {%{document | snapshot: nil}, body(contents[document.id], :text),
        Map.get(tag_ids, document.id, [])}
     end)
   end
@@ -391,8 +395,16 @@ defmodule Textexp.Document do
     :ok
   end
 
-  @doc "The document of `id`, with its snapshot."
-  def get_document!(id), do: Repo.get!(Document, id)
+  @doc """
+  The document of `id`, with in `snapshot` the full state of its content (see
+  `History.content/1`).
+  """
+  def get_document!(id), do: Repo.get!(Document, id) |> with_content()
+
+  @doc "Same as `get_document!/1`, `nil` for a document deleted for good."
+  def fetch_document(id), do: if(document = Repo.get(Document, id), do: with_content(document))
+
+  defp with_content(document), do: %{document | snapshot: History.content(document)}
 
   @doc "The body of a document as Markdown, from its saved snapshot."
   def markdown(%Document{snapshot: snapshot}), do: body(snapshot, :markdown)
@@ -669,7 +681,26 @@ defmodule Textexp.Document do
         {:error, Changeset.add_error(changeset, :snapshot, "contenu trop volumineux")}
 
       Yex.apply_update(doc, snapshot) == :ok ->
-        changeset |> Changeset.put_change(:excerpt, Body.excerpt(doc)) |> Repo.insert()
+        Repo.transact(fn ->
+          with {:ok, document} <-
+                 changeset |> Changeset.put_change(:excerpt, Body.excerpt(doc)) |> Repo.insert() do
+            # Its first update, the start of its history; folded into the
+            # snapshot.
+            update =
+              Repo.insert!(%Update{
+                document_id: document.id,
+                data: snapshot,
+                started_at: document.inserted_at,
+                ended_at: document.inserted_at
+              })
+
+            Repo.update_all(from(d in Document, where: d.id == ^document.id),
+              set: [snapshot_update_id: update.id]
+            )
+
+            {:ok, %{document | snapshot_update_id: update.id}}
+          end
+        end)
 
       true ->
         {:error, Changeset.add_error(changeset, :snapshot, "contenu illisible")}
@@ -700,46 +731,6 @@ defmodule Textexp.Document do
   end
 
   @doc """
-  Replaces the snapshot of a document with the full Yjs state of its content,
-  and its excerpt. A document saved without title, but with text, gets a
-  dated one. Without text, it stays untitled so that it is deleted when left
-  (see YPersistence.unbind).
-
-  One `UPDATE … RETURNING`: the document saved, with its `title` and
-  `updated_at`.
-  """
-  def save_snapshot(id, snapshot, excerpt) do
-    dated_title = "Notes du #{Calendar.strftime(Date.utc_today(), "%d-%m-%Y")}"
-
-    {1, [document]} =
-      Repo.update_all(
-        from(d in Document,
-          where: d.id == ^id,
-          update: [
-            set: [
-              snapshot: ^snapshot,
-              excerpt: ^excerpt,
-              updated_at: ^DateTime.utc_now(),
-              # blank: NULL, or only spaces, tabs and line breaks
-              title:
-                fragment(
-                  "CASE WHEN coalesce(trim(?, char(32, 9, 10, 13)), '') = '' AND ? IS NOT NULL THEN ? ELSE ? END",
-                  d.title,
-                  ^excerpt,
-                  ^dated_title,
-                  d.title
-                )
-            ]
-          ],
-          select: struct(d, [:id, :title, :updated_at])
-        ),
-        []
-      )
-
-    document
-  end
-
-  @doc """
   Deletes the document of `id` for good, with its sub-documents (`ON DELETE
   CASCADE`).
   """
@@ -751,6 +742,32 @@ defmodule Textexp.Document do
     end)
 
     :ok
+  end
+
+  ## History
+
+  @doc """
+  The points of the history of the document of `id`, if `user` can read it,
+  the last first (see `History.versions/2`): `{:ok, versions}`, or
+  `{:error, :forbidden}`.
+  """
+  def list_versions(id, user) do
+    authorized(id, user, :read, fn document -> {:ok, History.versions(document.id)} end)
+  end
+
+  @doc """
+  The full Yjs state of the document of `id` at the point of its history
+  `version_id` (see `list_versions/2`), if `user` can read it: `{:ok, state}`,
+  `{:error, :not_found}` for a point merged since into a later one, or
+  `{:error, :forbidden}`.
+  """
+  def version_state(id, version_id, user) do
+    authorized(id, user, :read, fn document ->
+      case History.state_at(document.id, version_id) do
+        nil -> {:error, :not_found}
+        state -> {:ok, state}
+      end
+    end)
   end
 
   ## Trash

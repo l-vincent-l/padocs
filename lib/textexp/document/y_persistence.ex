@@ -1,21 +1,32 @@
 defmodule Textexp.Document.YPersistence do
   @moduledoc """
-  Yjs persistence of a `Textexp.Document.Document`, modeled on y-sweet: one
-  full snapshot per document, rewritten at most every 10 s.
+  Yjs persistence of a `Textexp.Document.Document`: a log of its updates (see
+  `Textexp.Document.History`), appended about every second while it is being
+  edited, and folded from time to time into its snapshot.
 
-  - on load (`bind/3`): the snapshot is applied;
-  - on each edit (`update_v1/4`): nothing is written, the document is only
-    marked as modified (`:dirty`);
-  - the snapshot is saved (`flush/3`) if the document was modified:
-    - every 10 s, called by the DocServer;
-    - when the DocServer stops (`unbind/3`), including on application shutdown.
+  - on load (`bind/3`): its content, the snapshot plus the updates after it,
+    is applied;
+  - on each edit (`update_v1/4`): nothing is written, the update is kept;
+  - the updates kept are merged into one and appended (`flush/3`), one
+    `INSERT`:
+    - every second (the DocServer's `flush_interval_ms`, see
+      `TextexpWeb.YDocRoomChannel`);
+    - when the DocServer stops (`unbind/3`), including on application
+      shutdown;
+  - the excerpt of the body, and the time of the last edit, are saved at
+    most every 10 s: one write per second for each document being edited,
+    rather than two;
+  - the updates appended are folded into the snapshot, and the history
+    thinned out (`History.compact/2`), every 60 of them and when the
+    DocServer stops.
 
   When the DocServer stops, a document with neither title nor body (typically
   created then left empty) is deleted instead of saved, and
   `{:document_deleted, document_id}` is broadcast on `documents_topic/0`.
 
-  After a crash, the edits of the last 10 seconds are missing from the
-  database; Yjs clients send them again when they resync.
+  After a crash, the edits of the last second are missing from the database;
+  Yjs clients send them again when they resync. A failed write (e.g. the
+  database busy) is logged and tried again at the next flush.
 
   Updates applied on load use the `YPhoenix.Persistence.origin/0` origin,
   which the DocServer ignores.
@@ -29,10 +40,14 @@ defmodule Textexp.Document.YPersistence do
   require Logger
 
   alias Textexp.Document
-  alias Textexp.Document.Body
+  alias Textexp.Document.{Body, History}
 
   @origin YPhoenix.Persistence.origin()
   @slow_ms 200
+  # Updates appended between two compactions
+  @compact_every 60
+  # Least time between two saves of the excerpt
+  @excerpt_every_ms 10_000
 
   @doc """
   PubSub topic on which `{:document_updated, document_id, at, title}` is
@@ -59,38 +74,69 @@ defmodule Textexp.Document.YPersistence do
       Yex.Doc.transaction(doc, @origin, fn -> Yex.apply_update(doc, document.snapshot) end)
     end
 
-    Map.merge(state, %{dirty: false, untitled?: blank?(document.title)})
+    Map.merge(state, %{
+      # the updates not yet appended, the last first
+      pending: [],
+      started_at: nil,
+      ended_at: nil,
+      # the updates appended since the last compaction
+      appended: History.pending_count(document_id),
+      # the end of the edits appended whose excerpt is not saved yet, and
+      # when it was last saved (monotonic, ms)
+      excerpt_due: nil,
+      excerpt_saved_at: nil,
+      untitled?: blank?(document.title)
+    })
   end
 
   @impl true
   def unbind(state, document_id, doc) do
-    document = Document.get_document!(document_id)
+    document = Document.fetch_document(document_id)
 
-    # A sub-document needs its parent: an empty parent is kept.
-    if blank?(document.title) and Body.empty?(doc) and not Document.has_children?(document_id) do
-      timed(:delete, document_id, fn -> Document.delete_document(document_id) end)
+    cond do
+      # deleted for good meanwhile, e.g. from the trash
+      is_nil(document) ->
+        :ok
 
-      Phoenix.PubSub.broadcast(
-        Textexp.PubSub,
-        documents_topic(),
-        {:document_deleted, document_id}
-      )
-    else
-      flush(state, document_id, doc)
+      # A sub-document needs its parent: an empty parent is kept.
+      blank?(document.title) and Body.empty?(doc) and not Document.has_children?(document_id) ->
+        timed(:delete, document_id, fn -> Document.delete_document(document_id) end)
+
+        Phoenix.PubSub.broadcast(
+          Textexp.PubSub,
+          documents_topic(),
+          {:document_deleted, document_id}
+        )
+
+      true ->
+        state = flush(state, document_id, doc, true)
+
+        # The clients that are still connected somewhere send them again.
+        if state.pending != [] do
+          Logger.error("Edits of document #{document_id} not saved on stopping")
+        end
+
+        if state.appended > 0, do: compact(document_id)
     end
 
     :ok
   end
 
   @impl true
-  def update_v1(state, _update, document_id, doc) do
-    state = Map.put(state, :dirty, true)
+  def update_v1(state, update, document_id, doc) do
+    now = DateTime.utc_now()
+
+    state = %{
+      state
+      | pending: [update | state.pending],
+        started_at: state.started_at || now,
+        ended_at: now
+    }
 
     # The first text of an untitled document is saved at once, which gives it
-    # a title (see Document.save_snapshot/3) without waiting for the next
-    # flush.
-    if state[:untitled?] and Body.excerpt(doc) != nil do
-      state |> flush(document_id, doc) |> Map.put(:untitled?, false)
+    # a title (see History.save_excerpt/3) without waiting for the next flush.
+    if state.untitled? and Body.excerpt(doc) != nil do
+      state |> flush(document_id, doc, true) |> Map.put(:untitled?, false)
     else
       state
     end
@@ -98,26 +144,109 @@ defmodule Textexp.Document.YPersistence do
 
   @impl true
   @doc """
-  Saves the document's snapshot, and the excerpt of its body, if it was
-  modified since the last save; does nothing otherwise.
+  Appends the updates received since the last flush, merged into one; does
+  nothing if there are none. Saves the excerpt of the body, and the time of
+  the last edit, at most every #{div(@excerpt_every_ms, 1000)} s. Every
+  #{@compact_every} updates appended, they are folded into the snapshot.
   """
-  def flush(%{dirty: false} = state, _document_id, _doc), do: state
+  def flush(state, document_id, doc), do: flush(state, document_id, doc, false)
 
-  def flush(state, document_id, doc) do
-    snapshot = Yex.encode_state_as_update!(doc)
+  # `force?`: the excerpt saved now, if anything was appended since.
+  defp flush(%{pending: [], excerpt_due: nil} = state, _document_id, _doc, _force?), do: state
 
-    document =
-      timed(:save, document_id, fn ->
-        Document.save_snapshot(document_id, snapshot, Body.excerpt(doc))
+  defp flush(state, document_id, doc, force?) do
+    state
+    |> append(document_id)
+    |> save_excerpt(document_id, doc, force?)
+    |> maybe_compact(document_id)
+  end
+
+  defp append(%{pending: []} = state, _document_id), do: state
+
+  defp append(state, document_id) do
+    {:ok, update} = state.pending |> Enum.reverse() |> Yex.merge_updates()
+
+    result =
+      attempt(:save, document_id, fn ->
+        History.append_update(document_id, update, state.started_at, state.ended_at)
       end)
 
-    Phoenix.PubSub.broadcast(
-      Textexp.PubSub,
-      topic(document_id),
-      {:document_updated, document_id, document.updated_at, document.title}
-    )
+    case result do
+      {:ok, :ok} ->
+        %{
+          state
+          | pending: [],
+            started_at: nil,
+            ended_at: nil,
+            appended: state.appended + 1,
+            excerpt_due: state.ended_at
+        }
 
-    Map.put(state, :dirty, false)
+      # kept, merged, for the next flush
+      :error ->
+        %{state | pending: [update]}
+    end
+  end
+
+  defp save_excerpt(%{excerpt_due: nil} = state, _document_id, _doc, _force?), do: state
+
+  defp save_excerpt(state, document_id, doc, force?) do
+    now = System.monotonic_time(:millisecond)
+
+    if force? or state.excerpt_saved_at == nil or
+         now - state.excerpt_saved_at >= @excerpt_every_ms do
+      result =
+        attempt(:excerpt, document_id, fn ->
+          History.save_excerpt(document_id, Body.excerpt(doc), state.excerpt_due)
+        end)
+
+      case result do
+        {:ok, document} ->
+          # nil: deleted for good, nothing to tell
+          if document do
+            Phoenix.PubSub.broadcast(
+              Textexp.PubSub,
+              topic(document_id),
+              {:document_updated, document_id, document.updated_at, document.title}
+            )
+          end
+
+          %{state | excerpt_due: nil, excerpt_saved_at: now}
+
+        :error ->
+          state
+      end
+    else
+      state
+    end
+  end
+
+  defp maybe_compact(state, document_id) do
+    if state.appended >= @compact_every and compact(document_id) == :ok,
+      do: %{state | appended: 0},
+      else: state
+  end
+
+  # :ok, or :error if it failed, to try again at the next flush
+  defp compact(document_id) do
+    case attempt(:compact, document_id, fn -> History.compact(document_id) end) do
+      {:ok, _} -> :ok
+      :error -> :error
+    end
+  end
+
+  # `{:ok, result}`, or `:error` when the database failed (e.g. busy): logged,
+  # so that the DocServer, and its clients, survive it.
+  defp attempt(operation, document_id, fun) do
+    {:ok, timed(operation, document_id, fun)}
+  rescue
+    error ->
+      Logger.error(
+        "#{operation} failed for document #{document_id}: " <>
+          Exception.format(:error, error, __STACKTRACE__)
+      )
+
+      :error
   end
 
   defp blank?(title), do: is_nil(title) or String.trim(title) == ""

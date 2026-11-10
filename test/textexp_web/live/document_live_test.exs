@@ -372,7 +372,7 @@ defmodule TextexpWeb.DocumentLiveTest do
     test "without one, opens the document updated last", %{conn: conn, user: user} do
       older = Fixtures.create_document!(user, %{title: "Older"})
       _newer = Fixtures.create_document!(user, %{title: "Newer"})
-      Document.save_snapshot(older.id, nil, "edited")
+      Document.History.append(older.id, Yex.encode_state_as_update!(Yex.Doc.new()), "edited")
 
       assert opened_at_documents(conn) == older.id
     end
@@ -796,7 +796,7 @@ defmodule TextexpWeb.DocumentLiveTest do
 
     test "results show where the words appear in the body", %{user: user, view: view} do
       document = Fixtures.create_document!(user, %{title: "Chez moi"})
-      Document.save_snapshot(document.id, state("Le chat dort"), "Le chat dort")
+      Document.History.append(document.id, state("Le chat dort"), "Le chat dort")
 
       search(view, "chat")
 

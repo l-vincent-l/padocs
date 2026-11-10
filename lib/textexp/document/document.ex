@@ -2,11 +2,14 @@ defmodule Textexp.Document.Document do
   @moduledoc """
   A collaborative document.
 
-  Its Yjs content is stored in `snapshot`: the full state, rewritten at most
-  every 10 s while it is being edited (see `Textexp.Document.YPersistence`).
-  `excerpt` holds the first lines of its body, saved along with the snapshot to
-  preview the document without decoding it. The snapshot is rewritten on each
-  save, so `updated_at` is its last update (renaming also changes it).
+  Its Yjs content is the log of its updates (see `Textexp.Document.Update`),
+  appended about every second while it is being edited (see
+  `Textexp.Document.YPersistence`). `snapshot` caches their merge up to
+  `snapshot_update_id`, rewritten by the compaction (see
+  `Textexp.Document.History`): the content is the snapshot plus the updates
+  after it. `excerpt` holds the first lines of its body, saved with each
+  update to preview the document without decoding it, and `updated_at` is
+  the last one (renaming also changes it).
 
   A document can be the sub-document of another, its `parent`, from which it
   inherits the accesses (see `Textexp.Document`).
@@ -30,6 +33,7 @@ defmodule Textexp.Document.Document do
   schema "documents" do
     field :title, :string
     field :snapshot, :binary
+    field :snapshot_update_id, :integer, default: 0
     field :excerpt, :string
     field :role, Ecto.Enum, values: [:owner, :editor, :viewer], virtual: true
     field :snippet, :any, virtual: true
