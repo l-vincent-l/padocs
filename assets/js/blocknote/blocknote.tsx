@@ -119,7 +119,8 @@ function docFromState(state: Uint8Array): Y.Doc {
 /**
  * Mounts the editor of the document described by `el` (`data-document-id`,
  * `data-user-id`, `data-user-name`, and `data-editable`, `"false"` for a
- * read-only editor), which holds the loading skeleton and the
+ * read-only editor; `data-public-token` for a document read by its public
+ * link, then kept nowhere in the browser), which holds the loading skeleton and the
  * hidden editor node. `resolveUsers` gives the users of the given ids. Returns
  * the function that tears it all down, and the one exporting the document as
  * a file (see export.ts), and those showing a past version of the document
@@ -135,7 +136,7 @@ export function mountEditor(
   hideVersion: () => void;
   restoreVersion: () => void;
 } {
-  const { documentId, userId } = el.dataset;
+  const { documentId, userId, publicToken } = el.dataset;
   if (!documentId || !userId) {
     throw new Error("data-document-id or data-user-id missing on the editor element");
   }
@@ -150,13 +151,22 @@ export function mountEditor(
   // DocServer, which handles the messages one at a time, gets fewer of them.
   const provider = new PhoenixChannelProvider(
     getSocket(),
-    `y_doc_room:${documentId}`,
+    // By the public link's token, anyone joins read-only, on a channel
+    // without the editors' awareness (see YDocRoomChannel).
+    publicToken ? `y_doc_public:${documentId}` : `y_doc_room:${documentId}`,
     ydoc,
-    { updateThrottle: 50, awarenessThrottle: 100 },
+    {
+      updateThrottle: 50,
+      awarenessThrottle: 100,
+      params: publicToken ? { public_token: publicToken } : {},
+    },
   );
   const statusEl = el.querySelector<HTMLElement>("[data-sync-status]");
   const stopSyncStatus = statusEl ? watchSyncStatus(statusEl, provider) : () => {};
-  const persistence = new IndexeddbPersistence(`document:${documentId}`, ydoc);
+  // Not for a public link: the copy would outlive the link.
+  const persistence = publicToken
+    ? null
+    : new IndexeddbPersistence(`document:${documentId}`, ydoc);
   const fragment = ydoc.getXmlFragment(FRAGMENT);
   // The comments are kept in the document itself, synced along with it.
   const threadStore = new YjsThreadStore(
@@ -176,7 +186,7 @@ export function mountEditor(
   provider.on("sync", (synced: boolean) => {
     if (synced) showEditor();
   });
-  persistence.whenSynced.then(() => {
+  persistence?.whenSynced.then(() => {
     if (fragment.length > 0) showEditor();
   });
 
@@ -285,7 +295,7 @@ export function mountEditor(
       stopSyncStatus();
       // leaves the document's channel, which stops tracking us as a viewer
       provider.destroy();
-      persistence.destroy();
+      persistence?.destroy();
       ydoc.destroy();
     }
   };

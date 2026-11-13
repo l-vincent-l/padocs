@@ -232,6 +232,44 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert {:ok, %{role: :editor}} = Document.get_document(document.id, editor)
     end
 
+    test "the owner creates, replaces and removes a public link", %{
+      conn: conn,
+      owner: owner,
+      document: document
+    } do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
+      view |> element("#share-button") |> render_click()
+
+      refute has_element?(view, "#public-link-url")
+      view |> element("#public-link-enable") |> render_click()
+
+      {:ok, token} = Document.public_link_token(owner, document.id)
+      assert has_element?(view, "#public-link-url[value$='/p/#{token}']")
+      assert has_element?(view, "#public-link-copy[phx-hook]")
+
+      view |> element("#public-link-regenerate") |> render_click()
+      {:ok, new_token} = Document.public_link_token(owner, document.id)
+      assert new_token != token
+      assert has_element?(view, "#public-link-url[value$='/p/#{new_token}']")
+
+      view |> element("#public-link-disable") |> render_click()
+      assert {:ok, nil} = Document.public_link_token(owner, document.id)
+      refute has_element?(view, "#public-link-url")
+      assert has_element?(view, "#public-link-enable")
+    end
+
+    test "the share panel shows a link made on another page", %{
+      conn: conn,
+      owner: owner,
+      document: document
+    } do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
+      view |> element("#share-button") |> render_click()
+
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+      assert has_element?(view, "#public-link-url[value$='/p/#{token}']")
+    end
+
     test "an address without account is refused", %{conn: conn, document: document} do
       {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
       view |> element("#share-button") |> render_click()
