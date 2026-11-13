@@ -1,8 +1,10 @@
-// Hook of the file input of a document's menu: each chosen file (Markdown, HTML or
-// plain text) is converted to a document by BlockNote, in the browser, and its
+// Hook of the file input of a document's menu: each chosen file (Markdown, HTML,
+// plain text or Word) is converted to a document by BlockNote, in the browser, and its
 // Yjs state sent to the server, which creates the document. One imported file
 // is opened. The BlockNote bundle is only loaded on the first import.
 const MAX_BYTES = 2_000_000
+// A Word file is a zip, holding its images, which are left out.
+const MAX_DOCX_BYTES = 10_000_000
 
 export const DocumentImport = {
   mounted() {
@@ -33,14 +35,22 @@ export const DocumentImport = {
   },
 
   async importFile(file, toYjsState) {
-    if (file.size > MAX_BYTES) {
-      return this.push("import_failed", {name: file.name, reason: "too_large"})
+    const format = importFormat(file.name)
+    const maxBytes = format === "docx" ? MAX_DOCX_BYTES : MAX_BYTES
+
+    if (file.size > maxBytes) {
+      return this.push("import_failed", {name: file.name, reason: "too_large", max_bytes: maxBytes})
     }
 
     try {
-      const format = /\.html?$/i.test(file.name) ? "html" : "markdown"
-      const state = await toYjsState(await file.text(), format)
-      return await this.push("import_document", {name: file.name, state: toBase64(state)})
+      const content = format === "docx" ? await file.arrayBuffer() : await file.text()
+      const {state, missingImages} = await toYjsState(content, format)
+
+      return await this.push("import_document", {
+        name: file.name,
+        state: toBase64(state),
+        missing_images: missingImages,
+      })
     } catch (error) {
       console.error(error)
       return this.push("import_failed", {name: file.name, reason: "unreadable"})
@@ -50,6 +60,12 @@ export const DocumentImport = {
   push(event, payload) {
     return new Promise(resolve => this.pushEvent(event, payload, reply => resolve(reply || {})))
   },
+}
+
+function importFormat(name) {
+  if (/\.docx$/i.test(name)) return "docx"
+  if (/\.html?$/i.test(name)) return "html"
+  return "markdown"
 }
 
 // btoa takes a string of bytes, built in chunks: spreading a large array at
