@@ -23,7 +23,7 @@ defmodule PadocsWeb.PublicDocumentLive do
       <%= if @document do %>
         <article
           id="public-document"
-          class="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-4xl flex-col"
+          class="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-(--reading-width) flex-col"
         >
           <div class="document-header px-[54px] pt-8">
             <p
@@ -32,7 +32,7 @@ defmodule PadocsWeb.PublicDocumentLive do
             >
               <.icon name="hero-globe-alt" class="size-3.5" /> {gettext("Read only, by a public link")}
             </p>
-            <h1 id="public-title" class="mt-3 text-3xl font-bold break-words">
+            <h1 id="public-title" class="mt-3 text-3xl font-bold break-words text-(--color-document)">
               {@document.title || gettext("Untitled")}
             </h1>
             <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />

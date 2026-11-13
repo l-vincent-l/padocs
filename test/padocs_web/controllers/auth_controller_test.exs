@@ -118,6 +118,22 @@ defmodule PadocsWeb.AuthControllerTest do
       assert conn.resp_cookies["_padocs_web_user_remember_me"]
     end
 
+    test "an address left unconfirmed past the delay no longer signs in", %{conn: conn} do
+      user = Fixtures.register_user()
+
+      user
+      |> Ecto.Changeset.change(inserted_at: DateTime.add(DateTime.utc_now(:second), -8, :day))
+      |> Padocs.SqliteRepo.update!()
+
+      conn =
+        post(conn, ~p"/sign-in", %{
+          "user" => %{"email" => user.email, "password" => Fixtures.password()}
+        })
+
+      assert redirected_to(conn) == ~p"/reset"
+      refute get_session(conn, :user_token)
+    end
+
     test "a reset link sets a new password, confirms the account and signs in", %{conn: conn} do
       user = Fixtures.register_user()
       conn = post(conn, ~p"/reset", %{"user" => %{"email" => user.email}})

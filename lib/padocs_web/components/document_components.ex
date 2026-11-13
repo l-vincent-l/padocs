@@ -29,7 +29,7 @@ defmodule PadocsWeb.DocumentComponents do
     ~H"""
     <%!-- The title's link covers the whole card (its ::after); the button
          unfolding the tags is above it --%>
-    <div class="group relative rounded-md border border-base-content/15 bg-base-100 px-3 py-2.5 transition-colors duration-150 hover:border-base-content/40 hover:bg-base-200 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-base-content sm:px-4 sm:py-3">
+    <div class="group relative border-2 border-base-content/15 bg-base-100 px-3 py-2.5 transition-colors duration-150 hover:border-base-content hover:bg-base-200 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-base-content sm:px-4 sm:py-3">
       <%!-- On small screens, the date under the title, which keeps the width --%>
       <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <h2 class={[
@@ -45,7 +45,7 @@ defmodule PadocsWeb.DocumentComponents do
         </h2>
         <time
           datetime={DateTime.to_iso8601(@document.updated_at)}
-          class="shrink-0 text-[0.6875rem] tabular-nums text-base-content/60 sm:text-xs"
+          class="shrink-0 text-[0.6875rem] tabular-nums text-base-content/70 sm:text-xs"
         >
           {Calendar.strftime(@document.updated_at, gettext("%m/%d/%Y"))}
           <span class="hidden sm:inline">
@@ -75,7 +75,7 @@ defmodule PadocsWeb.DocumentComponents do
             |> JS.hide()
           }
           aria-label={gettext("Show the %{count} tags", count: length(@document.tags))}
-          class="relative z-10 cursor-pointer rounded px-1 text-[0.6875rem] text-base-content/60 transition-colors hover:bg-base-300 hover:text-base-content sm:hidden"
+          class="relative z-10 cursor-pointer px-1 text-[0.6875rem] text-base-content/70 transition-colors hover:bg-base-300 hover:text-base-content sm:hidden"
         >
           +{length(@document.tags) - 2}
         </button>

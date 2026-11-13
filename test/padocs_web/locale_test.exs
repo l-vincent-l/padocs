@@ -52,7 +52,6 @@ defmodule PadocsWeb.LocaleTest do
         |> live(~p"/documents/#{document.id}")
 
       assert has_element?(view, "#last-update", "Last update")
-      assert has_element?(view, "#locale-en[aria-pressed=true]")
     end
   end
 

@@ -18,6 +18,7 @@ msgstr ""
 
 #: lib/padocs_web/components/document_components.ex
 #: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "%m/%d/%Y"
 msgstr ""
@@ -348,6 +349,7 @@ msgid "Its owner may have disabled or replaced it, or the document was deleted."
 msgstr ""
 
 #: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Language"
 msgstr ""
@@ -610,6 +612,7 @@ msgid "Root"
 msgstr ""
 
 #: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Search"
 msgstr ""
@@ -682,7 +685,7 @@ msgstr ""
 msgid "Sign in with %{provider}"
 msgstr ""
 
-#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Sign out"
 msgstr ""
@@ -1038,4 +1041,105 @@ msgstr ""
 #: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "↑ ↓ to choose · Enter to open · Esc to close"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Account"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Back to the documents"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Dark"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Kept in this browser."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Light"
+msgstr ""
+
+#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Preferences"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "System"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "The language of the interface and of the emails you receive."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Theme"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "A new confirmation link is on its way to your inbox."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Link sent"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Resend the confirmation link"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Sending…"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "The email could not be sent. Try again later."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address is already confirmed."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address is not confirmed yet."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address is not confirmed yet. Confirm it before %{date}: after that, your password will no longer sign you in."
+msgstr ""
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address was not confirmed in time. Reset your password: this confirms your address and lets you sign in again."
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Tags:"
 msgstr ""

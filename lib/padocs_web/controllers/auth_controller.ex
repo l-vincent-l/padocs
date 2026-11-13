@@ -19,15 +19,30 @@ defmodule PadocsWeb.AuthController do
   end
 
   def create_session(conn, %{"user" => %{"email" => email, "password" => password} = params}) do
-    if user = Accounts.get_user_by_email_and_password(email, password) do
-      conn
-      |> put_flash(:info, gettext("You are now signed in"))
-      |> UserAuth.log_in_user(user, params)
-    else
+    user = Accounts.get_user_by_email_and_password(email, password)
+
+    cond do
       # Whether the address has an account is not told.
-      conn
-      |> put_flash(:error, gettext("Incorrect email or password"))
-      |> redirect(to: ~p"/sign-in")
+      is_nil(user) ->
+        conn
+        |> put_flash(:error, gettext("Incorrect email or password"))
+        |> redirect(to: ~p"/sign-in")
+
+      # Told to whoever knows the password only.
+      Accounts.confirmation_expired?(user) ->
+        conn
+        |> put_flash(
+          :error,
+          gettext(
+            "Your email address was not confirmed in time. Reset your password: this confirms your address and lets you sign in again."
+          )
+        )
+        |> redirect(to: ~p"/reset")
+
+      true ->
+        conn
+        |> put_flash(:info, gettext("You are now signed in"))
+        |> UserAuth.log_in_user(user, params)
     end
   end
 

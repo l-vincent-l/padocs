@@ -76,10 +76,10 @@ defmodule PadocsWeb.SearchModal do
         role="dialog"
         aria-modal="true"
         aria-labelledby="search-title"
-        class="modal-box flex max-h-[85dvh] w-11/12 max-w-2xl flex-col rounded-lg border border-base-content/15 bg-base-100 p-4 shadow-xl sm:max-h-[80dvh] sm:p-6"
+        class="modal-box flex max-h-[85dvh] w-11/12 max-w-2xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
       >
         <div class="flex items-start justify-between gap-4">
-          <h2 id="search-title" class="text-sm uppercase">Rechercher</h2>
+          <h2 id="search-title" class="text-sm uppercase">{gettext("Search")}</h2>
           <button
             id="search-close"
             type="button"
@@ -98,12 +98,12 @@ defmodule PadocsWeb.SearchModal do
           phx-target={@myself}
           class="mt-3"
         >
-          <label class="flex items-center gap-3 rounded-md border border-base-content/25 bg-base-100 px-3 py-2 transition-colors focus-within:border-base-content/60 sm:px-4 sm:py-2.5">
+          <label class="flex items-center gap-3 border-2 border-base-content/40 bg-base-100 px-3 py-2 transition-colors focus-within:border-base-content sm:px-4 sm:py-2.5">
             <.icon name="hero-magnifying-glass" class="size-5 shrink-0 text-base-content/50" />
             <span
               :if={@scope}
               id="search-active-scope"
-              class="flex shrink-0 items-center gap-1 rounded border border-base-content/20 bg-base-200 px-1.5 py-0.5 text-[0.6875rem]"
+              class="flex shrink-0 items-center gap-1 border border-base-content/40 bg-base-200 px-1.5 py-0.5 text-[0.6875rem]"
             >
               <.icon name={scope_icon(@scope)} class="size-3" />
               {scope_label(@scope)}
@@ -169,7 +169,7 @@ defmodule PadocsWeb.SearchModal do
           id="search-tags"
           class="mt-2 flex max-h-24 flex-wrap items-center gap-1.5 overflow-y-auto"
         >
-          <span class="text-xs text-base-content/60">Tags :</span>
+          <span class="text-xs text-base-content/70">{gettext("Tags:")}</span>
           <button
             :for={{tag, index} <- Enum.with_index(@tag_suggestions)}
             id={"search-tag-#{tag.id}"}
@@ -232,7 +232,7 @@ defmodule PadocsWeb.SearchModal do
               JS.push("pick_scope", value: %{scope: name}, target: @myself)
               |> JS.focus(to: "#search-modal-query")
             }
-            class="flex cursor-pointer items-center gap-1.5 rounded-md border border-base-content/20 px-2.5 py-1 text-xs text-base-content/70 transition-colors hover:border-base-content/50 hover:bg-base-200 hover:text-base-content"
+            class="flex cursor-pointer items-center gap-1.5 border border-base-content/40 px-2.5 py-1 text-xs text-base-content/80 transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content"
           >
             <.icon name={icon} class="size-3.5" /> {label}
           </button>
@@ -264,7 +264,7 @@ defmodule PadocsWeb.SearchModal do
         >
           <li
             id="search-results-empty"
-            class="hidden py-6 text-center text-sm text-base-content/60 only:block"
+            class="hidden py-6 text-center text-sm text-base-content/70 only:block"
           >
             <%= cond do %>
               <% @failed? -> %>
@@ -284,13 +284,13 @@ defmodule PadocsWeb.SearchModal do
               :if={!document.deleted_at}
               id={id}
               role="option"
-              class="[&[aria-selected=true]>div]:border-base-content/40 [&[aria-selected=true]>div]:bg-base-200"
+              class="[&[aria-selected=true]>div]:border-base-content [&[aria-selected=true]>div]:bg-base-200"
             >
               <.document_card document={document} snippet={document.snippet} />
             </li>
           <% end %>
         </ul>
-        <p class="mt-3 hidden text-xs text-base-content/60 sm:block">
+        <p class="mt-3 hidden text-xs text-base-content/70 sm:block">
           {gettext("↑ ↓ to choose · Enter to open · Esc to close")}
         </p>
       </section>
@@ -310,7 +310,7 @@ defmodule PadocsWeb.SearchModal do
 
   defp trashed_card(assigns) do
     ~H"""
-    <div class="flex items-center justify-between gap-2 rounded-md border border-dashed border-base-content/30 bg-base-100 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
+    <div class="flex items-center justify-between gap-2 border-2 border-dashed border-base-content/30 bg-base-100 px-3 py-2.5 sm:gap-4 sm:px-4 sm:py-3">
       <div class="min-w-0">
         <h3 class={[
           "line-clamp-2 text-sm font-medium sm:truncate sm:text-base",
@@ -318,7 +318,7 @@ defmodule PadocsWeb.SearchModal do
         ]}>
           {@document.title || gettext("Untitled")}
         </h3>
-        <p class="text-[0.6875rem] text-base-content/60 sm:text-xs">
+        <p class="text-[0.6875rem] text-base-content/70 sm:text-xs">
           {gettext("Deleted on %{at} UTC",
             at: Calendar.strftime(@document.deleted_at, gettext("%m/%d/%Y %H:%M"))
           )}
@@ -336,7 +336,7 @@ defmodule PadocsWeb.SearchModal do
           class="btn btn-sm border-base-content bg-base-100 px-2 hover:bg-primary hover:text-primary-content sm:px-3"
         >
           <.icon name="hero-arrow-uturn-left" class="size-4" />
-          <span class="hidden sm:inline">Restaurer</span>
+          <span class="hidden sm:inline">{gettext("Restore")}</span>
         </button>
         <button
           id={"purge-#{@document.id}"}

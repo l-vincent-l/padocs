@@ -40,6 +40,7 @@ defmodule PadocsWeb.Router do
       ] do
       live "/documents", DocumentLive, :index
       live "/documents/:id", DocumentLive, :show
+      live "/preferences", PreferencesLive, :index
     end
 
     # A document read by its public link, signed in or not

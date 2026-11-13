@@ -21,6 +21,8 @@ defmodule Padocs.Accounts.User do
     field :last_document_id, :binary_id
     # The language chosen, `nil` for the browser's (see PadocsWeb.Locale)
     field :locale, :string
+    # When the account was registered (see Padocs.Accounts.confirmation_deadline/1)
+    timestamps(type: :utc_datetime, updated_at: false)
   end
 
   @doc "The users whose email address is `email`, whatever its case."

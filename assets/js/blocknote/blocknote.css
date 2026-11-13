@@ -5,7 +5,7 @@
 /* The editor takes the colors of the page's daisyUI theme (app.css), light or
    dark, its font, and square corners. */
 .bn-root[data-color-scheme] {
-  --bn-colors-editor-text: var(--color-base-content);
+  --bn-colors-editor-text: var(--color-document, var(--color-base-content));
   --bn-colors-editor-background: var(--color-base-100);
   --bn-colors-menu-text: var(--color-base-content);
   --bn-colors-menu-background: var(--color-base-100);
@@ -49,4 +49,52 @@
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 0.3em;
+}
+
+/* A column for reading, centered (--reading-width, see app.css) */
+.bn-root .bn-editor {
+  max-width: var(--reading-width);
+  margin-inline: auto;
+}
+
+/* The text of the documents in a proportional font, the headings keeping the
+   interface's monospace */
+.bn-root .bn-default-styles .bn-block-content:not([data-content-type="heading"]):not([data-content-type="codeBlock"]) {
+  font-family: var(--font-reading);
+  font-size: 16.5px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.bn-root .bn-default-styles .bn-block-content:not([data-content-type="heading"]) :is(strong, b) {
+  font-weight: 600;
+}
+
+.bn-root .bn-default-styles code {
+  font-family: var(--bn-font-family);
+  font-size: 0.9em;
+}
+
+/* The headings of the content stay under the document's title */
+/* Level 1 has no data-level: it is the default */
+.bn-root .bn-block-content[data-content-type="heading"] { --level: 1.75em; }
+.bn-root .bn-block-content[data-content-type="heading"][data-level="2"] { --level: 1.4em; }
+.bn-root .bn-block-content[data-content-type="heading"][data-level="3"] { --level: 1.15em; }
+
+/* The empty file and image blocks, drawn like the rest: square, a dotted
+   frame in ink, the theme's colors (BlockNote's own are a light gray) */
+.bn-root .bn-add-file-button {
+  border: 2px dashed color-mix(in oklab, var(--color-base-content) 35%, transparent);
+  border-radius: 0;
+  background-color: transparent;
+  color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+  transition: border-color 150ms, background-color 150ms, color 150ms;
+}
+.bn-root .bn-add-file-button:hover {
+  border-color: var(--color-base-content);
+  background-color: var(--color-base-200);
+  color: var(--color-base-content);
+}
+.bn-root .bn-add-file-button-icon svg {
+  fill: currentColor;
 }
