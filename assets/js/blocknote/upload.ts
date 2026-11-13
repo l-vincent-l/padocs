@@ -1,4 +1,4 @@
-// Uploads a file to the server (see TextexpWeb.FileController): its bytes as
+// Uploads a file to the server (see PadocsWeb.FileController): its bytes as
 // the request's body, with the page's CSRF token. Gives the stored file's id
 // and URL, or throws with the server's reason ("too_large",
 // "unsupported_type", "forbidden"…).

@@ -2,4 +2,4 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
-exec ./textexp eval Textexp.Release.migrate
+exec ./padocs eval Padocs.Release.migrate

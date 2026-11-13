@@ -1,8 +1,8 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentsPublicToken do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentsPublicToken do
   @moduledoc """
   The public link of a document: `public_token`, the secret of its URL, which
   lets anyone read it; `nil` without a link (see
-  `Textexp.Document.enable_public_link/2`).
+  `Padocs.Document.enable_public_link/2`).
   """
   use Ecto.Migration
 

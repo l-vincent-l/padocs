@@ -128,7 +128,7 @@ From the load tests (`loadtest/`, results in `PERFORMANCES.md`), on 1 CPU and
 ## Export
 
 - **Images in the PDF.** They are links, not embedded. Those stored by
-  `Textexp.Files` could be read from the storage and embedded; the others
+  `Padocs.Files` could be read from the storage and embedded; the others
   would have to be downloaded, with the care that takes (only http(s), size
   and time limits, no internal addresses).
 - **Up-to-date server exports.** The PDF, Markdown and Typst read the saved

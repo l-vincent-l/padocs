@@ -136,7 +136,7 @@ function Version({ fragment, threadStore, resolveUsers }: VersionProps) {
   return <BlockNoteView editor={editor} editable={false} theme="light" />;
 }
 
-// The fragment the editor syncs (see Textexp.Document.Body on the server).
+// The fragment the editor syncs (see Padocs.Document.Body on the server).
 const FRAGMENT = "document-store";
 
 function docFromState(state: Uint8Array): Y.Doc {
@@ -249,7 +249,7 @@ export function mountEditor(
       threadStore={threadStore}
       resolveUsers={resolveUsers}
       uploadFile={
-        // into this document, on the server (see TextexpWeb.FileController)
+        // into this document, on the server (see PadocsWeb.FileController)
         editable && !publicToken
           ? async (file: File) =>
               (await uploadFile(`/documents/${documentId}/files`, file)).url

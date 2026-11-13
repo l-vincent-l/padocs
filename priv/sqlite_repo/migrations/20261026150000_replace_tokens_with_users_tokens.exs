@@ -1,8 +1,8 @@
-defmodule Textexp.SqliteRepo.Migrations.ReplaceTokensWithUsersTokens do
+defmodule Padocs.SqliteRepo.Migrations.ReplaceTokensWithUsersTokens do
   @moduledoc """
   The JWTs of AshAuthentication (`tokens`) give way to random tokens, of which
   only the hash is stored for the links sent by email (see
-  `Textexp.Accounts.UserToken`). Open sessions are signed out.
+  `Padocs.Accounts.UserToken`). Open sessions are signed out.
   """
 
   use Ecto.Migration

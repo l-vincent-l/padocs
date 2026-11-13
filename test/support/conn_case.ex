@@ -1,4 +1,4 @@
-defmodule TextexpWeb.ConnCase do
+defmodule PadocsWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule TextexpWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use TextexpWeb.ConnCase, async: true`, although
+  by setting `use PadocsWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,19 +20,19 @@ defmodule TextexpWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint TextexpWeb.Endpoint
+      @endpoint PadocsWeb.Endpoint
 
-      use TextexpWeb, :verified_routes
+      use PadocsWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import TextexpWeb.ConnCase
+      import PadocsWeb.ConnCase
     end
   end
 
   setup tags do
-    Textexp.DataCase.setup_sandbox(tags)
+    Padocs.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

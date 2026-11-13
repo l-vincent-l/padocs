@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddTagSearches do
+defmodule Padocs.SqliteRepo.Migrations.AddTagSearches do
   @moduledoc """
   The tags each user searched the documents of, and how many times: their
   most searched tags are offered first.

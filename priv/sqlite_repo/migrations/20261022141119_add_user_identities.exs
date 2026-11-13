@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddUserIdentities do
+defmodule Padocs.SqliteRepo.Migrations.AddUserIdentities do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

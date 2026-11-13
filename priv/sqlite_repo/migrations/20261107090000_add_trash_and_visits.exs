@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddTrashAndVisits do
+defmodule Padocs.SqliteRepo.Migrations.AddTrashAndVisits do
   @moduledoc """
   The trash: a document deleted by a user goes there with its sub-documents,
   `deleted_at` set on each, `deleted_by_id` the user. And the documents each

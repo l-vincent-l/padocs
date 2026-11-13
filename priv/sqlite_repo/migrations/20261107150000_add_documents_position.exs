@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentsPosition do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentsPosition do
   @moduledoc """
   The order of the sub-documents of a document: `position`, from 0. The
   existing ones keep the order they had, that of their creation.

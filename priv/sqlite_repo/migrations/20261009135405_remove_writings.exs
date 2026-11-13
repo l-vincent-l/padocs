@@ -1,7 +1,7 @@
-defmodule Textexp.SqliteRepo.Migrations.RemoveWritings do
+defmodule Padocs.SqliteRepo.Migrations.RemoveWritings do
   @moduledoc """
   Document content is now only stored in `documents.snapshot`, rewritten at most
-  every 10 s (see `Textexp.Document.YPersistence`). Writings not yet compacted
+  every 10 s (see `Padocs.Document.YPersistence`). Writings not yet compacted
   into the snapshot are dropped with the table.
   """
 

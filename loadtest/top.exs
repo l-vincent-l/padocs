@@ -1,8 +1,8 @@
 # The processes of the running application with the longest message queues,
 # and their reductions since the last call. Run in the container with
-# `bin/textexp rpc`, e.g. during a load test:
+# `bin/padocs rpc`, e.g. during a load test:
 #
-#   docker exec textexp-loadtest /app/bin/textexp rpc 'Code.eval_file("/loadtest/top.exs")'
+#   docker exec padocs-loadtest /app/bin/padocs rpc 'Code.eval_file("/loadtest/top.exs")'
 top =
   for pid <- Process.list(),
       info = Process.info(pid, [:message_queue_len, :registered_name, :initial_call, :dictionary]),

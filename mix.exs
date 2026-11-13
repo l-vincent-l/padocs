@@ -1,4 +1,4 @@
-defmodule Textexp.MixProject do
+defmodule Padocs.MixProject do
   use Mix.Project
 
   # tantivy_ex comes from a fork whose NIF has functions the precompiled
@@ -9,7 +9,7 @@ defmodule Textexp.MixProject do
 
   def project do
     [
-      app: :textexp,
+      app: :padocs,
       version: "0.1.0",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -27,7 +27,7 @@ defmodule Textexp.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Textexp.Application, []},
+      mod: {Padocs.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -48,7 +48,7 @@ defmodule Textexp.MixProject do
   defp deps do
     [
       {:tantivy_ex, github: "l-vincent-l/tantivy_ex"},
-      # PDF export: Typst, as a precompiled NIF (see Textexp.Document.pdf/1)
+      # PDF export: Typst, as a precompiled NIF (see Padocs.Document.pdf/1)
       {:typst, "0.4.4"},
       # {:tantivy_ex, path: "../tantivy_ex"},
       # Builds tantivy_ex's NIF; overrides the requirements of tantivy_ex
@@ -110,10 +110,10 @@ defmodule Textexp.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind textexp", "esbuild textexp"],
+      "assets.build": ["compile", "tailwind padocs", "esbuild padocs"],
       "assets.deploy": [
-        "tailwind textexp --minify",
-        "esbuild textexp --minify",
+        "tailwind padocs --minify",
+        "esbuild padocs --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

@@ -1,5 +1,5 @@
 # Creates the accounts and the document the load tests use, in the running
-# application (see loadtest/app.sh, which runs it with `bin/textexp rpc`):
+# application (see loadtest/app.sh, which runs it with `bin/padocs rpc`):
 #
 #   * `loadtest-1@example.com` ... `loadtest-<users>@example.com`, all with the
 #     password `loadtest-password`, confirmed;
@@ -14,10 +14,10 @@
 defmodule Loadtest.Seed do
   import Ecto.Query
 
-  alias Textexp.Accounts
-  alias Textexp.Document
-  alias Textexp.Document.Document, as: DocumentSchema
-  alias Textexp.SqliteRepo, as: Repo
+  alias Padocs.Accounts
+  alias Padocs.Document
+  alias Padocs.Document.Document, as: DocumentSchema
+  alias Padocs.SqliteRepo, as: Repo
 
   @password "loadtest-password"
   @words ~w(association assemblée budget compte rendu réunion statuts bureau

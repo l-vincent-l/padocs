@@ -1,6 +1,6 @@
-defmodule Textexp.SqliteRepo.Migrations.AddFiles do
+defmodule Padocs.SqliteRepo.Migrations.AddFiles do
   @moduledoc """
-  The files of the documents, their images (see `Textexp.Files`): the bytes
+  The files of the documents, their images (see `Padocs.Files`): the bytes
   are in the storage, under `files/<id>`, the rows say whose they are. A file
   without document was uploaded for an import not done yet, and is only its
   owner's.

@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.ConvertUuidsToText do
+defmodule Padocs.SqliteRepo.Migrations.ConvertUuidsToText do
   @moduledoc """
   Rewrites the UUIDs stored as 16-byte BLOBs by ecto_libsql, the previous
   adapter, as the text that ecto_sqlite3 stores and queries

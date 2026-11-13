@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentMemberships do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentMemberships do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

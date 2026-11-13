@@ -22,7 +22,7 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import {hooks as colocatedHooks} from "phoenix-colocated/textexp"
+import {hooks as colocatedHooks} from "phoenix-colocated/padocs"
 import topbar from "../vendor/topbar"
 import {DocumentEditor} from "./document_editor"
 import {DocumentImport} from "./document_import"
@@ -45,10 +45,10 @@ const liveSocket = new LiveSocket("/live", Socket, {
 window.addEventListener("beforeunload", _e => { liveSocket.unloaded = true })
 
 // A new version was deployed: the page's JavaScript and CSS are out of date
-// (see TextexpWeb.StaticChanged). Reloaded, but not twice within a minute, in
+// (see PadocsWeb.StaticChanged). Reloaded, but not twice within a minute, in
 // case the page itself came from a stale cache.
 window.addEventListener("phx:static-changed", _e => {
-  const key = "textexp:reloaded-at"
+  const key = "padocs:reloaded-at"
   let last = 0
   try { last = Number(sessionStorage.getItem(key)) || 0 } catch (_error) {}
   if (Date.now() - last < 60_000) return

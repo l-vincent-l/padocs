@@ -120,7 +120,7 @@ ARG DATABASE_ADAPTER=sqlite3
 ENV DATABASE_ADAPTER=${DATABASE_ADAPTER}
 
 # Only copy the final release from the build stage
-COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/textexp ./
+COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/padocs ./
 
 # Fly.io image (`build-target = "fly"` in fly.toml): a local SQLite file on a
 # volume, replicated to S3 (Tigris) by Litestream. It starts as root to hand the

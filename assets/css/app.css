@@ -2,12 +2,12 @@
    https://tailwindcss.com/docs/configuration */
 
 @import "tailwindcss" source(none);
-@import "phoenix-colocated/textexp/colocated.css";
+@import "phoenix-colocated/padocs/colocated.css";
 @source "../css";
 @source "../js";
-@source "../../lib/textexp_web";
+@source "../../lib/padocs_web";
 /* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
-@source "../../_build/dev/phoenix-colocated/textexp/*/";
+@source "../../_build/dev/phoenix-colocated/padocs/*/";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
@@ -202,7 +202,7 @@
   }
 
   /* Tags, daisyUI badges: a light tint of their color, the text slightly
-     faded, so that they stay behind the title (see Textexp.Document.Tag) */
+     faded, so that they stay behind the title (see Padocs.Document.Tag) */
   .tag {
     --badge-bg: color-mix(in oklab, var(--tag-bg) 55%, transparent);
     --badge-fg: color-mix(in oklab, var(--color-base-content) 80%, transparent);

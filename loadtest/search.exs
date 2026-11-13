@@ -3,7 +3,7 @@
 # word every 3 seconds or so, for a minute, before leaving. All the seeded
 # documents are readable by every account.
 #
-# One index holds all the documents (see Textexp.Document.SearchIndex): the
+# One index holds all the documents (see Padocs.Document.SearchIndex): the
 # expected limit is the CPU of the searches, their snippets first.
 #
 # Measures, besides Stampede's own (`live.page`, `live.join`, `live.event`):

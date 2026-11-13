@@ -9,7 +9,7 @@ import * as Y from "yjs";
 import { uploadFile } from "./upload";
 
 // The fragment the editor syncs (see withCollaboration in blocknote.tsx, and
-// Textexp.Document.Body on the server).
+// Padocs.Document.Body on the server).
 const FRAGMENT = "document-store";
 
 export type ImportFormat = "markdown" | "html" | "docx";
