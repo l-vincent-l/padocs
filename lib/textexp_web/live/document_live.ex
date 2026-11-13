@@ -254,17 +254,17 @@ defmodule TextexpWeb.DocumentLive do
               <label
                 id="import-document"
                 data-import
-                title="Importer des fichiers (Markdown, HTML ou texte)"
+                title="Importer des fichiers (Markdown, HTML, texte ou Word)"
                 class="group btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-base-content aria-busy:pointer-events-none"
               >
                 <.icon name="hero-arrow-up-tray" class="size-4 group-aria-busy:hidden" />
                 <span class="loading loading-spinner loading-xs hidden group-aria-busy:inline-block"></span>
-                <span class="sr-only">Importer des fichiers (Markdown, HTML ou texte)</span>
+                <span class="sr-only">Importer des fichiers (Markdown, HTML, texte ou Word)</span>
                 <input
                   id="import-files"
                   type="file"
                   multiple
-                  accept=".md,.markdown,.txt,.html,.htm,text/markdown,text/plain,text/html"
+                  accept=".md,.markdown,.txt,.html,.htm,.docx,text/markdown,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   phx-hook="DocumentImport"
                   class="sr-only"
                 />
@@ -1673,7 +1673,7 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   # A file converted by the DocumentImport hook: its Yjs state, in base64.
-  def handle_event("import_document", %{"name" => name, "state" => state}, socket) do
+  def handle_event("import_document", %{"name" => name, "state" => state} = params, socket) do
     title = name |> Path.rootname() |> String.trim()
 
     with {:ok, snapshot} <- Base.decode64(state),
@@ -1682,17 +1682,20 @@ defmodule TextexpWeb.DocumentLive do
       {:reply, %{id: document.id},
        socket
        |> list_new_document(%{document | role: :owner})
-       |> put_flash(:info, "« #{title} » importé")}
+       |> put_flash(:info, imported_message(title, params["missing_images"]))}
     else
       _ -> {:reply, %{}, put_flash(socket, :error, "Impossible d'importer « #{name} »")}
     end
   end
 
-  def handle_event("import_failed", %{"name" => name, "reason" => reason}, socket) do
+  def handle_event("import_failed", %{"name" => name, "reason" => reason} = params, socket) do
     message =
       case reason do
-        "too_large" -> "« #{name} » est trop volumineux (2 Mo au plus)"
-        _ -> "Impossible de lire « #{name} »"
+        "too_large" ->
+          "« #{name} » est trop volumineux (#{megabytes(params["max_bytes"])} Mo au plus)"
+
+        _ ->
+          "Impossible de lire « #{name} »"
       end
 
     {:reply, %{}, put_flash(socket, :error, message)}
@@ -2129,4 +2132,15 @@ defmodule TextexpWeb.DocumentLive do
   # The members of the open document, by email.
   defp members(socket),
     do: Document.list_members(socket.assigns.current_user, socket.assigns.document.id)
+
+  # The images of a Word file are left out (see convert.ts).
+  defp imported_message(title, 1), do: "« #{title} » importé, sans son image"
+
+  defp imported_message(title, missing) when is_integer(missing) and missing > 1,
+    do: "« #{title} » importé, sans ses #{missing} images"
+
+  defp imported_message(title, _missing), do: "« #{title} » importé"
+
+  defp megabytes(bytes) when is_integer(bytes) and bytes > 0, do: div(bytes, 1_000_000)
+  defp megabytes(_bytes), do: 2
 end

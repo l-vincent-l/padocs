@@ -770,7 +770,32 @@ defmodule TextexpWeb.DocumentLiveTest do
       assert html =~ "Impossible d&#39;importer « x.md »"
 
       html = render_hook(view, "import_failed", %{"name" => "big.md", "reason" => "too_large"})
-      assert html =~ "trop volumineux"
+      assert html =~ "trop volumineux (2 Mo au plus)"
+    end
+
+    test "the file input takes Word files", %{view: view} do
+      assert has_element?(view, "#import-files[accept*='.docx']")
+    end
+
+    test "tells the images of a Word file left out", %{view: view} do
+      html =
+        render_hook(view, "import_document", %{
+          "name" => "Rapport.docx",
+          "state" => import_state("Résumé"),
+          "missing_images" => 3
+        })
+
+      assert_reply(view, %{id: _id})
+      assert html =~ "« Rapport » importé, sans ses 3 images"
+
+      html =
+        render_hook(view, "import_failed", %{
+          "name" => "big.docx",
+          "reason" => "too_large",
+          "max_bytes" => 10_000_000
+        })
+
+      assert html =~ "trop volumineux (10 Mo au plus)"
     end
   end
 
