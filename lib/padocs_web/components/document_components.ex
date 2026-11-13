@@ -25,10 +25,15 @@ defmodule PadocsWeb.DocumentComponents do
   attr :document, :map, required: true
   attr :snippet, :list, default: nil
 
+  attr :on_tag, :any,
+    default: nil,
+    doc:
+      "a function of a tag giving the `Phoenix.LiveView.JS` of a click on it; without it, the tags are not clickable"
+
   def document_card(assigns) do
     ~H"""
-    <%!-- The title's link covers the whole card (its ::after); the button
-         unfolding the tags is above it --%>
+    <%!-- The title's link covers the whole card (its ::after); the tags,
+         when clickable, and the button unfolding them are above it --%>
     <div class="group relative border-2 border-base-content/15 bg-base-100 px-3 py-2.5 transition-colors duration-150 hover:border-base-content hover:bg-base-200 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-base-content sm:px-4 sm:py-3">
       <%!-- On small screens, the date under the title, which keeps the width --%>
       <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
@@ -64,8 +69,20 @@ defmodule PadocsWeb.DocumentComponents do
           :for={{tag, index} <- Enum.with_index(@document.tags)}
           tag={tag}
           data-extra-tag={index >= 2}
-          class={index >= 2 && "max-sm:hidden"}
-        />
+          class={[index >= 2 && "max-sm:hidden", @on_tag && "relative z-10"]}
+        >
+          <:label :if={@on_tag}>
+            <button
+              id={"card-tags-#{@document.id}-#{tag.id}"}
+              type="button"
+              phx-click={@on_tag.(tag)}
+              title={gettext("Documents with the tag “%{tag}”", tag: tag.label)}
+              class="-mx-1.5 -my-1 cursor-pointer px-1.5 py-1 decoration-dotted underline-offset-2 hover:underline"
+            >
+              {tag.label}
+            </button>
+          </:label>
+        </.tag_badge>
         <button
           :if={length(@document.tags) > 2}
           id={"card-tags-#{@document.id}-more"}

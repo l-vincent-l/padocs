@@ -899,6 +899,56 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert has_element?(view, "#search-scopes")
     end
 
+    test "a tag of a result becomes the filter, in place of the previous one",
+         %{user: user, view: view} do
+      both = Fixtures.create_document!(user, %{title: "Crêpes"})
+      sweet = Fixtures.create_document!(user, %{title: "Gaufres"})
+      quick = Fixtures.create_document!(user, %{title: "Omelette"})
+      {:ok, recipes} = Document.add_tag(both.id, user, "Recettes")
+      {:ok, _} = Document.add_tag(sweet.id, user, "Recettes")
+      {:ok, fast} = Document.add_tag(both.id, user, "Rapide")
+      {:ok, _} = Document.add_tag(quick.id, user, "Rapide")
+
+      search(view, "crêpes")
+      card_tag = "#card-tags-#{both.id}-#{recipes.id}"
+      assert has_element?(view, "#{card_tag}[title]", "Recettes")
+
+      view |> element(card_tag) |> render_click()
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#search-active-tag", "Recettes")
+      assert has_element?(view, "#search-results a[href='/documents/#{sweet.id}']")
+      refute has_element?(view, "#search-results a[href='/documents/#{quick.id}']")
+
+      view |> element("#card-tags-#{both.id}-#{fast.id}") |> render_click()
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#search-active-tag", "Rapide")
+      assert has_element?(view, "#search-results a[href='/documents/#{quick.id}']")
+      refute has_element?(view, "#search-results a[href='/documents/#{sweet.id}']")
+    end
+
+    test "a tag the user cannot see does not filter", %{user: user, view: view} do
+      own = Fixtures.create_document!(user, %{title: "Ma recette"})
+      {:ok, visible} = Document.add_tag(own.id, user, "Recettes")
+      stranger = register_user()
+      hidden = Fixtures.create_document!(stranger, %{title: "Leur recette"})
+      {:ok, secret} = Document.add_tag(hidden.id, stranger, "Secret")
+
+      search(view, "recette")
+
+      # A tag of a result, sent with the id of a tag the user cannot see
+      view
+      |> element("#card-tags-#{own.id}-#{visible.id}")
+      |> render_click(%{"id" => secret.id})
+
+      refute has_element?(view, "#search-active-tag")
+
+      # The same click, with its own tag, filters
+      view |> element("#card-tags-#{own.id}-#{visible.id}") |> render_click()
+      assert has_element?(view, "#search-active-tag", "Recettes")
+    end
+
     test "with a tag picked, a query searches the documents carrying it",
          %{user: user, view: view} do
       tagged = Fixtures.create_document!(user, %{title: "Crêpes au sucre"})

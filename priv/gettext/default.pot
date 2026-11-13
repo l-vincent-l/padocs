@@ -218,6 +218,7 @@ msgstr ""
 msgid "Document shared with %{email}"
 msgstr ""
 
+#: lib/padocs_web/components/document_components.ex
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
 msgid "Documents with the tag “%{tag}”"
