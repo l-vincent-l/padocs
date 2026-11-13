@@ -17,9 +17,9 @@ config :padocs, Padocs.Files,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :padocs, PadocsWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}],
+  # Binding to loopback ipv4 address prevents access from other machines; in a
+  # container (see compose.yaml), PHX_LISTEN_ALL opens it to the host.
+  http: [ip: if(System.get_env("PHX_LISTEN_ALL"), do: {0, 0, 0, 0}, else: {127, 0, 0, 1})],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

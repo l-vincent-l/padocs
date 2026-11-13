@@ -57,7 +57,7 @@ DocServer and SQLite.
 
 ## Performance
 
-From the load tests (`loadtest/`, results in `PERFORMANCES.md`), on 1 CPU and
+From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU and
 512 MB as the Fly machine.
 
 - **Search: the snippets.** With one index of all the documents, 40 users
