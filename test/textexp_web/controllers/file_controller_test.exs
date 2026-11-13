@@ -83,4 +83,56 @@ defmodule TextexpWeb.FileControllerTest do
 
     assert build_conn() |> get(~p"/files/#{file.id}") |> response(200) == @png
   end
+
+  describe "from a Bunny Storage zone" do
+    setup do
+      previous = Application.fetch_env!(:textexp, Files)
+
+      Application.put_env(:textexp, Files,
+        storage:
+          {Textexp.Files.BunnyStorage,
+           zone: "zone", access_key: "key", req_options: [plug: {Req.Test, __MODULE__}]}
+      )
+
+      on_exit(fn -> Application.put_env(:textexp, Files, previous) end)
+    end
+
+    test "the application reads and sends the bytes", %{conn: conn, document: document} do
+      Req.Test.stub(__MODULE__, fn conn ->
+        case conn.method do
+          "PUT" -> Plug.Conn.send_resp(conn, 201, "")
+          "GET" -> Plug.Conn.send_resp(conn, 200, @png)
+        end
+      end)
+
+      conn = upload(conn, ~p"/documents/#{document.id}/files", @png)
+      assert %{"url" => url} = json_response(conn, 201)
+
+      conn = get(recycle(conn), url)
+      assert response(conn, 200) == @png
+      assert response_content_type(conn, :png) =~ "image/png"
+      assert get_resp_header(conn, "x-content-type-options") == ["nosniff"]
+    end
+
+    test "a zone that does not answer", %{conn: conn, owner: owner, document: document} do
+      Req.Test.stub(__MODULE__, fn conn ->
+        case conn.method do
+          "PUT" -> Plug.Conn.send_resp(conn, 201, "")
+          "GET" -> Plug.Conn.send_resp(conn, 403, "")
+        end
+      end)
+
+      {:ok, file} = Files.upload(owner, document.id, @png)
+      assert conn |> get(~p"/files/#{file.id}") |> response(503)
+    end
+
+    @tag :capture_log
+    test "a file the zone refuses is not kept", %{conn: conn, document: document} do
+      Req.Test.stub(__MODULE__, &Plug.Conn.send_resp(&1, 401, ""))
+
+      conn = upload(conn, ~p"/documents/#{document.id}/files", @png)
+      assert %{"error" => "storage"} = json_response(conn, 503)
+      assert Files.list_ids([document.id]) == []
+    end
+  end
 end

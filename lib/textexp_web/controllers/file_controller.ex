@@ -7,7 +7,8 @@ defmodule TextexpWeb.FileController do
     * `POST /files` - an image of a Word file being imported, before its
       document exists (see `Textexp.Document.import_document/4`);
     * `GET /files/:id` - a file, to whoever can read it: sent from the local
-      folder, or by a redirect to a signed URL of the S3 bucket.
+      folder or read from a Bunny Storage zone, or by a redirect to a signed
+      URL of the S3 bucket.
 
   An upload is the raw bytes of the file as the request's body (the browser's
   `fetch(url, {method: "POST", body: file})`), with the CSRF token in the
@@ -65,12 +66,16 @@ defmodule TextexpWeb.FileController do
   defp send_stored(conn, file) do
     case Files.serve(file) do
       {:path, path} ->
-        conn
-        |> put_resp_content_type(file.content_type, nil)
-        |> put_resp_header("cache-control", "private, max-age=86400")
-        |> put_resp_header("x-content-type-options", "nosniff")
-        |> put_resp_header("content-security-policy", "default-src 'none'; sandbox")
-        |> send_file(200, path)
+        conn |> put_image_headers(file) |> send_file(200, path)
+
+      :read ->
+        case Files.read(file) do
+          {:ok, data} ->
+            conn |> put_image_headers(file) |> send_resp(200, data)
+
+          {:error, _reason} ->
+            conn |> put_status(:service_unavailable) |> text("Fichier indisponible")
+        end
 
       {:url, url} ->
         conn
@@ -78,5 +83,13 @@ defmodule TextexpWeb.FileController do
         |> put_resp_header("cache-control", "private, max-age=240")
         |> redirect(external: url)
     end
+  end
+
+  defp put_image_headers(conn, file) do
+    conn
+    |> put_resp_content_type(file.content_type, nil)
+    |> put_resp_header("cache-control", "private, max-age=86400")
+    |> put_resp_header("x-content-type-options", "nosniff")
+    |> put_resp_header("content-security-policy", "default-src 'none'; sandbox")
   end
 end

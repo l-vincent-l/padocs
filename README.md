@@ -48,12 +48,13 @@ good.
 | Storage | Set by |
 |---|---|
 | S3 bucket (Tigris, AWS, MinIO…), private: a browser is redirected to a URL signed for 5 minutes | `FILES_S3_BUCKET`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION` (`auto` by default), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optionally `FILES_S3_PREFIX` |
+| Bunny Storage zone, private: the application reads and sends the bytes | `STORAGE_ZONE`, `STORAGE_ACCESS_KEY`, `STORAGE_REGION` or `STORAGE_HOSTNAME`, the names Bunny gives a container linked to a zone |
 | Local folder, otherwise | `FILES_PATH`, by default `files/` next to the SQLite database (on Fly.io, the volume) |
 
-On Bunny, the database is remote: without a bucket, give the container a
-persistent volume and set `FILES_PATH` to a folder on it (enough for a small
-instance). Without either, they go to a temporary folder, lost when the
-container restarts.
+On Bunny, the database is remote: link the container to a storage zone, or
+give it a persistent volume and set `FILES_PATH` to a folder on it (enough
+for a small instance). Without either, they go to a temporary folder, lost
+when the container restarts.
 
 On Fly.io, `fly storage create` makes a Tigris bucket and sets the `AWS_*`
 secrets; `FILES_S3_BUCKET` is then its name. Litestream's bucket can be
