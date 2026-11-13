@@ -8,6 +8,11 @@ defmodule Padocs.Accounts do
   confirm its address, used signed in to the account. Using a sign-in link or a
   password reset link also confirms it, as does GitHub or GitLab for the
   addresses they verified.
+
+  The address must be confirmed within 7 days: after that, the password no
+  longer signs in to the account, and a password reset (which confirms it) is
+  the way back. Whoever registered with an address that is not theirs does not
+  keep the account.
   """
   import Ecto.Query
 
@@ -19,11 +24,30 @@ defmodule Padocs.Accounts do
 
   def get_user_by_email(email) when is_binary(email), do: Repo.one(User.by_email_query(email))
 
+  @confirmation_delay_in_days 7
+
   @doc "The user of `email`, if `password` is theirs."
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = get_user_by_email(email)
     if User.valid_password?(user, password), do: user
+  end
+
+  @doc """
+  When the password stops signing in to the account of `user` if its address
+  is still unconfirmed: `nil` once it is confirmed.
+  """
+  def confirmation_deadline(%User{confirmed_at: nil, inserted_at: %DateTime{} = inserted_at}),
+    do: DateTime.add(inserted_at, @confirmation_delay_in_days, :day)
+
+  def confirmation_deadline(%User{}), do: nil
+
+  @doc "Whether the delay to confirm the address of `user` is over."
+  def confirmation_expired?(%User{} = user, now \\ DateTime.utc_now()) do
+    case confirmation_deadline(user) do
+      nil -> false
+      deadline -> DateTime.compare(now, deadline) != :lt
+    end
   end
 
   @doc "The users of the given ids, e.g. the authors of comments."
