@@ -30,10 +30,10 @@ defmodule PadocsWeb.PublicDocumentLive do
               id="public-badge"
               class="inline-flex items-center gap-1.5 border-2 border-base-content/40 px-2 py-0.5 text-xs text-base-content/70"
             >
-              <.icon name="hero-globe-alt" class="size-3.5" /> Lecture seule, par un lien public
+              <.icon name="hero-globe-alt" class="size-3.5" /> {gettext("Read only, by a public link")}
             </p>
             <h1 id="public-title" class="mt-3 text-3xl font-bold break-words">
-              {@document.title || "Sans titre"}
+              {@document.title || gettext("Untitled")}
             </h1>
             <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
           </div>
@@ -48,13 +48,13 @@ defmodule PadocsWeb.PublicDocumentLive do
             data-document-id={@document.id}
             data-public-token={@token}
             data-user-id="public"
-            data-user-name="Lecteur anonyme"
+            data-user-name={gettext("Anonymous reader")}
             data-editable="false"
           >
             <div
               data-skeleton
               role="status"
-              aria-label="Chargement du document"
+              aria-label={gettext("Loading the document")}
               class="flex flex-col gap-3 px-[54px] py-4 motion-safe:animate-pulse"
             >
               <div class="h-4 w-3/4 bg-base-300"></div>
@@ -71,9 +71,9 @@ defmodule PadocsWeb.PublicDocumentLive do
           class="mx-auto mt-24 max-w-md border-2 border-base-content bg-base-100 p-6 shadow-hard"
         >
           <.icon name="hero-link-slash" class="size-6" />
-          <h1 class="mt-3 text-lg font-bold">Ce lien ne mène à aucun document</h1>
+          <h1 class="mt-3 text-lg font-bold">{gettext("This link leads to no document")}</h1>
           <p class="mt-1 text-sm text-base-content/70">
-            Son propriétaire a pu le désactiver ou le remplacer, ou le document a été supprimé.
+            {gettext("Its owner may have disabled or replaced it, or the document was deleted.")}
           </p>
           <.link
             :if={!@current_user}
@@ -81,7 +81,7 @@ defmodule PadocsWeb.PublicDocumentLive do
             navigate={~p"/sign-in"}
             class="btn btn-primary btn-sm mt-4"
           >
-            Se connecter
+            {gettext("Sign in")}
           </.link>
         </section>
       <% end %>
@@ -104,7 +104,7 @@ defmodule PadocsWeb.PublicDocumentLive do
          assign(socket,
            document: document,
            token: token,
-           page_title: document.title || "Sans titre"
+           page_title: document.title || gettext("Untitled")
          )}
       end
     else
@@ -116,12 +116,13 @@ defmodule PadocsWeb.PublicDocumentLive do
   defp member?(document, user), do: match?({:ok, _}, Document.get_document(document.id, user))
 
   defp unavailable(socket),
-    do: assign(socket, document: nil, token: nil, page_title: "Lien indisponible")
+    do: assign(socket, document: nil, token: nil, page_title: gettext("Link unavailable"))
 
   # The names of the comments' authors: not their email addresses, which
   # the public does not see.
   def handle_event("resolve_users", %{"ids" => ids}, socket) when is_list(ids) do
-    {:reply, %{users: Enum.map(ids, &%{id: &1, username: "Membre", avatarUrl: ""})}, socket}
+    {:reply, %{users: Enum.map(ids, &%{id: &1, username: gettext("Member"), avatarUrl: ""})},
+     socket}
   end
 
   # Not offered here: exports and versions belong to DocumentLive.
@@ -161,7 +162,7 @@ defmodule PadocsWeb.PublicDocumentLive do
   defp put_title(socket, title) do
     assign(socket,
       document: %{socket.assigns.document | title: title},
-      page_title: title || "Sans titre"
+      page_title: title || gettext("Untitled")
     )
   end
 end

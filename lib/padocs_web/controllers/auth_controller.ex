@@ -21,12 +21,12 @@ defmodule PadocsWeb.AuthController do
   def create_session(conn, %{"user" => %{"email" => email, "password" => password} = params}) do
     if user = Accounts.get_user_by_email_and_password(email, password) do
       conn
-      |> put_flash(:info, "You are now signed in")
+      |> put_flash(:info, gettext("You are now signed in"))
       |> UserAuth.log_in_user(user, params)
     else
       # Whether the address has an account is not told.
       conn
-      |> put_flash(:error, "Incorrect email or password")
+      |> put_flash(:error, gettext("Incorrect email or password"))
       |> redirect(to: ~p"/sign-in")
     end
   end
@@ -39,7 +39,7 @@ defmodule PadocsWeb.AuthController do
     case Accounts.register_user(params, &url(~p"/confirm_new_user/#{&1}")) do
       {:ok, user} ->
         conn
-        |> put_flash(:info, "You are now signed in")
+        |> put_flash(:info, gettext("You are now signed in"))
         |> UserAuth.log_in_user(user)
 
       {:error, changeset} ->
@@ -53,12 +53,15 @@ defmodule PadocsWeb.AuthController do
     Accounts.deliver_login_instructions(email, &url(~p"/magic_link/#{&1}"))
 
     conn
-    |> put_flash(:info, "If this address is valid, you will receive a sign-in link shortly.")
+    |> put_flash(
+      :info,
+      gettext("If this address is valid, you will receive a sign-in link shortly.")
+    )
     |> redirect(to: ~p"/sign-in")
   end
 
   def magic_link(conn, %{"token" => token}) do
-    link_page(conn, token, "login", "Sign in", ~p"/magic_link/#{token}")
+    link_page(conn, token, "login", gettext("Sign in"), ~p"/magic_link/#{token}")
   end
 
   def sign_in_with_magic_link(conn, %{"token" => token} = params) do
@@ -67,15 +70,17 @@ defmodule PadocsWeb.AuthController do
         UserAuth.disconnect_sessions(expired_tokens)
 
         conn
-        |> put_flash(:info, "You are now signed in")
+        |> put_flash(:info, gettext("You are now signed in"))
         |> UserAuth.log_in_user(user, params)
 
       {:error, :unconfirmed} ->
         conn
-        |> put_flash(:error, """
-        You have already signed in another way, but have not confirmed your account.
-        You can confirm your account using the link we sent to you, or by resetting your password.
-        """)
+        |> put_flash(
+          :error,
+          gettext(
+            "You have already signed in another way, but have not confirmed your account. You can confirm it with the link we sent you, or by resetting your password."
+          )
+        )
         |> redirect(to: ~p"/sign-in")
 
       {:error, _} ->
@@ -89,7 +94,10 @@ defmodule PadocsWeb.AuthController do
     :ok = Accounts.deliver_reset_password_instructions(email, &url(~p"/password-reset/#{&1}"))
 
     conn
-    |> put_flash(:info, "If this address has an account, you will receive a reset link shortly.")
+    |> put_flash(
+      :info,
+      gettext("If this address has an account, you will receive a reset link shortly.")
+    )
     |> redirect(to: ~p"/sign-in")
   end
 
@@ -110,7 +118,7 @@ defmodule PadocsWeb.AuthController do
         UserAuth.disconnect_sessions(expired_tokens)
 
         conn
-        |> put_flash(:info, "Your password has successfully been reset")
+        |> put_flash(:info, gettext("Your password has successfully been reset"))
         |> UserAuth.log_in_user(user)
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -135,20 +143,22 @@ defmodule PadocsWeb.AuthController do
       is_nil(conn.assigns.current_user) ->
         conn
         |> put_session(:return_to, ~p"/confirm_new_user/#{token}")
-        |> put_flash(:info, """
-        Sign in to confirm your email address.
-        If you did not create this account, reset its password instead.
-        """)
+        |> put_flash(
+          :info,
+          gettext(
+            "Sign in to confirm your email address. If you did not create this account, reset its password instead."
+          )
+        )
         |> redirect(to: ~p"/sign-in")
 
       conn.assigns.current_user.id != user.id ->
         conn
-        |> put_flash(:error, "This link confirms another account: sign out first.")
+        |> put_flash(:error, gettext("This link confirms another account: sign out first."))
         |> redirect(to: ~p"/")
 
       true ->
         render(conn, :email_link,
-          title: "Confirm your email address",
+          title: gettext("Confirm your email address"),
           email: user.email,
           action: ~p"/confirm_new_user/#{token}"
         )
@@ -159,7 +169,7 @@ defmodule PadocsWeb.AuthController do
     with %{} = current_user <- conn.assigns.current_user,
          {:ok, _user} <- Accounts.confirm_user(current_user, token) do
       conn
-      |> put_flash(:info, "Your email address has now been confirmed")
+      |> put_flash(:info, gettext("Your email address has now been confirmed"))
       |> redirect(to: ~p"/documents")
     else
       _ -> invalid_link(conn)
@@ -169,7 +179,7 @@ defmodule PadocsWeb.AuthController do
   def sign_out(conn, _params) do
     conn
     |> UserAuth.log_out_user()
-    |> put_flash(:info, "You are now signed out")
+    |> put_flash(:info, gettext("You are now signed out"))
     |> redirect(to: ~p"/")
   end
 
@@ -184,7 +194,7 @@ defmodule PadocsWeb.AuthController do
 
   defp invalid_link(conn) do
     conn
-    |> put_flash(:error, "The link is invalid or it has expired.")
+    |> put_flash(:error, gettext("The link is invalid or it has expired."))
     |> redirect(to: ~p"/sign-in")
   end
 

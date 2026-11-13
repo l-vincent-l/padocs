@@ -47,6 +47,9 @@ config :phoenix_live_view,
 # at the `config/runtime.exs`.
 config :padocs, Padocs.Mailer, adapter: Swoosh.Adapters.Local
 
+# The languages of the interface, French by default (see PadocsWeb.Locale)
+config :padocs, PadocsWeb.Gettext, default_locale: "fr", locales: ~w(fr en)
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

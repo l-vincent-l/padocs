@@ -23,6 +23,9 @@ defmodule Padocs.Document do
   `Padocs.Document.YPersistence.documents_topic/0`.
   """
   import Ecto.Query
+  # The messages of the changesets, translated where shown (see
+  # PadocsWeb.CoreComponents.translate_error/1)
+  use Gettext, backend: PadocsWeb.Gettext
 
   alias Ecto.Changeset
   alias Padocs.Accounts
@@ -432,10 +435,11 @@ defmodule Padocs.Document do
 
   @doc """
   A document as a Typst file, its title above its body, from its saved
-  snapshot (see `YexBlockNote.to_typst/2`).
+  snapshot (see `YexBlockNote.to_typst/2`), in the language `lang` (`"fr"`
+  or `"en"`): its hyphenation and quotes, the names of its files.
   """
-  def typst(%Document{snapshot: snapshot, title: title}),
-    do: body(snapshot, {:typst, title: title, lang: "fr"})
+  def typst(%Document{snapshot: snapshot, title: title}, lang \\ "fr"),
+    do: body(snapshot, {:typst, title: title, lang: lang})
 
   @doc """
   The name of a file exported from a document, without extension: its title
@@ -443,19 +447,19 @@ defmodule Padocs.Document do
   """
   def export_filename(%{title: title}) do
     case title && title |> String.replace(~r{[/\\:*?"<>|\x00-\x1f\s]+}, " ") |> String.trim() do
-      blank when blank in [nil, ""] -> "Sans titre"
+      blank when blank in [nil, ""] -> gettext("Untitled")
       name -> String.slice(name, 0, 120)
     end
   end
 
   @doc """
-  A document as a PDF, compiled from `typst/1`: `{:ok, pdf}`, or
+  A document as a PDF, compiled from `typst/2` in `lang`: `{:ok, pdf}`, or
   `{:error, reason}`.
   """
-  def pdf(%Document{} = document) do
+  def pdf(%Document{} = document, lang \\ "fr") do
     # Typst.render_to_pdf/3 runs its markup through EEx first: a `<%` written
     # in a document must stay text, not become Elixir code.
-    markup = document |> typst() |> String.replace("<%", "<%%")
+    markup = document |> typst(lang) |> String.replace("<%", "<%%")
 
     # Typst can read the files under its root directory: an empty one.
     root = Path.join(System.tmp_dir!(), "padocs-typst-#{System.unique_integer([:positive])}")
@@ -699,10 +703,12 @@ defmodule Padocs.Document do
 
     cond do
       not is_binary(snapshot) ->
-        {:error, Changeset.add_error(changeset, :snapshot, "contenu illisible")}
+        {:error,
+         Changeset.add_error(changeset, :snapshot, dgettext_noop("errors", "unreadable content"))}
 
       byte_size(snapshot) > @max_import_bytes ->
-        {:error, Changeset.add_error(changeset, :snapshot, "contenu trop volumineux")}
+        {:error,
+         Changeset.add_error(changeset, :snapshot, dgettext_noop("errors", "content too large"))}
 
       Yex.apply_update(doc, snapshot) == :ok ->
         Repo.transact(fn ->
@@ -729,7 +735,8 @@ defmodule Padocs.Document do
         end)
 
       true ->
-        {:error, Changeset.add_error(changeset, :snapshot, "contenu illisible")}
+        {:error,
+         Changeset.add_error(changeset, :snapshot, dgettext_noop("errors", "unreadable content"))}
     end
   end
 
@@ -956,11 +963,21 @@ defmodule Padocs.Document do
 
   defp member_user(changeset, email, owner) do
     case Accounts.get_user_by_email(email) do
-      nil -> error(changeset, "aucun compte avec cette adresse")
-      %{id: id} when id == owner.id -> error(changeset, "c'est l'adresse du propriétaire")
+      nil ->
+        error(changeset, dgettext_noop("errors", "no account has this address"))
+
+      %{id: id} when id == owner.id ->
+        error(changeset, dgettext_noop("errors", "this is the owner's address"))
+
       # Whoever registered an unconfirmed account may not own its address.
-      %{confirmed_at: nil} -> error(changeset, "ce compte n'a pas encore confirmé son adresse")
-      user -> {:ok, user}
+      %{confirmed_at: nil} ->
+        error(
+          changeset,
+          dgettext_noop("errors", "this account has not confirmed its address yet")
+        )
+
+      user ->
+        {:ok, user}
     end
   end
 

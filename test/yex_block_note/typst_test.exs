@@ -162,6 +162,20 @@ defmodule YexBlockNote.TypstTest do
     assert_compiles(fragment)
   end
 
+  test "files are named in the document's language" do
+    fragment =
+      fragment_with([
+        {"video", "", [], %{"url" => "https://e.x/v.mp4", "name" => "talk.mp4"}},
+        {"audio", "", [], %{"url" => "https://e.x/a.mp3", "name" => "song.mp3"}}
+      ])
+
+    assert body(fragment, lang: "en") ==
+             ~s|#link("https://e.x/v.mp4")[#"Video: talk.mp4"]\n\n#link("https://e.x/a.mp3")[#"Audio: song.mp3"]|
+
+    assert body(fragment, lang: "fr") ==
+             ~s|#link("https://e.x/v.mp4")[#"Vidéo : talk.mp4"]\n\n#link("https://e.x/a.mp3")[#"Son : song.mp3"]|
+  end
+
   test "the alignment of paragraphs" do
     fragment =
       fragment_with([

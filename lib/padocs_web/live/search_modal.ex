@@ -28,13 +28,7 @@ defmodule PadocsWeb.SearchModal do
   alias Padocs.Document
   alias Padocs.Document.Search
 
-  # The scopes: their label, icon, and the text of their empty list
-  @scopes [
-    recent: {"Récents", "hero-clock", "Aucun document ouvert récemment"},
-    own: {"Mes documents", "hero-user", "Vous n'avez pas encore de document"},
-    shared: {"Partagés avec moi", "hero-users", "Aucun document partagé avec vous"},
-    trash: {"Corbeille", "hero-trash", "La corbeille est vide"}
-  ]
+  @scope_names [:recent, :own, :shared, :trash]
 
   def mount(socket) do
     {:ok,
@@ -52,7 +46,7 @@ defmodule PadocsWeb.SearchModal do
        mobile_tags: 2,
        all_tags?: false,
        tag: nil,
-       # The scope picked (see @scopes), if any, and how many documents the
+       # The scope picked (see scopes/0), if any, and how many documents the
        # trash has, when it is the scope
        scope: nil,
        trash_count: 0,
@@ -90,7 +84,7 @@ defmodule PadocsWeb.SearchModal do
             id="search-close"
             type="button"
             phx-click="close_search"
-            aria-label="Fermer"
+            aria-label={gettext("Close")}
             class="btn btn-ghost btn-sm btn-square -mt-1 -mr-2"
           >
             <.icon name="hero-x-mark" class="size-5" />
@@ -119,7 +113,7 @@ defmodule PadocsWeb.SearchModal do
                 phx-click={
                   JS.push("clear_scope", target: @myself) |> JS.focus(to: "#search-modal-query")
                 }
-                aria-label={"Retirer « #{scope_label(@scope)} »"}
+                aria-label={gettext("Remove “%{filter}”", filter: scope_label(@scope))}
                 class="cursor-pointer opacity-60 transition-opacity hover:opacity-100"
               >
                 <.icon name="hero-x-mark-micro" class="size-3" />
@@ -132,7 +126,7 @@ defmodule PadocsWeb.SearchModal do
                 phx-click={
                   JS.push("clear_tag", target: @myself) |> JS.focus(to: "#search-modal-query")
                 }
-                aria-label={"Retirer le filtre « #{@tag.label} »"}
+                aria-label={gettext("Remove the filter “%{filter}”", filter: @tag.label)}
                 class="-mr-1 cursor-pointer opacity-60 transition-opacity hover:opacity-100"
               >
                 <.icon name="hero-x-mark-micro" class="size-3" />
@@ -145,8 +139,8 @@ defmodule PadocsWeb.SearchModal do
               value={@form[:query].value}
               placeholder={
                 if(@tag || @scope,
-                  do: "Rechercher parmi ces documents",
-                  else: "Rechercher dans les documents"
+                  do: gettext("Search these documents"),
+                  else: gettext("Search the documents")
                 )
               }
               autocomplete="off"
@@ -163,7 +157,7 @@ defmodule PadocsWeb.SearchModal do
               :if={@loading?}
               id="search-modal-loading"
               class="loading loading-spinner loading-sm text-base-content/40"
-              aria-label="Recherche en cours"
+              aria-label={gettext("Searching")}
             ></span>
           </label>
         </.form>
@@ -202,8 +196,8 @@ defmodule PadocsWeb.SearchModal do
             phx-click={
               JS.push("show_all_tags", target: @myself) |> JS.focus(to: "#search-modal-query")
             }
-            title="Tous les tags"
-            aria-label="Afficher tous les tags"
+            title={gettext("All the tags")}
+            aria-label={gettext("Show all the tags")}
             class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content"
           >
             …
@@ -217,8 +211,8 @@ defmodule PadocsWeb.SearchModal do
               JS.remove_class("max-sm:hidden", to: "#search-tags [data-extra-tag]")
               |> JS.hide()
             }
-            title="Tous les tags"
-            aria-label="Afficher tous les tags"
+            title={gettext("All the tags")}
+            aria-label={gettext("Show all the tags")}
             class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content sm:hidden"
           >
             …
@@ -252,10 +246,10 @@ defmodule PadocsWeb.SearchModal do
             type="button"
             phx-click="empty_trash"
             phx-target={@myself}
-            data-confirm="Supprimer définitivement tous les documents de la corbeille ?"
+            data-confirm={gettext("Delete for good all the documents of the trash?")}
             class="cursor-pointer text-xs text-error decoration-dotted underline-offset-2 hover:underline"
           >
-            Vider la corbeille
+            {gettext("Empty the trash")}
           </button>
         </div>
         <%!-- Best match first. ↑ ↓ and Enter in the field select and open them
@@ -264,7 +258,7 @@ defmodule PadocsWeb.SearchModal do
         <ul
           id="search-results"
           role="listbox"
-          aria-label="Résultats"
+          aria-label={gettext("Results")}
           phx-update="stream"
           class="-mr-2 mt-3 flex min-h-0 flex-col gap-2 overflow-y-auto pr-2 pb-1"
         >
@@ -274,9 +268,9 @@ defmodule PadocsWeb.SearchModal do
           >
             <%= cond do %>
               <% @failed? -> %>
-                La recherche n'est pas disponible
+                {gettext("The search is not available")}
               <% @searched? -> %>
-                Aucun résultat
+                {gettext("No result")}
               <% true -> %>
                 {scope_empty_text(@scope || :recent)}
             <% end %>
@@ -297,14 +291,14 @@ defmodule PadocsWeb.SearchModal do
           <% end %>
         </ul>
         <p class="mt-3 hidden text-xs text-base-content/60 sm:block">
-          ↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer
+          {gettext("↑ ↓ to choose · Enter to open · Esc to close")}
         </p>
       </section>
       <button
         type="button"
         class="modal-backdrop"
         phx-click="close_search"
-        aria-label="Fermer"
+        aria-label={gettext("Close")}
         tabindex="-1"
       ></button>
     </div>
@@ -322,10 +316,12 @@ defmodule PadocsWeb.SearchModal do
           "line-clamp-2 text-sm font-medium sm:truncate sm:text-base",
           if(@document.title, do: "text-base-content/80", else: "text-base-content/50")
         ]}>
-          {@document.title || "Sans titre"}
+          {@document.title || gettext("Untitled")}
         </h3>
         <p class="text-[0.6875rem] text-base-content/60 sm:text-xs">
-          Supprimé le {Calendar.strftime(@document.deleted_at, "%d/%m/%Y %H:%M")} UTC
+          {gettext("Deleted on %{at} UTC",
+            at: Calendar.strftime(@document.deleted_at, gettext("%m/%d/%Y %H:%M"))
+          )}
         </p>
       </div>
       <div class="flex shrink-0 items-center gap-1">
@@ -335,8 +331,8 @@ defmodule PadocsWeb.SearchModal do
           phx-click="restore"
           phx-value-id={@document.id}
           phx-target={@myself}
-          aria-label={"Restaurer « #{@document.title || "Sans titre"} »"}
-          title="Restaurer"
+          aria-label={gettext("Restore “%{title}”", title: @document.title || gettext("Untitled"))}
+          title={gettext("Restore")}
           class="btn btn-sm border-base-content bg-base-100 px-2 hover:bg-primary hover:text-primary-content sm:px-3"
         >
           <.icon name="hero-arrow-uturn-left" class="size-4" />
@@ -348,9 +344,15 @@ defmodule PadocsWeb.SearchModal do
           phx-click="purge"
           phx-value-id={@document.id}
           phx-target={@myself}
-          data-confirm={"Supprimer définitivement « #{@document.title || "Sans titre"} » et ses sous-documents ?"}
-          aria-label={"Supprimer définitivement « #{@document.title || "Sans titre"} »"}
-          title="Supprimer définitivement"
+          data-confirm={
+            gettext("Delete for good “%{title}” and its sub-documents?",
+              title: @document.title || gettext("Untitled")
+            )
+          }
+          aria-label={
+            gettext("Delete “%{title}” for good", title: @document.title || gettext("Untitled"))
+          }
+          title={gettext("Delete for good")}
           class="btn btn-ghost btn-sm btn-square text-error"
         >
           <.icon name="hero-x-mark" class="size-5" />
@@ -360,11 +362,20 @@ defmodule PadocsWeb.SearchModal do
     """
   end
 
-  defp scopes, do: @scopes
+  # The scopes: their label, icon, and the text of their empty list, in the
+  # user's language (see PadocsWeb.Locale)
+  defp scopes do
+    [
+      recent: {gettext("Recent"), "hero-clock", gettext("No document opened recently")},
+      own: {gettext("My documents"), "hero-user", gettext("You have no document yet")},
+      shared: {gettext("Shared with me"), "hero-users", gettext("No document shared with you")},
+      trash: {gettext("Trash"), "hero-trash", gettext("The trash is empty")}
+    ]
+  end
 
-  defp scope_label(scope), do: @scopes |> Keyword.fetch!(scope) |> elem(0)
-  defp scope_icon(scope), do: @scopes |> Keyword.fetch!(scope) |> elem(1)
-  defp scope_empty_text(scope), do: @scopes |> Keyword.fetch!(scope) |> elem(2)
+  defp scope_label(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(0)
+  defp scope_icon(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(1)
+  defp scope_empty_text(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(2)
 
   # Neither scope, tag nor query: the scopes are offered.
   defp browsing?(%{scope: scope, tag: tag, form: form}),
@@ -372,7 +383,7 @@ defmodule PadocsWeb.SearchModal do
 
   # The field emptied, like for a tag.
   def handle_event("pick_scope", %{"scope" => scope}, socket) do
-    case Enum.find(Keyword.keys(@scopes), &(Atom.to_string(&1) == scope)) do
+    case Enum.find(@scope_names, &(Atom.to_string(&1) == scope)) do
       nil ->
         {:noreply, socket}
 
@@ -397,7 +408,12 @@ defmodule PadocsWeb.SearchModal do
       {:ok, document} ->
         # The LiveView shows it in its sidebar if it belongs there, and the
         # flash, which a component's would not reach
-        send(self(), {:document_restored, "« #{document.title || "Sans titre"} » restauré"})
+        send(
+          self(),
+          {:document_restored,
+           gettext("“%{title}” restored", title: document.title || gettext("Untitled"))}
+        )
+
         {:noreply, search_again(socket)}
 
       {:error, _} ->

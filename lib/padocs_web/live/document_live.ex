@@ -34,7 +34,7 @@ defmodule PadocsWeb.DocumentLive do
             <label
               id="sidebar-open"
               for="sidebar-drawer"
-              aria-label="Ouvrir le menu"
+              aria-label={gettext("Open the menu")}
               class="btn btn-square btn-ghost drawer-button lg:hidden"
             >
               <.icon name="hero-bars-3" class="size-5" />
@@ -48,7 +48,7 @@ defmodule PadocsWeb.DocumentLive do
               <nav
                 :if={@ancestors != []}
                 id="breadcrumb"
-                aria-label="Documents parents"
+                aria-label={gettext("Parent documents")}
                 class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/60"
               >
                 <%= for ancestor <- @ancestors do %>
@@ -57,7 +57,7 @@ defmodule PadocsWeb.DocumentLive do
                     patch={~p"/documents/#{ancestor.id}"}
                     class="max-w-48 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
                   >
-                    {ancestor.title || "Sans titre"}
+                    {ancestor.title || gettext("Untitled")}
                   </.link>
                   <.icon name="hero-chevron-right-micro" class="size-3 shrink-0" />
                 <% end %>
@@ -72,7 +72,7 @@ defmodule PadocsWeb.DocumentLive do
                   id="document-title"
                   name="title"
                   value={@title_form[:title].value}
-                  placeholder="Sans titre"
+                  placeholder={gettext("Untitled")}
                   phx-debounce="300"
                   autocomplete="off"
                   readonly={!@can_edit?}
@@ -95,7 +95,9 @@ defmodule PadocsWeb.DocumentLive do
                     />
                   </div>
                   <p id="last-update" class="text-xs text-base-content/60">
-                    Dernière mise à jour : {Calendar.strftime(@last_update, "%d/%m/%Y %H:%M:%S")} UTC
+                    {gettext("Last update: %{at} UTC",
+                      at: Calendar.strftime(@last_update, gettext("%m/%d/%Y %H:%M:%S"))
+                    )}
                   </p>
                 </div>
                 <%!-- People who have this document open --%>
@@ -166,7 +168,7 @@ defmodule PadocsWeb.DocumentLive do
               <div
                 data-skeleton
                 role="status"
-                aria-label="Chargement du document"
+                aria-label={gettext("Loading the document")}
                 class="flex flex-col gap-3 px-[54px] py-4 motion-safe:animate-pulse"
               >
                 <div class="h-4 w-3/4 bg-base-300"></div>
@@ -200,18 +202,18 @@ defmodule PadocsWeb.DocumentLive do
               >
                 <span class="hidden items-center gap-2 group-data-[state=offline]:inline-flex">
                   <.icon name="hero-signal-slash" class="size-4 shrink-0" />
-                  Hors ligne — vos modifications sont gardées sur cet appareil
+                  {gettext("Offline — your edits are kept on this device")}
                 </span>
                 <span class="hidden items-center gap-2 group-data-[state=syncing]:inline-flex">
                   <.icon name="hero-arrow-path" class="size-4 shrink-0 motion-safe:animate-spin" />
-                  Synchronisation…
+                  {gettext("Syncing…")}
                 </span>
                 <span class="hidden items-center gap-2 group-data-[state=server_down]:inline-flex">
                   <.icon name="hero-exclamation-triangle" class="size-4 shrink-0" />
-                  Le serveur ne répond pas, nouvel essai bientôt
+                  {gettext("The server does not answer, trying again soon")}
                 </span>
                 <span class="hidden items-center gap-2 group-data-[state=synced]:inline-flex">
-                  <.icon name="hero-check" class="size-4 shrink-0" /> Synchronisé
+                  <.icon name="hero-check" class="size-4 shrink-0" /> {gettext("Synced")}
                 </span>
               </div>
             </div>
@@ -219,7 +221,7 @@ defmodule PadocsWeb.DocumentLive do
         </div>
 
         <div class="drawer-side z-20">
-          <label for="sidebar-drawer" aria-label="Fermer le menu" class="drawer-overlay"></label>
+          <label for="sidebar-drawer" aria-label={gettext("Close the menu")} class="drawer-overlay"></label>
           <div
             id="sidebar"
             class={[
@@ -235,8 +237,8 @@ defmodule PadocsWeb.DocumentLive do
                 id="search-button"
                 type="button"
                 phx-click="open_search"
-                aria-label="Rechercher"
-                title="Rechercher"
+                aria-label={gettext("Search")}
+                title={gettext("Search")}
                 class="btn btn-ghost btn-sm btn-square"
               >
                 <.icon name="hero-magnifying-glass" class="size-5" />
@@ -248,19 +250,19 @@ defmodule PadocsWeb.DocumentLive do
                 class="btn btn-sm flex-1 justify-start border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
                 phx-click="new_document"
               >
-                <.icon name="hero-plus" class="size-4" /> Nouveau document
+                <.icon name="hero-plus" class="size-4" /> {gettext("New document")}
               </button>
               <%!-- Each file chosen is converted in the browser and sent to the
                    server (see the DocumentImport hook) --%>
               <label
                 id="import-document"
                 data-import
-                title="Importer des fichiers (Markdown, HTML, texte ou Word)"
+                title={gettext("Import files (Markdown, HTML, text or Word)")}
                 class="group btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-base-content aria-busy:pointer-events-none"
               >
                 <.icon name="hero-arrow-up-tray" class="size-4 group-aria-busy:hidden" />
                 <span class="loading loading-spinner loading-xs hidden group-aria-busy:inline-block"></span>
-                <span class="sr-only">Importer des fichiers (Markdown, HTML, texte ou Word)</span>
+                <span class="sr-only">{gettext("Import files (Markdown, HTML, text or Word)")}</span>
                 <input
                   id="import-files"
                   type="file"
@@ -289,7 +291,7 @@ defmodule PadocsWeb.DocumentLive do
                 data-drop-target="root"
                 class="mt-1 hidden items-center justify-center gap-1.5 border-2 border-dashed border-base-content/40 px-3 py-2 text-xs text-base-content/60 transition-colors group-data-[dragging=root]/tree:flex data-[drop-over]:border-base-content data-[drop-over]:bg-base-200 data-[drop-over]:text-base-content"
               >
-                <.icon name="hero-arrow-up-left-micro" class="size-4" /> Mettre à la racine
+                <.icon name="hero-arrow-up-left-micro" class="size-4" /> {gettext("Move to the root")}
               </div>
             </div>
             <script :type={Phoenix.LiveView.ColocatedHook} name=".DocumentTree">
@@ -521,8 +523,8 @@ defmodule PadocsWeb.DocumentLive do
           type="button"
           data-sidebar-toggle
           aria-controls="sidebar"
-          aria-label="Replier le menu"
-          title="Replier le menu (Ctrl+\)"
+          aria-label={gettext("Fold the menu")}
+          title={gettext("Fold the menu (Ctrl+\\)")}
           class={[
             "fixed top-1/2 left-[calc(var(--sidebar-width)-0.625rem)] z-40 hidden h-10 w-5 -translate-y-1/2",
             "cursor-pointer items-center justify-center border border-base-content/40 bg-base-100 text-base-content/60",
@@ -538,8 +540,8 @@ defmodule PadocsWeb.DocumentLive do
           type="button"
           data-sidebar-toggle
           aria-controls="sidebar"
-          aria-label="Déplier le menu"
-          title="Déplier le menu (Ctrl+\)"
+          aria-label={gettext("Unfold the menu")}
+          title={gettext("Unfold the menu (Ctrl+\\)")}
           class={[
             "fixed top-1/2 left-0 z-40 hidden h-10 w-5 -translate-y-1/2",
             "cursor-pointer items-center justify-center border border-l-0 border-base-content/40 bg-base-100 text-base-content/60",
@@ -560,11 +562,11 @@ defmodule PadocsWeb.DocumentLive do
           role="separator"
           aria-orientation="vertical"
           aria-controls="sidebar"
-          aria-label="Largeur du menu"
+          aria-label={gettext("Width of the menu")}
           aria-valuemin="192"
           aria-valuemax="480"
           tabindex="0"
-          title="Glisser pour redimensionner, double-clic pour la largeur par défaut"
+          title={gettext("Drag to resize, double-click for the default width")}
           class={[
             "group/handle fixed inset-y-0 left-[calc(var(--sidebar-width)-0.375rem)] z-30 hidden w-3.5",
             "cursor-col-resize touch-none focus-visible:outline-none lg:block lg:group-data-[collapsed]/drawer:hidden"
@@ -626,7 +628,9 @@ defmodule PadocsWeb.DocumentLive do
           phx-click="toggle_document"
           phx-value-id={document.id}
           aria-expanded={to_string(MapSet.member?(@expanded, document.id))}
-          aria-label={"Sous-documents de « #{document.title || "Sans titre"} »"}
+          aria-label={
+            gettext("Sub-documents of “%{title}”", title: document.title || gettext("Untitled"))
+          }
           class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-60 hover:opacity-100"
         >
           <.icon
@@ -644,7 +648,7 @@ defmodule PadocsWeb.DocumentLive do
           class="flex min-w-0 flex-1 items-center gap-2"
         >
           <.icon name="hero-document-text" class="size-4 shrink-0" />
-          <span class="truncate">{document.title || "Sans titre"}</span>
+          <span class="truncate">{document.title || gettext("Untitled")}</span>
         </.link>
         <button
           :if={Policy.can?(document.role, :write)}
@@ -652,8 +656,10 @@ defmodule PadocsWeb.DocumentLive do
           type="button"
           phx-click="new_sub_document"
           phx-value-id={document.id}
-          title="Nouveau sous-document"
-          aria-label={"Nouveau sous-document de « #{document.title || "Sans titre"} »"}
+          title={gettext("New sub-document")}
+          aria-label={
+            gettext("New sub-document of “%{title}”", title: document.title || gettext("Untitled"))
+          }
           class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
         >
           <.icon name="hero-plus-micro" class="size-4" />
@@ -720,7 +726,7 @@ defmodule PadocsWeb.DocumentLive do
               type="button"
               phx-click="search_tag"
               phx-value-id={tag.id}
-              title={"Documents avec le tag « #{tag.label} »"}
+              title={gettext("Documents with the tag “%{tag}”", tag: tag.label)}
               class="cursor-pointer decoration-dotted underline-offset-2 hover:underline"
             >
               {tag.label}
@@ -731,7 +737,7 @@ defmodule PadocsWeb.DocumentLive do
             type="button"
             phx-click="remove_tag"
             phx-value-id={tag.id}
-            aria-label={"Retirer le tag « #{tag.label} »"}
+            aria-label={gettext("Remove the tag “%{tag}”", tag: tag.label)}
             class={[
               "-mr-1 cursor-pointer opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100",
               "focus-visible:opacity-100 [@media(hover:none)]:opacity-60"
@@ -756,12 +762,12 @@ defmodule PadocsWeb.DocumentLive do
             name="label"
             value={@form[:label].value}
             list="tag-suggestions"
-            placeholder="Nouveau tag"
+            placeholder={gettext("New tag")}
             maxlength="40"
             autocomplete="off"
             phx-mounted={JS.focus()}
             phx-blur="close_tag_form"
-            aria-label="Nouveau tag"
+            aria-label={gettext("New tag")}
             class="h-5 w-32 border-b border-base-content/40 bg-transparent px-1 text-[0.6875rem] outline-none placeholder:text-base-content/40 focus:border-base-content"
           />
           <datalist id="tag-suggestions">
@@ -773,15 +779,15 @@ defmodule PadocsWeb.DocumentLive do
           id="add-tag"
           type="button"
           phx-click="open_tag_form"
-          title="Ajouter un tag"
+          title={gettext("Add a tag")}
           class={[
             "inline-flex h-5 cursor-pointer items-center gap-0.5 px-1 text-[0.6875rem] text-base-content/40",
             "transition-colors hover:text-base-content"
           ]}
         >
           <.icon name="hero-plus-micro" class="size-3.5" />
-          <span :if={@tag_count == 0}>Ajouter un tag</span>
-          <span :if={@tag_count > 0} class="sr-only">Ajouter un tag</span>
+          <span :if={@tag_count == 0}>{gettext("Add a tag")}</span>
+          <span :if={@tag_count > 0} class="sr-only">{gettext("Add a tag")}</span>
         </button>
       <% end %>
     <% end %>
@@ -803,8 +809,8 @@ defmodule PadocsWeb.DocumentLive do
         aria-haspopup="menu"
         aria-expanded="false"
         aria-controls="document-actions-menu"
-        aria-label="Actions du document"
-        title={if(@can_share?, do: "Partager, déplacer, exporter…", else: "Exporter…")}
+        aria-label={gettext("Actions of the document")}
+        title={if(@can_share?, do: gettext("Share, move, export…"), else: gettext("Export…"))}
         phx-click={toggle_actions()}
         class="btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content aria-expanded:bg-primary aria-expanded:text-primary-content"
       >
@@ -820,18 +826,18 @@ defmodule PadocsWeb.DocumentLive do
       >
         <%= if @can_share? do %>
           <.action_item id="share-button" icon="hero-user-plus" event="toggle_share">
-            Partager…
+            {gettext("Share…")}
           </.action_item>
           <.action_item id="move-button" icon="hero-arrows-right-left" event="open_move">
-            Déplacer vers…
+            {gettext("Move to…")}
           </.action_item>
           <div class="my-1 border-t border-dotted border-base-content/30"></div>
         <% end %>
         <.action_item id="history-button" icon="hero-clock" event="open_history">
-          Historique…
+          {gettext("History…")}
         </.action_item>
         <div class="my-1 border-t border-dotted border-base-content/30"></div>
-        <p class="px-3 pt-1.5 pb-0.5 text-xs text-base-content/60">Exporter en</p>
+        <p class="px-3 pt-1.5 pb-0.5 text-xs text-base-content/60">{gettext("Export as")}</p>
         <%!-- PDF, Markdown and Typst: made on the server, downloaded; Word and
              OpenDocument: made from the editor (see the DocumentEditor hook) --%>
         <.export_link document={@document} format="pdf" icon="hero-document-arrow-down">
@@ -852,10 +858,10 @@ defmodule PadocsWeb.DocumentLive do
           type="button"
           role="menuitem"
           phx-click={hide_actions() |> JS.push("trash_document")}
-          data-confirm="Mettre ce document et ses sous-documents à la corbeille ?"
+          data-confirm={gettext("Put this document and its sub-documents in the trash?")}
           class="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-left text-sm text-error transition-colors hover:bg-base-200 focus-visible:bg-base-200 focus-visible:outline-none"
         >
-          <.icon name="hero-trash" class="size-4 shrink-0" /> Mettre à la corbeille
+          <.icon name="hero-trash" class="size-4 shrink-0" /> {gettext("Put in the trash")}
         </button>
       </div>
     </div>
@@ -969,16 +975,16 @@ defmodule PadocsWeb.DocumentLive do
     >
       <div class="flex items-start justify-between gap-4 border-b-2 border-dotted border-base-content/40 px-4 py-3">
         <div class="min-w-0">
-          <h2 id="history-title" class="text-sm uppercase">Historique</h2>
+          <h2 id="history-title" class="text-sm uppercase">{gettext("History")}</h2>
           <p class="mt-0.5 text-xs text-base-content/60">
-            Les modifications, par minute, puis par heure, jour et semaine en vieillissant (UTC).
+            {gettext("The edits, by minute, then by hour, day and week as they age (UTC).")}
           </p>
         </div>
         <button
           id="history-close"
           type="button"
           phx-click="close_history"
-          aria-label="Fermer l'historique"
+          aria-label={gettext("Close the history")}
           class="btn btn-ghost btn-sm btn-square -mt-1 -mr-2"
         >
           <.icon name="hero-x-mark" class="size-5" />
@@ -986,7 +992,7 @@ defmodule PadocsWeb.DocumentLive do
       </div>
       <ul id="history-versions" phx-update="stream" class="flex-1 overflow-y-auto px-2 py-2">
         <li id="history-empty" class="hidden px-2 py-3 text-sm text-base-content/60 only:block">
-          Aucune modification enregistrée pour l'instant.
+          {gettext("No edit saved yet.")}
         </li>
         <li :for={{dom_id, version} <- @versions} id={dom_id}>
           <p
@@ -1014,7 +1020,7 @@ defmodule PadocsWeb.DocumentLive do
               :if={version.last?}
               class="text-xs text-base-content/60 group-aria-[current]:text-primary-content/80"
             >
-              la plus récente
+              {gettext("the latest")}
             </span>
           </button>
         </li>
@@ -1037,18 +1043,24 @@ defmodule PadocsWeb.DocumentLive do
     >
       <.icon name="hero-clock" class="size-4 shrink-0" />
       <span class="min-w-0 flex-1 basis-56">
-        Version du {Calendar.strftime(@version.ended_at, "%d/%m/%Y à %H:%M")} UTC
-        <span class="text-base-content/60">— lecture seule</span>
+        {gettext("Version of %{at} UTC",
+          at: Calendar.strftime(@version.ended_at, gettext("%m/%d/%Y at %H:%M"))
+        )}
+        <span class="text-base-content/60">— {gettext("read only")}</span>
       </span>
       <button
         :if={@can_edit?}
         id="restore-version"
         type="button"
         phx-click="restore_version"
-        data-confirm="Remplacer le contenu du document par cette version ? Les modifications faites depuis restent dans l'historique."
+        data-confirm={
+          gettext(
+            "Replace the content of the document with this version? The edits made since stay in the history."
+          )
+        }
         class="btn btn-sm border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
       >
-        <.icon name="hero-arrow-uturn-left" class="size-4" /> Restaurer cette version
+        <.icon name="hero-arrow-uturn-left" class="size-4" /> {gettext("Restore this version")}
       </button>
       <button
         id="leave-version"
@@ -1056,7 +1068,7 @@ defmodule PadocsWeb.DocumentLive do
         phx-click="hide_version"
         class="btn btn-sm btn-ghost"
       >
-        Revenir au document
+        {gettext("Back to the document")}
       </button>
     </div>
     """
@@ -1066,9 +1078,9 @@ defmodule PadocsWeb.DocumentLive do
     today = Date.utc_today()
 
     case Date.diff(today, DateTime.to_date(at)) do
-      0 -> "Aujourd'hui"
-      1 -> "Hier"
-      _ -> Calendar.strftime(at, "%d/%m/%Y")
+      0 -> gettext("Today")
+      1 -> gettext("Yesterday")
+      _ -> Calendar.strftime(at, gettext("%m/%d/%Y"))
     end
   end
 
@@ -1076,7 +1088,7 @@ defmodule PadocsWeb.DocumentLive do
   defp range_label(%{started_at: started_at, ended_at: ended_at}) do
     cond do
       DateTime.to_date(started_at) != DateTime.to_date(ended_at) ->
-        "#{Calendar.strftime(started_at, "%d/%m %H:%M")} – #{Calendar.strftime(ended_at, "%d/%m %H:%M")}"
+        "#{Calendar.strftime(started_at, gettext("%m/%d %H:%M"))} – #{Calendar.strftime(ended_at, gettext("%m/%d %H:%M"))}"
 
       Calendar.strftime(started_at, "%H:%M") == Calendar.strftime(ended_at, "%H:%M") ->
         Calendar.strftime(ended_at, "%H:%M")
@@ -1106,16 +1118,18 @@ defmodule PadocsWeb.DocumentLive do
       >
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
-            <h2 id="move-title" class="text-sm uppercase">Déplacer vers…</h2>
+            <h2 id="move-title" class="text-sm uppercase">{gettext("Move to…")}</h2>
             <p class="mt-0.5 truncate text-xs text-base-content/60">
-              « {@document.title || "Sans titre"} » prendra les accès de son nouveau parent.
+              {gettext("“%{title}” will take the accesses of its new parent.",
+                title: @document.title || gettext("Untitled")
+              )}
             </p>
           </div>
           <button
             id="move-close"
             type="button"
             phx-click="close_move"
-            aria-label="Fermer"
+            aria-label={gettext("Close")}
             class="btn btn-ghost btn-sm btn-square -mt-1 -mr-2"
           >
             <.icon name="hero-x-mark" class="size-5" />
@@ -1128,7 +1142,7 @@ defmodule PadocsWeb.DocumentLive do
           <li :if={@can_move_to_root?}>
             <.move_destination id="move-to-root" document_id={@document.id} parent_id="">
               <.icon name="hero-arrow-up-left" class="size-4 shrink-0" />
-              <span class="font-medium">Racine</span>
+              <span class="font-medium">{gettext("Root")}</span>
             </.move_destination>
           </li>
           <li :for={{destination, path} <- @destinations}>
@@ -1142,7 +1156,7 @@ defmodule PadocsWeb.DocumentLive do
                 <span :if={path != []} class="truncate text-xs text-base-content/60">
                   {Enum.join(path, " / ")}
                 </span>
-                <span class="truncate">{destination.title || "Sans titre"}</span>
+                <span class="truncate">{destination.title || gettext("Untitled")}</span>
               </span>
             </.move_destination>
           </li>
@@ -1151,7 +1165,7 @@ defmodule PadocsWeb.DocumentLive do
             id="move-empty"
             class="py-2 text-sm text-base-content/60"
           >
-            Aucun autre document où le mettre.
+            {gettext("No other document to put it in.")}
           </li>
         </ul>
       </section>
@@ -1159,7 +1173,7 @@ defmodule PadocsWeb.DocumentLive do
         type="button"
         class="modal-backdrop"
         phx-click="close_move"
-        aria-label="Fermer"
+        aria-label={gettext("Close")}
         tabindex="-1"
       ></button>
     </div>
@@ -1196,13 +1210,15 @@ defmodule PadocsWeb.DocumentLive do
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div class="min-w-0">
           <h3 class="flex items-center gap-1.5 text-xs uppercase">
-            <.icon name="hero-globe-alt" class="size-4" /> Lien public
+            <.icon name="hero-globe-alt" class="size-4" /> {gettext("Public link")}
           </h3>
           <p class="mt-0.5 text-xs text-base-content/60">
             <%= if @token do %>
-              Toute personne qui a ce lien lit le document, sans compte, mais pas ses sous-documents.
+              {gettext(
+                "Anyone with this link reads the document, without an account, but not its sub-documents."
+              )}
             <% else %>
-              Pour faire lire ce document à des personnes sans compte, en lecture seule.
+              {gettext("To let people without an account read this document, read only.")}
             <% end %>
           </p>
         </div>
@@ -1211,10 +1227,10 @@ defmodule PadocsWeb.DocumentLive do
           id="public-link-enable"
           type="button"
           phx-click="enable_public_link"
-          phx-disable-with="Création…"
+          phx-disable-with={gettext("Creating…")}
           class="btn btn-sm border-base-content bg-base-100 transition-transform hover:-translate-y-px"
         >
-          <.icon name="hero-link" class="size-4" /> Créer un lien
+          <.icon name="hero-link" class="size-4" /> {gettext("Create a link")}
         </button>
       </div>
       <div :if={@token} class="mt-2 flex flex-wrap items-center gap-2">
@@ -1223,7 +1239,7 @@ defmodule PadocsWeb.DocumentLive do
           type="text"
           readonly
           value={url(~p"/p/#{@token}")}
-          aria-label="Lien public"
+          aria-label={gettext("Public link")}
           phx-click={JS.dispatch("select")}
           class="input input-sm min-w-56 flex-1 border-base-content font-mono text-xs"
         />
@@ -1235,30 +1251,34 @@ defmodule PadocsWeb.DocumentLive do
           class="group btn btn-sm btn-primary w-24"
         >
           <span class="inline-flex items-center gap-1 group-data-[copied]:hidden">
-            <.icon name="hero-clipboard" class="size-4" /> Copier
+            <.icon name="hero-clipboard" class="size-4" /> {gettext("Copy")}
           </span>
           <span class="hidden items-center gap-1 group-data-[copied]:inline-flex">
-            <.icon name="hero-check" class="size-4" /> Copié
+            <.icon name="hero-check" class="size-4" /> {gettext("Copied")}
           </span>
         </button>
         <button
           id="public-link-regenerate"
           type="button"
           phx-click="enable_public_link"
-          data-confirm="Le lien actuel ne marchera plus. Créer un nouveau lien ?"
-          title="Remplacer par un nouveau lien : l'actuel ne marchera plus"
+          data-confirm={gettext("The current link will stop working. Create a new link?")}
+          title={gettext("Replace with a new link: the current one will stop working")}
           class="btn btn-sm btn-ghost"
         >
-          <.icon name="hero-arrow-path" class="size-4" /> Nouveau lien
+          <.icon name="hero-arrow-path" class="size-4" /> {gettext("New link")}
         </button>
         <button
           id="public-link-disable"
           type="button"
           phx-click="disable_public_link"
-          data-confirm="Désactiver le lien public ? Les personnes qui l'ont ne pourront plus lire le document."
+          data-confirm={
+            gettext(
+              "Disable the public link? The people who have it will no longer read the document."
+            )
+          }
           class="btn btn-sm btn-ghost text-error"
         >
-          <.icon name="hero-link-slash" class="size-4" /> Désactiver
+          <.icon name="hero-link-slash" class="size-4" /> {gettext("Disable")}
         </button>
         <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyLink">
           export default {
@@ -1307,16 +1327,16 @@ defmodule PadocsWeb.DocumentLive do
       >
         <div class="flex items-start justify-between gap-4">
           <div>
-            <h2 id="share-title" class="text-sm uppercase">Partager ce document</h2>
+            <h2 id="share-title" class="text-sm uppercase">{gettext("Share this document")}</h2>
             <p class="mt-0.5 text-xs text-base-content/60">
-              La personne doit déjà avoir un compte.
+              {gettext("The person must already have an account.")}
             </p>
           </div>
           <button
             id="share-close"
             type="button"
             phx-click="close_share"
-            aria-label="Fermer"
+            aria-label={gettext("Close")}
             class="btn btn-ghost btn-sm btn-square -mt-1 -mr-2"
           >
             <.icon name="hero-x-mark" class="size-5" />
@@ -1332,7 +1352,7 @@ defmodule PadocsWeb.DocumentLive do
             <.input
               field={@form[:email]}
               type="email"
-              placeholder="adresse@exemple.fr"
+              placeholder={gettext("address@example.com")}
               autocomplete="off"
               required
             />
@@ -1340,15 +1360,15 @@ defmodule PadocsWeb.DocumentLive do
           <.input
             field={@form[:role]}
             type="select"
-            options={[{"Lecteur", "viewer"}, {"Éditeur", "editor"}]}
+            options={role_options()}
             class="select w-32"
           />
           <button
             id="share-submit"
             class="btn btn-primary"
-            phx-disable-with="Invitation…"
+            phx-disable-with={gettext("Inviting…")}
           >
-            Inviter
+            {gettext("Invite")}
           </button>
         </.form>
         <ul
@@ -1357,7 +1377,9 @@ defmodule PadocsWeb.DocumentLive do
           class="mt-2 divide-y-2 divide-dotted divide-base-content/30"
         >
           <li id="members-empty" class="hidden py-2 text-sm text-base-content/60 only:block">
-            {if @inherited == [], do: "Pas encore partagé.", else: "Aucun accès propre à ce document."}
+            {if @inherited == [],
+              do: gettext("Not shared yet."),
+              else: gettext("No access of its own to this document.")}
           </li>
           <li
             :for={{id, member} <- @members}
@@ -1382,8 +1404,8 @@ defmodule PadocsWeb.DocumentLive do
                 <.input
                   field={f[:role]}
                   type="select"
-                  options={[{"Lecteur", "viewer"}, {"Éditeur", "editor"}]}
-                  aria-label={"Rôle de #{member.email}"}
+                  options={role_options()}
+                  aria-label={gettext("Role of %{email}", email: member.email)}
                   class={[
                     "select select-xs w-24 border-base-content",
                     if(member.role == :editor,
@@ -1398,8 +1420,8 @@ defmodule PadocsWeb.DocumentLive do
                 type="button"
                 phx-click="remove_member"
                 phx-value-id={member.id}
-                data-confirm={"Retirer l'accès de #{member.email} ?"}
-                aria-label={"Retirer #{member.email}"}
+                data-confirm={gettext("Remove the access of %{email}?", email: member.email)}
+                aria-label={gettext("Remove %{email}", email: member.email)}
                 class="btn btn-ghost btn-xs btn-square opacity-60 transition-opacity hover:opacity-100"
               >
                 <.icon name="hero-x-mark" class="size-4" />
@@ -1408,9 +1430,9 @@ defmodule PadocsWeb.DocumentLive do
           </li>
         </ul>
         <div :if={@inherited != []} id="inherited-accesses" class="mt-5">
-          <h3 class="text-xs uppercase">Accès hérités</h3>
+          <h3 class="text-xs uppercase">{gettext("Inherited accesses")}</h3>
           <p class="mt-0.5 text-xs text-base-content/60">
-            Donnés par les documents parents : ils se changent depuis ces documents.
+            {gettext("Given by the parent documents: they are changed from these documents.")}
           </p>
           <ul class="mt-1 divide-y-2 divide-dotted divide-base-content/30">
             <li
@@ -1426,7 +1448,7 @@ defmodule PadocsWeb.DocumentLive do
                   {access.email}<span
                     :if={access.user_id == @current_user_id}
                     class="text-base-content/50"
-                  > (vous)</span>
+                  >{gettext("(you)")}</span>
                 </span>
               </span>
               <span class="flex min-w-0 shrink-0 items-center gap-2 text-xs text-base-content/60">
@@ -1434,16 +1456,20 @@ defmodule PadocsWeb.DocumentLive do
                   <.link
                     id={"inherited-#{access.user_id}-from"}
                     patch={~p"/documents/#{access.from.id}"}
-                    title={"Hérité de « #{access.from.title || "Sans titre"} »"}
+                    title={
+                      gettext("Inherited from “%{title}”",
+                        title: access.from.title || gettext("Untitled")
+                      )
+                    }
                     class="hidden max-w-40 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline sm:inline"
                   >
-                    via {access.from.title || "Sans titre"}
+                    {gettext("via %{title}", title: access.from.title || gettext("Untitled"))}
                   </.link>
                 <% else %>
-                  <span class="hidden sm:inline">via un document parent</span>
+                  <span class="hidden sm:inline">{gettext("via a parent document")}</span>
                 <% end %>
                 <span class="w-28 border-2 border-base-content/40 px-2 py-0.5 text-center whitespace-nowrap">
-                  {String.capitalize(role_label(access.role))}
+                  {role_label(access.role)}
                 </span>
               </span>
             </li>
@@ -1455,7 +1481,7 @@ defmodule PadocsWeb.DocumentLive do
         type="button"
         class="modal-backdrop"
         phx-click="close_share"
-        aria-label="Fermer"
+        aria-label={gettext("Close")}
         tabindex="-1"
       ></button>
     </div>
@@ -1525,7 +1551,7 @@ defmodule PadocsWeb.DocumentLive do
       {:error, _} ->
         {:noreply,
          socket
-         |> put_flash(:error, "Document introuvable")
+         |> put_flash(:error, gettext("Document not found"))
          |> push_navigate(to: ~p"/documents")}
     end
   end
@@ -1560,7 +1586,7 @@ defmodule PadocsWeb.DocumentLive do
       history_open?: false,
       versions: %{},
       viewed_version: nil,
-      page_title: document.title || "Sans titre",
+      page_title: document.title || gettext("Untitled"),
       last_update: document.updated_at,
       title_form: to_form(%{"title" => document.title})
     )
@@ -1604,7 +1630,7 @@ defmodule PadocsWeb.DocumentLive do
         |> stream(:versions, versions, reset: true)
 
       {:error, _} ->
-        put_flash(socket, :error, "Vous ne pouvez plus lire ce document")
+        put_flash(socket, :error, gettext("You can no longer read this document"))
     end
   end
 
@@ -1669,7 +1695,7 @@ defmodule PadocsWeb.DocumentLive do
       socket =
         if Phoenix.Flash.get(socket.assigns.flash, :info),
           do: socket,
-          else: put_flash(socket, :info, "Ce document a été mis à la corbeille")
+          else: put_flash(socket, :info, gettext("This document was put in the trash"))
 
       {:noreply, push_navigate(socket, to: ~p"/documents")}
     else
@@ -1733,13 +1759,13 @@ defmodule PadocsWeb.DocumentLive do
       is_nil(role) ->
         {:noreply,
          socket
-         |> put_flash(:error, "Votre accès à ce document a été retiré")
+         |> put_flash(:error, gettext("Your access to this document was removed"))
          |> push_navigate(to: ~p"/documents")}
 
       true ->
         {:noreply,
          socket
-         |> put_flash(:info, "Vos droits sur ce document ont changé")
+         |> put_flash(:info, gettext("Your rights on this document changed"))
          |> push_navigate(to: ~p"/documents/#{document.id}")}
     end
   end
@@ -1799,7 +1825,9 @@ defmodule PadocsWeb.DocumentLive do
        |> list_new_document(%{document | role: :owner})
        |> put_flash(:info, imported_message(title, params["missing_images"]))}
     else
-      _ -> {:reply, %{}, put_flash(socket, :error, "Impossible d'importer « #{name} »")}
+      _ ->
+        {:reply, %{},
+         put_flash(socket, :error, gettext("“%{name}” could not be imported", name: name))}
     end
   end
 
@@ -1807,10 +1835,13 @@ defmodule PadocsWeb.DocumentLive do
     message =
       case reason do
         "too_large" ->
-          "« #{name} » est trop volumineux (#{megabytes(params["max_bytes"])} Mo au plus)"
+          gettext("“%{name}” is too large (%{max} MB at most)",
+            name: name,
+            max: megabytes(params["max_bytes"])
+          )
 
         _ ->
-          "Impossible de lire « #{name} »"
+          gettext("“%{name}” could not be read", name: name)
       end
 
     {:reply, %{}, put_flash(socket, :error, message)}
@@ -1852,7 +1883,7 @@ defmodule PadocsWeb.DocumentLive do
 
       {:error, _} ->
         {:noreply,
-         put_flash(socket, :error, "Vous ne pouvez pas modifier les tags de ce document")}
+         put_flash(socket, :error, gettext("You cannot change the tags of this document"))}
     end
   end
 
@@ -1865,7 +1896,7 @@ defmodule PadocsWeb.DocumentLive do
 
       {:error, _} ->
         {:noreply,
-         put_flash(socket, :error, "Vous ne pouvez pas modifier les tags de ce document")}
+         put_flash(socket, :error, gettext("You cannot change the tags of this document"))}
     end
   end
 
@@ -1912,7 +1943,7 @@ defmodule PadocsWeb.DocumentLive do
          |> push_patch(to: ~p"/documents/#{document.id}")}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas ajouter de sous-document ici")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot add a sub-document here"))}
     end
   end
 
@@ -1931,9 +1962,11 @@ defmodule PadocsWeb.DocumentLive do
   def handle_event("export_done", %{"missing_files" => missing}, socket)
       when is_integer(missing) and missing > 0 do
     message =
-      if missing == 1,
-        do: "Une image n'a pas pu être récupérée : l'export est sans elle",
-        else: "#{missing} images n'ont pas pu être récupérées : l'export est sans elles"
+      ngettext(
+        "An image could not be fetched: the export is without it",
+        "%{count} images could not be fetched: the export is without them",
+        missing
+      )
 
     {:noreply, put_flash(socket, :error, message)}
   end
@@ -1941,7 +1974,7 @@ defmodule PadocsWeb.DocumentLive do
   def handle_event("export_done", _params, socket), do: {:noreply, socket}
 
   def handle_event("export_failed", _params, socket),
-    do: {:noreply, put_flash(socket, :error, "L'export a échoué")}
+    do: {:noreply, put_flash(socket, :error, gettext("The export failed"))}
 
   # With its sub-documents; the page then opens another document. The other
   # pages showing them leave them too (see the :document_deleted message).
@@ -1952,11 +1985,14 @@ defmodule PadocsWeb.DocumentLive do
       :ok ->
         {:noreply,
          socket
-         |> put_flash(:info, "« #{document.title || "Sans titre"} » mis à la corbeille")
+         |> put_flash(
+           :info,
+           gettext("“%{title}” put in the trash", title: document.title || gettext("Untitled"))
+         )
          |> push_navigate(to: ~p"/documents")}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas supprimer ce document")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot delete this document"))}
     end
   end
 
@@ -1979,13 +2015,13 @@ defmodule PadocsWeb.DocumentLive do
          |> push_event("show_version", %{state: Base.encode64(state)})}
 
       {_, {:error, :forbidden}} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez plus lire ce document")}
+        {:noreply, put_flash(socket, :error, gettext("You can no longer read this document"))}
 
       _ ->
         {:noreply,
          socket
          |> open_history()
-         |> put_flash(:info, "Cette version a été regroupée avec une plus récente")}
+         |> put_flash(:info, gettext("This version was merged with a more recent one"))}
     end
   end
 
@@ -1998,15 +2034,20 @@ defmodule PadocsWeb.DocumentLive do
     if socket.assigns.can_edit? and socket.assigns.viewed_version do
       {:noreply, push_event(socket, "restore_version", %{})}
     else
-      {:noreply, put_flash(socket, :error, "Vous ne pouvez pas modifier ce document")}
+      {:noreply, put_flash(socket, :error, gettext("You cannot edit this document"))}
     end
   end
 
   def handle_event("version_restored", _params, socket) do
     message =
       case socket.assigns.viewed_version do
-        %{ended_at: at} -> "Version du #{Calendar.strftime(at, "%d/%m/%Y à %H:%M")} UTC restaurée"
-        nil -> "Version restaurée"
+        %{ended_at: at} ->
+          gettext("Version of %{at} UTC restored",
+            at: Calendar.strftime(at, gettext("%m/%d/%Y at %H:%M"))
+          )
+
+        nil ->
+          gettext("Version restored")
       end
 
     {:noreply,
@@ -2016,7 +2057,7 @@ defmodule PadocsWeb.DocumentLive do
   end
 
   def handle_event("restore_failed", _params, socket),
-    do: {:noreply, put_flash(socket, :error, "La version n'a pas pu être restaurée")}
+    do: {:noreply, put_flash(socket, :error, gettext("The version could not be restored"))}
 
   def handle_event("open_move", _params, socket) do
     {:noreply, assign(socket, moving?: true, move_destinations: move_destinations(socket))}
@@ -2043,11 +2084,11 @@ defmodule PadocsWeb.DocumentLive do
          put_flash(
            socket,
            :error,
-           "Un document ne peut pas aller sous lui-même ou l'un de ses sous-documents"
+           gettext("A document cannot go under itself or one of its sub-documents")
          )}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas déplacer ce document ici")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot move this document here"))}
     end
   end
 
@@ -2063,18 +2104,21 @@ defmodule PadocsWeb.DocumentLive do
          |> assign(moving?: false)
          |> put_moved(document.id, document.parent_id)
          |> update(:expanded, &if(parent_id, do: MapSet.put(&1, parent_id), else: &1))
-         |> put_flash(:info, "« #{document.title || "Sans titre"} » déplacé")}
+         |> put_flash(
+           :info,
+           gettext("“%{title}” moved", title: document.title || gettext("Untitled"))
+         )}
 
       {:error, :cycle} ->
         {:noreply,
          put_flash(
            socket,
            :error,
-           "Un document ne peut pas aller sous lui-même ou l'un de ses sous-documents"
+           gettext("A document cannot go under itself or one of its sub-documents")
          )}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas déplacer ce document ici")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot move this document here"))}
     end
   end
 
@@ -2107,13 +2151,13 @@ defmodule PadocsWeb.DocumentLive do
          socket
          |> assign(share_form: share_form())
          |> stream_insert(:members, member)
-         |> put_flash(:info, "Document partagé avec #{member.email}")}
+         |> put_flash(:info, gettext("Document shared with %{email}", email: member.email))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, share_form: to_form(changeset, as: "share"))}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas partager ce document")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot share this document"))}
     end
   end
 
@@ -2123,17 +2167,18 @@ defmodule PadocsWeb.DocumentLive do
         {:noreply,
          socket
          |> stream_insert(:members, member)
-         |> put_flash(:info, "#{member.email} est maintenant #{role_label(member.role)}")}
+         |> put_flash(:info, role_changed_message(member))}
 
       _ ->
-        {:noreply, put_flash(socket, :error, "Impossible de changer le rôle de ce membre")}
+        {:noreply,
+         put_flash(socket, :error, gettext("The role of this member could not be changed"))}
     end
   end
 
   def handle_event("remove_member", %{"id" => id}, socket) do
     case Document.remove_member(socket.assigns.current_user, id) do
       :ok -> {:noreply, stream_delete_by_dom_id(socket, :members, "members-#{id}")}
-      _ -> {:noreply, put_flash(socket, :error, "Impossible de retirer ce membre")}
+      _ -> {:noreply, put_flash(socket, :error, gettext("This member could not be removed"))}
     end
   end
 
@@ -2143,10 +2188,11 @@ defmodule PadocsWeb.DocumentLive do
 
     case Document.enable_public_link(user, document.id) do
       {:ok, token} ->
-        {:noreply, socket |> assign(public_token: token) |> put_flash(:info, "Lien public créé")}
+        {:noreply,
+         socket |> assign(public_token: token) |> put_flash(:info, gettext("Public link created"))}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas partager ce document")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot share this document"))}
     end
   end
 
@@ -2156,10 +2202,10 @@ defmodule PadocsWeb.DocumentLive do
     case Document.disable_public_link(user, document.id) do
       :ok ->
         {:noreply,
-         socket |> assign(public_token: nil) |> put_flash(:info, "Lien public désactivé")}
+         socket |> assign(public_token: nil) |> put_flash(:info, gettext("Public link disabled"))}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas partager ce document")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot share this document"))}
     end
   end
 
@@ -2169,7 +2215,7 @@ defmodule PadocsWeb.DocumentLive do
         {:noreply, put_title(socket, document)}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas renommer ce document")}
+        {:noreply, put_flash(socket, :error, gettext("You cannot rename this document"))}
     end
   end
 
@@ -2177,7 +2223,7 @@ defmodule PadocsWeb.DocumentLive do
     socket
     |> assign(
       document: document,
-      page_title: document.title || "Sans titre",
+      page_title: document.title || gettext("Untitled"),
       title_form: to_form(%{"title" => document.title})
     )
     |> list_document(document)
@@ -2258,7 +2304,7 @@ defmodule PadocsWeb.DocumentLive do
   defp title_path(documents, document) do
     case Map.get(documents, document.parent_id) do
       nil -> []
-      parent -> title_path(documents, parent) ++ [parent.title || "Sans titre"]
+      parent -> title_path(documents, parent) ++ [parent.title || gettext("Untitled")]
     end
   end
 
@@ -2270,9 +2316,18 @@ defmodule PadocsWeb.DocumentLive do
     )
   end
 
-  defp role_label(:owner), do: "propriétaire"
-  defp role_label(:editor), do: "éditeur"
-  defp role_label(:viewer), do: "lecteur"
+  defp role_label(:owner), do: gettext("Owner")
+  defp role_label(:editor), do: gettext("Editor")
+  defp role_label(:viewer), do: gettext("Viewer")
+
+  # The roles a member can be given.
+  defp role_options, do: [{role_label(:viewer), "viewer"}, {role_label(:editor), "editor"}]
+
+  defp role_changed_message(%{email: email, role: :editor}),
+    do: gettext("%{email} is now an editor", email: email)
+
+  defp role_changed_message(%{email: email}),
+    do: gettext("%{email} is now a viewer", email: email)
 
   # The form inviting an address to the open document.
   defp share_form, do: to_form(Document.change_share(%{role: :viewer}), as: "share")
@@ -2282,12 +2337,16 @@ defmodule PadocsWeb.DocumentLive do
     do: Document.list_members(socket.assigns.current_user, socket.assigns.document.id)
 
   # The images of a Word file the server refused (see convert.ts).
-  defp imported_message(title, 1), do: "« #{title} » importé, sans son image"
+  defp imported_message(title, missing) when is_integer(missing) and missing > 0,
+    do:
+      ngettext(
+        "“%{title}” imported, without its image",
+        "“%{title}” imported, without its %{count} images",
+        missing,
+        title: title
+      )
 
-  defp imported_message(title, missing) when is_integer(missing) and missing > 1,
-    do: "« #{title} » importé, sans ses #{missing} images"
-
-  defp imported_message(title, _missing), do: "« #{title} » importé"
+  defp imported_message(title, _missing), do: gettext("“%{title}” imported", title: title)
 
   defp megabytes(bytes) when is_integer(bytes) and bytes > 0, do: div(bytes, 1_000_000)
   defp megabytes(_bytes), do: 2

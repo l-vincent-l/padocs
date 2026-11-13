@@ -62,6 +62,9 @@ defmodule PadocsWeb.Layouts do
             <.sign_out_link current_user={@current_user} />
           </li>
           <li>
+            <.locale_switch />
+          </li>
+          <li>
             <.theme_toggle />
           </li>
         </ul>
@@ -102,7 +105,8 @@ defmodule PadocsWeb.Layouts do
 
   @doc """
   The account controls at the bottom of a page's sidebar: the user's email,
-  signing out, the theme. See the `sidebar` attribute of `app/1`.
+  signing out, the language, the theme. See the `sidebar` attribute of
+  `app/1`.
   """
   attr :current_user, :map, required: true
 
@@ -110,9 +114,13 @@ defmodule PadocsWeb.Layouts do
     ~H"""
     <div id="account" class="mt-auto border-t-2 border-dotted border-base-content/40 pt-4 text-sm">
       <p class="truncate" title={@current_user.email}>{@current_user.email}</p>
-      <div class="mt-2 flex items-center justify-between gap-2">
+      <%!-- The controls go under the link when they do not fit beside it --%>
+      <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
         <.sign_out_link current_user={@current_user} />
-        <.theme_toggle />
+        <div class="flex items-center gap-2">
+          <.locale_switch />
+          <.theme_toggle />
+        </div>
       </div>
     </div>
     """
@@ -122,10 +130,16 @@ defmodule PadocsWeb.Layouts do
 
   defp sign_out_link(assigns) do
     ~H"""
-    <.link :if={@current_user} href={~p"/sign-out"} method="delete" id="sign-out" class="link">
-      Sign out
+    <.link
+      :if={@current_user}
+      href={~p"/sign-out"}
+      method="delete"
+      id="sign-out"
+      class="link whitespace-nowrap"
+    >
+      {gettext("Sign out")}
     </.link>
-    <.link :if={!@current_user} href={~p"/sign-in"} class="link">Sign in</.link>
+    <.link :if={!@current_user} href={~p"/sign-in"} class="link">{gettext("Sign in")}</.link>
     """
   end
 
@@ -179,6 +193,45 @@ defmodule PadocsWeb.Layouts do
   end
 
   @doc """
+  The languages of the interface, the current one marked: a choice posts it
+  to `PadocsWeb.LocaleController`, which keeps it and reloads the page.
+  """
+  def locale_switch(assigns) do
+    assigns = assign(assigns, :current, Gettext.get_locale(PadocsWeb.Gettext))
+
+    ~H"""
+    <form
+      id="locale-switch"
+      action={~p"/locale"}
+      method="post"
+      class="flex border-2 border-base-content text-xs"
+      aria-label={gettext("Language")}
+    >
+      <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+      <button
+        :for={{locale, label, name} <- [{"fr", "FR", "Français"}, {"en", "EN", "English"}]}
+        id={"locale-#{locale}"}
+        type="submit"
+        name="locale"
+        value={locale}
+        lang={locale}
+        title={name}
+        aria-pressed={to_string(locale == @current)}
+        class={[
+          "cursor-pointer px-1.5 py-1 font-medium transition-colors",
+          if(locale == @current,
+            do: "bg-base-300",
+            else: "text-base-content/60 hover:bg-base-200 hover:text-base-content"
+          )
+        ]}
+      >
+        {label}
+      </button>
+    </form>
+    """
+  end
+
+  @doc """
   Provides dark vs light theme toggle based on themes defined in app.css.
 
   See <head> in root.html.heex which applies the theme before page load.
@@ -192,7 +245,7 @@ defmodule PadocsWeb.Layouts do
         class="relative flex w-1/3 cursor-pointer p-1.5"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
-        aria-label="Thème du système"
+        aria-label={gettext("System theme")}
       >
         <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
@@ -201,7 +254,7 @@ defmodule PadocsWeb.Layouts do
         class="relative flex w-1/3 cursor-pointer p-1.5"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
-        aria-label="Thème clair"
+        aria-label={gettext("Light theme")}
       >
         <.icon name="hero-sun-micro" class="size-4" />
       </button>
@@ -210,7 +263,7 @@ defmodule PadocsWeb.Layouts do
         class="relative flex w-1/3 cursor-pointer p-1.5"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
-        aria-label="Thème sombre"
+        aria-label={gettext("Dark theme")}
       >
         <.icon name="hero-moon-micro" class="size-4" />
       </button>
