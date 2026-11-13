@@ -253,3 +253,8 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* The text of the documents (editor, title): a warm near-black on the light theme, the
+   interface keeping its colors; on the dark theme, the interface's. */
+[data-theme="light"] { --color-document: #1c1418; }
+[data-theme="dark"] { --color-document: var(--color-base-content); }

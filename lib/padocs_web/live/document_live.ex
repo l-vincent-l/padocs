@@ -76,7 +76,7 @@ defmodule PadocsWeb.DocumentLive do
                   phx-debounce="300"
                   autocomplete="off"
                   readonly={!@can_edit?}
-                  class="w-full bg-transparent text-2xl font-medium leading-tight tracking-wide outline-none placeholder:text-base-content/30 sm:text-3xl"
+                  class="w-full bg-transparent text-(--color-document) text-2xl font-medium leading-tight tracking-wide outline-none placeholder:text-base-content/30 sm:text-3xl"
                 />
               </.form>
               <div class="mt-1 flex items-start justify-between gap-2">

@@ -32,7 +32,7 @@ defmodule PadocsWeb.PublicDocumentLive do
             >
               <.icon name="hero-globe-alt" class="size-3.5" /> {gettext("Read only, by a public link")}
             </p>
-            <h1 id="public-title" class="mt-3 text-3xl font-bold break-words">
+            <h1 id="public-title" class="mt-3 text-3xl font-bold break-words text-(--color-document)">
               {@document.title || gettext("Untitled")}
             </h1>
             <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />

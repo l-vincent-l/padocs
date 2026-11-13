@@ -5,7 +5,7 @@
 /* The editor takes the colors of the page's daisyUI theme (app.css), light or
    dark, its font, and square corners. */
 .bn-root[data-color-scheme] {
-  --bn-colors-editor-text: var(--color-base-content);
+  --bn-colors-editor-text: var(--color-document, var(--color-base-content));
   --bn-colors-editor-background: var(--color-base-100);
   --bn-colors-menu-text: var(--color-base-content);
   --bn-colors-menu-background: var(--color-base-100);
