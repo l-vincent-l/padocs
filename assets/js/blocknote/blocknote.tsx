@@ -18,6 +18,7 @@ import { PhoenixChannelProvider } from "y-phoenix-channel";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { Socket } from "phoenix";
 import { BlockNoteEditor, User } from "@blocknote/core";
+import { fr } from "@blocknote/core/locales";
 import { watchSyncStatus } from "./sync_status";
 import type { ExportFormat } from "./export";
 import { uploadFile } from "./upload";
@@ -32,6 +33,26 @@ const usercolors = [
   "#8acb88",
   "#1be7ff",
 ];
+
+// The editor's menus and panels in French. Its translation says
+// "Télécharger" (download) for uploading a file: "Importer" here.
+const dictionary = {
+  ...fr,
+  file_panel: {
+    ...fr.file_panel,
+    upload: {
+      ...fr.file_panel.upload,
+      title: "Importer",
+      file_placeholder: {
+        image: "Importer une image",
+        video: "Importer une vidéo",
+        audio: "Importer un fichier audio",
+        file: "Importer un fichier",
+      },
+      upload_error: "Erreur : le fichier n'a pas pu être envoyé",
+    },
+  },
+};
 
 const myColor = usercolors[Math.floor(Math.random() * usercolors.length)];
 type ResolveUsers = (ids: string[]) => Promise<User[]>;
@@ -84,6 +105,7 @@ function Editor({
       // resolveUsers gives the names of the comments' authors
       extensions: [CommentsExtension({ threadStore, resolveUsers })],
       uploadFile,
+      dictionary,
     }),
   );
   // In braces: what an effect returns is called by React as its cleanup.
@@ -107,6 +129,7 @@ function Version({ fragment, threadStore, resolveUsers }: VersionProps) {
       collaboration: { fragment, user: { name: "", color: "#9ca3af" } },
       // its comment marks need the comments' schema
       extensions: [CommentsExtension({ threadStore, resolveUsers })],
+      dictionary,
     }),
   );
 
