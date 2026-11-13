@@ -18,6 +18,7 @@ msgstr "%d/%m %H:%M"
 
 #: lib/padocs_web/components/document_components.ex
 #: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "%m/%d/%Y"
 msgstr "%d/%m/%Y"
@@ -1091,3 +1092,48 @@ msgstr "La langue de l'interface et des e-mails que vous recevez."
 #, elixir-autogen, elixir-format
 msgid "Theme"
 msgstr "Thème"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "A new confirmation link is on its way to your inbox."
+msgstr "Un nouveau lien de confirmation arrive dans votre boîte mail."
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Link sent"
+msgstr "Lien envoyé"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Resend the confirmation link"
+msgstr "Renvoyer le lien de confirmation"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Sending…"
+msgstr "Envoi…"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "The email could not be sent. Try again later."
+msgstr "L'e-mail n'a pas pu être envoyé. Réessayez plus tard."
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address is already confirmed."
+msgstr "Votre adresse e-mail est déjà confirmée."
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address is not confirmed yet."
+msgstr "Votre adresse e-mail n'est pas encore confirmée."
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address is not confirmed yet. Confirm it before %{date}: after that, your password will no longer sign you in."
+msgstr "Votre adresse e-mail n'est pas encore confirmée. Confirmez-la avant le %{date} : passé ce délai, votre mot de passe ne permettra plus de vous connecter."
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address was not confirmed in time. Reset your password: this confirms your address and lets you sign in again."
+msgstr "Votre adresse e-mail n'a pas été confirmée à temps. Réinitialisez votre mot de passe : cela confirmera votre adresse et vous pourrez vous reconnecter."

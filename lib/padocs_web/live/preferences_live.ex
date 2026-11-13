@@ -3,9 +3,12 @@ defmodule PadocsWeb.PreferencesLive do
   The preferences of the signed-in user: the language of the interface
   (posted to `PadocsWeb.LocaleController`, which keeps it on their account
   and comes back here), the theme (kept in this browser, see the root
-  layout), and signing out.
+  layout), signing out, and sending again the link confirming the address
+  when it is not confirmed yet.
   """
   use PadocsWeb, :live_view
+
+  alias Padocs.Accounts
 
   on_mount {PadocsWeb.LiveUserAuth, :live_user_required}
 
@@ -99,6 +102,44 @@ defmodule PadocsWeb.PreferencesLive do
               {gettext("Sign out")}
             </.link>
           </div>
+          <div
+            :if={is_nil(@current_user.confirmed_at)}
+            id="account-unconfirmed"
+            class="mt-4 flex flex-wrap items-center justify-between gap-3 border-2 border-dashed border-warning/60 px-3 py-2.5"
+          >
+            <p class="flex min-w-0 items-center gap-2 text-xs">
+              <.icon name="hero-exclamation-triangle" class="size-4 shrink-0 text-warning" />
+              <%= cond do %>
+                <% @confirmation_sent -> %>
+                  {gettext("A new confirmation link is on its way to your inbox.")}
+                <% deadline = Accounts.confirmation_deadline(@current_user) -> %>
+                  {gettext(
+                    "Your email address is not confirmed yet. Confirm it before %{date}: after that, your password will no longer sign you in.",
+                    date: Calendar.strftime(deadline, gettext("%m/%d/%Y"))
+                  )}
+                <% true -> %>
+                  {gettext("Your email address is not confirmed yet.")}
+              <% end %>
+            </p>
+            <button
+              id="resend-confirmation"
+              type="button"
+              phx-click="resend_confirmation"
+              phx-disable-with={gettext("Sending…")}
+              disabled={@confirmation_sent}
+              class="btn btn-sm border-base-content bg-base-100 transition-transform hover:-translate-y-px hover:bg-base-300 disabled:translate-y-0 disabled:opacity-60"
+            >
+              <.icon
+                name={if(@confirmation_sent, do: "hero-check", else: "hero-envelope")}
+                class="size-4"
+              />
+              <%= if @confirmation_sent do %>
+                {gettext("Link sent")}
+              <% else %>
+                {gettext("Resend the confirmation link")}
+              <% end %>
+            </button>
+          </div>
         </.section>
       </div>
     </Layouts.app>
@@ -154,6 +195,31 @@ defmodule PadocsWeb.PreferencesLive do
   end
 
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: gettext("Preferences"))}
+    {:ok, assign(socket, page_title: gettext("Preferences"), confirmation_sent: false)}
+  end
+
+  # One link per visit of the page: the button is then disabled.
+  def handle_event(
+        "resend_confirmation",
+        _params,
+        %{assigns: %{confirmation_sent: true}} = socket
+      ),
+      do: {:noreply, socket}
+
+  def handle_event("resend_confirmation", _params, socket) do
+    case Accounts.deliver_confirmation_instructions(
+           socket.assigns.current_user,
+           &url(~p"/confirm_new_user/#{&1}")
+         ) do
+      {:ok, _email} ->
+        {:noreply, assign(socket, confirmation_sent: true)}
+
+      {:error, :already_confirmed} ->
+        {:noreply, put_flash(socket, :info, gettext("Your email address is already confirmed."))}
+
+      {:error, _reason} ->
+        {:noreply,
+         put_flash(socket, :error, gettext("The email could not be sent. Try again later."))}
+    end
   end
 end

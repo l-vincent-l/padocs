@@ -49,4 +49,24 @@ defmodule PadocsWeb.PreferencesLiveTest do
 
     assert has_element?(view, "#account #preferences-link[href='/preferences']", user.email)
   end
+
+  test "a confirmed account has no confirmation button", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/preferences")
+
+    refute has_element?(view, "#account-unconfirmed")
+  end
+
+  test "an unconfirmed account sends the confirmation link again" do
+    user = Fixtures.register_user()
+    to = [{"", user.email}]
+    assert_received {:email, %Swoosh.Email{to: ^to}}
+
+    {:ok, view, _html} = live(Fixtures.log_in(build_conn(), user), ~p"/preferences")
+    assert has_element?(view, "#account-unconfirmed")
+
+    view |> element("#resend-confirmation") |> render_click()
+
+    assert_received {:email, %Swoosh.Email{to: ^to}}
+    assert has_element?(view, "#resend-confirmation[disabled]")
+  end
 end
