@@ -2,8 +2,9 @@ defmodule Textexp.Document.History do
   @moduledoc """
   The Yjs log of a document, which is also its history.
 
-  The DocServer appends the edits of about a second, merged into one update
-  (`append_update/4`, see `Textexp.Document.YPersistence`), and saves the
+  The DocServer appends the edits of about a second, merged into one update,
+  through `Textexp.Document.UpdateWriter`, which writes those of all the
+  documents at once (see `Textexp.Document.YPersistence`), and saves the
   excerpt of the document less often (`save_excerpt/3`). Appending never
   overwrites: two DocServers of a document, on two nodes, cannot lose each
   other's edits.
@@ -38,8 +39,8 @@ defmodule Textexp.Document.History do
 
   @doc """
   Appends `data`, an update of the content of the document of `id` made
-  between `started_at` and `ended_at`: one `INSERT`, a single commit, done
-  every second or so for each document being edited.
+  between `started_at` and `ended_at`, at once: one `INSERT`. The DocServer
+  goes through `Textexp.Document.UpdateWriter` instead.
   """
   def append_update(id, data, started_at, ended_at) do
     Repo.insert!(%Update{document_id: id, data: data, started_at: started_at, ended_at: ended_at})

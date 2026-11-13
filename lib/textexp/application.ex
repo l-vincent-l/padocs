@@ -16,6 +16,9 @@ defmodule Textexp.Application do
       {DNSCluster, query: Application.get_env(:textexp, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Textexp.PubSub},
       TextexpWeb.Presence,
+      # After the Repo, before the DocServers: on shutdown, it writes the
+      # last updates they handed over, once they are stopped.
+      Textexp.Document.UpdateWriter,
       # After the Repo: on shutdown, DocServers are stopped (and flushed)
       # before it.
       {DynamicSupervisor, name: TextexpWeb.DocServerSupervisor, strategy: :one_for_one},

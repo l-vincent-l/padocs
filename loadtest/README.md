@@ -96,6 +96,22 @@ when another connection wrote meanwhile, which killed the DocServer: they
 are now single conditional statements, and a failed write is logged and
 tried again at the next flush.
 
-Next: one process appending the updates of all the documents, one
-`INSERT` of many rows a second, rather than one per document, and
-the DocServers no longer waiting for the database.
+### With one writer for all the documents
+
+2026-11-10, same machine and steps. The DocServers hand their updates over
+to `Textexp.Document.UpdateWriter`, without waiting, which appends those of
+all the documents in one `INSERT` of many rows a second.
+
+| Test | Held | Broke at | What broke |
+|---|---|---|---|
+| Documents of 5 writers, SQLite | 1,500 VUs (300 documents), propagation p95 10 ms | 1,750 | out of memory (512 MB), the container killed |
+| Documents of 5 writers, libSQL (Hrana) | 1,000 VUs (200 documents), propagation p95 2 ms, the most tried | | |
+
+Back to the limits before the log, and beyond: SQLite holds one step more
+(1,500 VUs against 1,250 with the log, 1,500 before it), its limit now
+memory rather than the database; libSQL holds the 1,000 VUs tried with a
+propagation p95 of 2 ms (4.3 s at 1,000 with a write per document). The
+write of all the updates of a second stayed under 200 ms but for 5 of them.
+What the DocServers still wait for: the excerpt every 10 s and the
+compaction every 60 updates (a few `Slow excerpt` and `Slow compact`
+warnings, 200 ms to 1 s, on SQLite at 1,500 VUs).

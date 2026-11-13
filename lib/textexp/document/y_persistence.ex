@@ -7,8 +7,9 @@ defmodule Textexp.Document.YPersistence do
   - on load (`bind/3`): its content, the snapshot plus the updates after it,
     is applied;
   - on each edit (`update_v1/4`): nothing is written, the update is kept;
-  - the updates kept are merged into one and appended (`flush/3`), one
-    `INSERT`:
+  - the updates kept are merged into one and handed over to
+    `Textexp.Document.UpdateWriter` (`flush/3`), which appends those of all
+    the documents in one `INSERT`, without the DocServer waiting for it:
     - every second (the DocServer's `flush_interval_ms`, see
       `TextexpWeb.YDocRoomChannel`);
     - when the DocServer stops (`unbind/3`), including on application
@@ -24,9 +25,9 @@ defmodule Textexp.Document.YPersistence do
   created then left empty) is deleted instead of saved, and
   `{:document_deleted, document_id}` is broadcast on `documents_topic/0`.
 
-  After a crash, the edits of the last second are missing from the database;
-  Yjs clients send them again when they resync. A failed write (e.g. the
-  database busy) is logged and tried again at the next flush.
+  After a crash, the edits of the last second or two are missing from the
+  database; Yjs clients send them again when they resync. A failed write
+  (e.g. the database busy) is logged and tried again later.
 
   Updates applied on load use the `YPhoenix.Persistence.origin/0` origin,
   which the DocServer ignores.
@@ -40,7 +41,7 @@ defmodule Textexp.Document.YPersistence do
   require Logger
 
   alias Textexp.Document
-  alias Textexp.Document.{Body, History}
+  alias Textexp.Document.{Body, History, UpdateWriter}
 
   @origin YPhoenix.Persistence.origin()
   @slow_ms 200
@@ -111,12 +112,11 @@ defmodule Textexp.Document.YPersistence do
       true ->
         state = flush(state, document_id, doc, true)
 
-        # The clients that are still connected somewhere send them again.
-        if state.pending != [] do
-          Logger.error("Edits of document #{document_id} not saved on stopping")
+        # Its updates written before folding them; if that fails, they are
+        # written later, and folded the next time.
+        if state.appended > 0 and timed(:sync, document_id, &UpdateWriter.sync/0) == :ok do
+          compact(document_id)
         end
-
-        if state.appended > 0, do: compact(document_id)
     end
 
     :ok
@@ -144,8 +144,8 @@ defmodule Textexp.Document.YPersistence do
 
   @impl true
   @doc """
-  Appends the updates received since the last flush, merged into one; does
-  nothing if there are none. Saves the excerpt of the body, and the time of
+  Hands over the updates received since the last flush, merged into one, to
+  `UpdateWriter`; does nothing if there are none. Saves the excerpt of the body, and the time of
   the last edit, at most every #{div(@excerpt_every_ms, 1000)} s. Every
   #{@compact_every} updates appended, they are folded into the snapshot.
   """
@@ -165,27 +165,16 @@ defmodule Textexp.Document.YPersistence do
 
   defp append(state, document_id) do
     {:ok, update} = state.pending |> Enum.reverse() |> Yex.merge_updates()
+    UpdateWriter.append(document_id, update, state.started_at, state.ended_at)
 
-    result =
-      attempt(:save, document_id, fn ->
-        History.append_update(document_id, update, state.started_at, state.ended_at)
-      end)
-
-    case result do
-      {:ok, :ok} ->
-        %{
-          state
-          | pending: [],
-            started_at: nil,
-            ended_at: nil,
-            appended: state.appended + 1,
-            excerpt_due: state.ended_at
-        }
-
-      # kept, merged, for the next flush
-      :error ->
-        %{state | pending: [update]}
-    end
+    %{
+      state
+      | pending: [],
+        started_at: nil,
+        ended_at: nil,
+        appended: state.appended + 1,
+        excerpt_due: state.ended_at
+    }
   end
 
   defp save_excerpt(%{excerpt_due: nil} = state, _document_id, _doc, _force?), do: state

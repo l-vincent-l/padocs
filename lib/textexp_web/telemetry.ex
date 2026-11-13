@@ -81,6 +81,13 @@ defmodule TextexpWeb.Telemetry do
         unit: {:native, :millisecond},
         description: "Time the DocServer is blocked on the database, by operation"
       ),
+      summary("textexp.update_writer.stop.duration",
+        unit: {:native, :millisecond},
+        description: "Time to write the updates of all the documents, every second"
+      ),
+      sum("textexp.update_writer.stop.rows",
+        description: "Document updates written"
+      ),
 
       # VM Metrics
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
