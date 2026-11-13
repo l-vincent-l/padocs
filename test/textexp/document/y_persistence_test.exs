@@ -56,7 +56,7 @@ defmodule Textexp.Document.YPersistenceTest do
   end
 
   test "loading applies the saved snapshot", %{document: document} do
-    Document.save_snapshot(document.id, text_update("hello"), nil)
+    Document.History.append(document.id, text_update("hello"), nil)
 
     assert loaded_text(document.id) == "hello"
   end
@@ -105,6 +105,56 @@ defmodule Textexp.Document.YPersistenceTest do
 
     assert YPersistence.flush(state, document.id, doc) == state
     assert Document.get_document!(document.id).updated_at == saved.updated_at
+  end
+
+  test "each flush appends one update to the log", %{document: document} do
+    doc = Yex.Doc.new()
+    state = YPersistence.bind(%{}, document.id, doc)
+    state = edit(state, document, doc, "hello")
+    state = edit(state, document, doc, " world")
+
+    state = YPersistence.flush(state, document.id, doc)
+    state = edit(state, document, doc, "!")
+    YPersistence.flush(state, document.id, doc)
+
+    assert Document.History.pending_count(document.id) == 2
+    # each edit is from another client, inserting at 0 (see text_update/1)
+    assert loaded_text(document.id) |> String.length() == String.length("hello world!")
+  end
+
+  test "the excerpt is saved at most every 10 s, and on stopping", %{document: document} do
+    doc = Yex.Doc.new()
+    state = YPersistence.bind(%{}, document.id, doc)
+    update = body_update([{"paragraph", "First"}])
+    Yex.apply_update(doc, update)
+    state = YPersistence.update_v1(state, update, document.id, doc)
+    state = YPersistence.flush(state, document.id, doc)
+
+    assert Document.get_document!(document.id).excerpt == "First"
+
+    update = body_update([{"paragraph", "Second"}])
+    Yex.apply_update(doc, update)
+    state = YPersistence.update_v1(state, update, document.id, doc)
+    state = YPersistence.flush(state, document.id, doc)
+
+    # appended, the excerpt not saved yet
+    assert Document.History.pending_count(document.id) == 2
+    refute Document.get_document!(document.id).excerpt =~ "Second"
+
+    YPersistence.unbind(state, document.id, doc)
+
+    assert Document.get_document!(document.id).excerpt =~ "Second"
+  end
+
+  test "unbind folds the log into the snapshot", %{document: document} do
+    doc = Yex.Doc.new()
+    state = YPersistence.bind(%{}, document.id, doc)
+    state = edit(state, document, doc, "hello")
+
+    YPersistence.unbind(state, document.id, doc)
+
+    assert Document.History.pending_count(document.id) == 0
+    assert saved(document.id).snapshot
   end
 
   test "unbind saves pending edits", %{document: document} do
@@ -292,7 +342,7 @@ defmodule Textexp.Document.YPersistenceTest do
     end
 
     test "starting does not write anything", %{document: document} do
-      Document.save_snapshot(document.id, text_update("hello"), nil)
+      Document.History.append(document.id, text_update("hello"), nil)
       saved = Document.get_document!(document.id)
 
       pid = start_doc_server(document)

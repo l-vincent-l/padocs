@@ -29,7 +29,7 @@ defmodule Textexp.Document.MarkdownTest do
 
   test "is the body of the saved snapshot", %{user: user} do
     document = Fixtures.create_document!(user, %{title: "Notes"})
-    Document.save_snapshot(document.id, snapshot("Hello"), "Hello")
+    Document.History.append(document.id, snapshot("Hello"), "Hello")
 
     assert document.id |> Document.get_document!() |> Document.markdown() == "Hello"
   end

@@ -4,6 +4,8 @@ defmodule TextexpWeb.YDocRoomChannel do
   @doc_server_opts [
     endpoint: TextexpWeb.Endpoint,
     persistence: Textexp.Document.YPersistence,
+    # the edits of each second are appended to the document's log
+    flush_interval_ms: 1_000,
     presence: TextexpWeb.Presence,
     access: Textexp.Document.Access,
     supervisor: TextexpWeb.DocServerSupervisor,
