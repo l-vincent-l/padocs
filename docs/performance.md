@@ -1,9 +1,9 @@
 # Performances
 
 Results of the load tests of `loadtest/` (how to run them: its
-[README](loadtest/README.md)), against the production image on 1 CPU and
+[README](../loadtest/README.md)), against the production image on 1 CPU and
 512 MB, as the Fly.io machine. What remains to do is in the
-[TODO](TODO.md#performance).
+[TODO](../TODO.md#performance).
 
 ## First measures
 

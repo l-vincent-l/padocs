@@ -30,4 +30,4 @@ started with `DASHBOARD_USER` and `DASHBOARD_PASSWORD` set.
 
 ## Results
 
-In [PERFORMANCES.md](../PERFORMANCES.md).
+In [docs/performance.md](../docs/performance.md).

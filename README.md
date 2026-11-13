@@ -1,104 +1,97 @@
 # Padocs
 
-To start your Phoenix server:
+**Collaborative documents that are light to host.** Write together in real
+time, organize documents in a tree, find them with full-text search, and share
+them with your team or with a public link. It all runs as a single Elixir
+application next to a SQLite file.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+![A document in Padocs: the sidebar with sub-documents, tags, a checklist and a table](docs/images/document.png)
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+## Why Padocs
 
-Ready to run in production? Please [check our deployment guides](https://phoenix.hexdocs.pm/deployment.html).
+[La Suite numérique's Docs](https://github.com/suitenumerique/docs) is a great
+collaborative editor, but hosting it yourself means running a Django backend,
+a Next.js frontend, a Node server for the real-time collaboration, PostgreSQL,
+Redis, S3 storage and an OIDC provider. That is a lot for a team, an
+association or a small organization that just wants to write together.
 
-## Deployment
+Padocs keeps what makes Docs pleasant, the [BlockNote](https://www.blocknotejs.org)
+editor and [Yjs](https://yjs.dev) for conflict-free collaboration, and puts
+everything else in one [Phoenix](https://www.phoenixframework.org) application:
 
-Two deployments run the same code, to compare them. Both are started by hand.
+- **One process, one file.** The documents, accounts and history live in a
+  SQLite database. [Litestream](https://litestream.io) can stream it to S3,
+  so a crash costs about a second of edits.
+- **Small machines.** The reference deployment is one shared CPU and 512 MB of
+  memory, suspended when no one is connected.
+- **Optional extras.** S3 or Bunny Storage for the images, GitHub or GitLab
+  sign-in, a remote libSQL database: each one is turned on by a few
+  environment variables.
 
-| | Fly.io | Bunny |
-|---|---|---|
-| Application | one machine, suspended when idle (`fly.toml`) | Magic Container `textexp` |
-| Database | SQLite file on a volume | Bunny Database, through `ecto_hrana` |
-| Backup | Litestream, to Tigris | Bunny's |
-| Image | `fly` target, built by Fly | `final` target with `DATABASE_ADAPTER=hrana`, on ghcr.io |
-| Deploy | `fly deploy` | Actions > Bunny image > Run workflow, then deploy the image on Bunny |
-| URL | https://textexp.fly.dev | https://mc-3gejc6ktt2.bunny.run |
+## Features
 
-The database is chosen at compile time by `DATABASE_ADAPTER` (`sqlite3`, the
-default, or `hrana`), see `config/config.exs`. On Bunny, the container reads
-`BUNNY_DATABASE_URL` and `BUNNY_DATABASE_AUTH_TOKEN`; its image is built and
-pushed to ghcr.io by `.github/workflows/bunny-image.yml`.
+- **Real-time editing**: everyone's edits and cursors live, with the people
+  who have the document open shown next to its title.
+- **Offline**: edits made without a connection are kept in the browser and
+  merged when it comes back.
+- **Sub-documents**: a tree in the sidebar, reordered by drag and drop. Access
+  is inherited from the parents.
+- **Search**: full-text search with snippets, filters (recent, mine, shared
+  with me, trash) and tags.
+- **Sharing**: viewer and editor roles per document, and a public read-only
+  link for people without an account.
+- **History**: every change kept, grouped by minute, then by hour, day and
+  week. Any version can be viewed and restored.
+- **Trash**: deleted documents come back with their sub-documents.
+- **Import and export**: import Markdown, HTML, text and Word files. Export to
+  PDF (made with [Typst](https://typst.app)), Word, OpenDocument, Markdown and
+  Typst.
+- **Images**: pasted or dropped in the editor, stored locally, on S3 or on
+  Bunny Storage.
+- **Sign-in**: password, a link sent by email, GitHub or GitLab.
+- **In French and English**, with a light and a dark theme.
 
-To compare them, each `/admin/dashboard` shows the query times measured by
-the server (page Metrics, `padocs.sqlite_repo.query`), once `DASHBOARD_USER`
-and `DASHBOARD_PASSWORD` are set.
-
-Locally, against a libSQL server:
-
-    export DATABASE_ADAPTER=hrana BUNNY_DATABASE_URL=http://127.0.0.1:8080
-    mix compile --force   # the adapter is compiled in
-    mix phx.server
-
-## Languages
-
-The interface is in French or English (`PadocsWeb.Locale`): the language a
-user chose with the FR / EN switch, kept on their account (and in the
-session when signed out), else their browser's (`Accept-Language`), else
-French. Their emails are in it too, and the editor (BlockNote's own
-translations), the dates and the PDF export follow it.
-
-The texts are written in English in the code, through Gettext
-(`gettext("Share this document")`), and translated in
-`priv/gettext/fr/LC_MESSAGES/*.po`. After adding or changing one:
-
-    mix gettext.extract --merge   # then translate the new msgstr in fr/
-
-`mix precommit` fails while the extracted messages are out of date. The
-messages of changesets go to the `errors` domain (`dgettext_noop("errors",
-...)`), translated where they are shown.
-
-## Files
-
-The images of the documents, pasted or dropped in the editor or found in an
-imported Word file, are stored by `Padocs.Files`: PNG, JPEG, GIF or WebP,
-10 MB each at most. They are served at `/files/<id>` to whoever can read
-their document (anyone while it has a public link), and deleted with it, for
-good.
-
-| Storage | Set by |
+| Search across documents | Share with people or by a link |
 |---|---|
-| S3 bucket (Tigris, AWS, MinIO…), private: a browser is redirected to a URL signed for 5 minutes | `FILES_S3_BUCKET`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION` (`auto` by default), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optionally `FILES_S3_PREFIX` |
-| Bunny Storage zone, private: the application reads and sends the bytes | `STORAGE_ZONE`, `STORAGE_ACCESS_KEY`, `STORAGE_REGION` or `STORAGE_HOSTNAME`, the names Bunny gives a container linked to a zone |
-| Local folder, otherwise | `FILES_PATH`, by default `files/` next to the SQLite database (on Fly.io, the volume) |
+| ![The search, with highlighted snippets and tags](docs/images/search.png) | ![The share panel: a member with the editor role and a public link](docs/images/share.png) |
 
-On Bunny, the database is remote: link the container to a storage zone, or
-give it a persistent volume and set `FILES_PATH` to a folder on it (enough
-for a small instance). Without either, they go to a temporary folder, lost
-when the container restarts.
+![A sub-document in the dark theme](docs/images/dark.png)
 
-On Fly.io, `fly storage create` makes a Tigris bucket and sets the `AWS_*`
-secrets; `FILES_S3_BUCKET` is then its name. Litestream's bucket can be
-shared, with `FILES_S3_PREFIX=files-store/` for instance.
+## Try it locally
 
-## Public link
+**With Docker**, nothing else to install:
 
-From the share panel, the owner of a document gives it a public link,
-`/p/<token>`: anyone with it reads the document live, without an account, but
-not its sub-documents. A new link replaces the previous one; the link can be
-removed. Its readers join `y_doc_public:<id>`, where the document's server
-sends its updates but not the editors' awareness (their cursors and
-addresses). See `PadocsWeb.PublicDocumentLive`.
+```sh
+git clone <this repository> padocs && cd padocs
+HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up --build
+```
 
-## Export
+The first start takes several minutes (it compiles the dependencies, Rust
+included); the next ones are quick. The code is mounted in the container:
+edit it on your machine, the page reloads.
 
-From a document's "⋯" menu:
+**Without Docker**, you need Elixir, Rust (the search index is a native
+library) and Node.js:
 
-| Format | Made by |
-|---|---|
-| PDF | the server: the document as [Typst](https://typst.app) (`YexBlockNote.to_typst/2`), compiled by the `typst` package (a NIF) |
-| Markdown, Typst | the server, from the saved snapshot |
-| Word (.docx), OpenDocument (.odt) | the browser, from the editor, with BlockNote's `@blocknote/xl-docx-exporter` and `@blocknote/xl-odt-exporter` |
+```sh
+npm ci --prefix assets
+mix setup
+mix phx.server
+```
 
-The server exports read the saved snapshot, which can miss the last seconds of
-edits (see `Padocs.Document.YPersistence`).
+Either way, open [localhost:4000](http://localhost:4000) and create an account. The
+emails sent while developing are at [localhost:4000/dev/mailbox](http://localhost:4000/dev/mailbox).
+See the [local setup guide](docs/local-setup.md) for the details.
+
+## Documentation
+
+- [Local setup](docs/local-setup.md): prerequisites, first run, tests, sign-in
+  with GitHub or GitLab, a libSQL database.
+- [Deployment](docs/deployment.md): with Docker, on Fly.io with Litestream, on
+  Bunny; the environment variables, the storage of images, emails.
+- [How it works](docs/how-it-works.md): public links, exports.
+- [Performance](docs/performance.md): load tests and their results.
+- [To do](TODO.md): what comes next.
 
 ## License
 
@@ -110,10 +103,5 @@ that bundle as a whole is distributed under the terms of the GPL-3.0, and its
 complete source is this repository. BlockNote itself (`@blocknote/core`,
 `react`, `mantine`) is under the MPL-2.0.
 
-## Learn more
-
-* Official website: https://www.phoenixframework.org/
-* Guides: https://phoenix.hexdocs.pm/overview.html
-* Docs: https://phoenix.hexdocs.pm
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+The fonts in `priv/static/fonts` (DM Mono, IBM Plex Sans, Silkscreen) are under
+the SIL Open Font License.

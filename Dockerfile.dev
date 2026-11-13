@@ -1,0 +1,44 @@
+# Development image (see compose.yaml): Elixir, Rust and Node to build and run
+# `mix phx.server` on the repository, mounted at /app. It runs as a user with
+# the host's uid and gid, so that the files it writes in the repository
+# (base.sqlite, files/) stay the host user's.
+
+ARG ELIXIR_VERSION=1.20.4
+ARG OTP_VERSION=29.0.6
+ARG DEBIAN_VERSION=trixie-20261005-slim
+
+FROM docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}
+
+# inotify-tools: the code reloader and the live reload watch the files
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    build-essential git nodejs npm curl ca-certificates inotify-tools sqlite3 locales \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+ENV LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
+
+ARG UID=1000
+ARG GID=1000
+RUN groupadd --non-unique --gid "$GID" dev \
+  && useradd --non-unique --create-home --uid "$UID" --gid "$GID" dev \
+  # The volumes of compose.yaml start from these folders, and take their owner
+  && mkdir -p /app/deps /app/_build /app/assets/node_modules \
+  && chown -R dev:dev /app
+
+USER dev
+ENV HOME=/home/dev
+ENV RUSTUP_HOME=/home/dev/.rustup CARGO_HOME=/home/dev/.cargo PATH=/home/dev/.cargo/bin:$PATH
+
+# Rust for the search index (Tantivy), as in the production Dockerfile
+ARG RUST_VERSION=1.91.0
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+  | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION"
+
+RUN mix local.hex --force && mix local.rebar --force
+
+WORKDIR /app
+ENV PHX_LISTEN_ALL=1
+EXPOSE 4000
+
+CMD ["sh", "-c", "npm ci --prefix assets && mix setup && exec iex -S mix phx.server"]
