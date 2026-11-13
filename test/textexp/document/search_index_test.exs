@@ -1,7 +1,8 @@
 defmodule Textexp.Document.SearchIndexTest do
   use Textexp.DataCase
 
-  alias Textexp.Document.SearchIndex
+  alias Textexp.Document
+  alias Textexp.Document.{History, Search, SearchIndex}
   alias Textexp.Fixtures
 
   setup do
@@ -9,85 +10,94 @@ defmodule Textexp.Document.SearchIndexTest do
     %{user: user, document: Fixtures.create_document!(user, %{title: "Recette de la tarte"})}
   end
 
-  test "searches the documents of its user", %{user: user, document: document} do
-    index = start_supervised!({SearchIndex, user})
+  # The documents changed so far indexed, then the ids of those found.
+  defp search(query, user, tag_id \\ nil) do
+    :ok = SearchIndex.sync()
+    query |> Search.search(user, tag_id) |> Enum.map(& &1.id)
+  end
 
-    assert {:ok, [%{id: id}]} = SearchIndex.search(index, "tarte")
-    assert id == document.id
-    assert {:ok, []} = SearchIndex.search(index, "gâteau")
+  test "searches the documents of its user", %{user: user, document: document} do
+    assert search("tarte", user) == [document.id]
+    assert search("gâteau", user) == []
   end
 
   test "finds the other forms of a word, whatever its accents", %{user: user} do
     statuts = Fixtures.create_document!(user, %{title: "Les statuts de l'association"})
     ecole = Fixtures.create_document!(user, %{title: "Rentrée à l'École"})
-    index = start_supervised!({SearchIndex, user})
 
-    assert {:ok, [%{id: id}]} = SearchIndex.search(index, "statut")
-    assert id == statuts.id
-    assert {:ok, [%{id: id}]} = SearchIndex.search(index, "ecoles")
-    assert id == ecole.id
+    assert search("statut", user) == [statuts.id]
+    assert search("ecoles", user) == [ecole.id]
   end
 
   test "takes apostrophes as word separators, not quotes", %{user: user} do
     statuts = Fixtures.create_document!(user, %{title: "Les statuts de l'association"})
-    index = start_supervised!({SearchIndex, user})
 
-    assert {:ok, [%{id: id}]} = SearchIndex.search(index, "l'association")
-    assert id == statuts.id
+    assert search("l'association", user) == [statuts.id]
   end
 
   test "finds the words its last word starts", %{user: user} do
     association = Fixtures.create_document!(user, %{title: "Les statuts de l'association"})
-    index = start_supervised!({SearchIndex, user})
 
-    assert {:ok, [%{id: id}]} = SearchIndex.search(index, "associa")
-    assert id == association.id
-    assert {:ok, [%{id: ^id}]} = SearchIndex.search(index, "l'Associ")
+    assert search("associa", user) == [association.id]
+    assert search("l'Associ", user) == [association.id]
     # only the last word
-    assert {:ok, []} = SearchIndex.search(index, "assoc tartelette")
+    assert search("assoc tartelette", user) == []
     # a single letter would find too many words
-    assert {:ok, []} = SearchIndex.search(index, "z")
+    assert search("z", user) == []
   end
 
   test "searches among the documents carrying a tag", %{user: user, document: document} do
     for n <- 1..20, do: Fixtures.create_document!(user, %{title: "Tarte n°#{n}"})
-    {:ok, tag} = Textexp.Document.add_tag(document.id, user, "Desserts")
-    index = start_supervised!({SearchIndex, user})
+    {:ok, tag} = Document.add_tag(document.id, user, "Desserts")
 
     # filtered before the 20 best matches are kept
-    assert {:ok, [%{id: id}]} = SearchIndex.search(index, "tarte", tag.id)
-    assert id == document.id
-    assert {:ok, []} = SearchIndex.search(index, "statuts", tag.id)
+    assert search("tarte", user, tag.id) == [document.id]
+    assert search("statuts", user, tag.id) == []
   end
 
-  test "stop/1 ends it at once, without ending its caller", %{user: user} do
-    {:ok, index} = SearchIndex.start_link(user)
-    # Built: stopped in the middle of its query, it would cut the connection
-    # of the next test
-    {:ok, _} = SearchIndex.search(index, "tarte")
-    ref = Process.monitor(index)
+  test "only finds the documents the user can read, before keeping the best", %{
+    user: user,
+    document: document
+  } do
+    other = Fixtures.confirmed_user()
+    for n <- 1..20, do: Fixtures.create_document!(other, %{title: "Tarte n°#{n}"})
 
-    assert :ok = SearchIndex.stop(index)
+    assert search("tarte", user) == [document.id]
 
-    assert_receive {:DOWN, ^ref, :process, ^index, :shutdown}
-    assert Process.alive?(self())
+    Fixtures.share!(user, document, other, :viewer)
+    assert search("recette", other) == [document.id]
   end
 
-  test "ends with the process that started it", %{user: user} do
-    test = self()
+  test "follows the changes of the documents", %{user: user, document: document} do
+    {:ok, _} = Document.rename_document(document, user, "Recette du gâteau")
+    assert search("gâteau", user) == [document.id]
+    assert search("tarte", user) == []
 
-    owner =
-      spawn(fn ->
-        {:ok, index} = SearchIndex.start_link(user)
-        {:ok, _} = SearchIndex.search(index, "tarte")
-        send(test, {:index, index})
-        receive do: (:stop -> exit(:shutdown))
-      end)
+    History.append(document.id, state("Le chat dort"), "Le chat dort")
+    assert search("chat", user) == [document.id]
 
-    assert_receive {:index, index}
-    ref = Process.monitor(index)
-    send(owner, :stop)
+    :ok = Document.delete_document(document.id)
+    assert search("gâteau", user) == []
+  end
 
-    assert_receive {:DOWN, ^ref, :process, ^index, :shutdown}
+  test "searches nothing for an empty or invalid query", %{user: user} do
+    assert search("  ", user) == []
+    assert search("tarte AND (", user) == []
+  end
+
+  defp state(text) do
+    doc = Yex.Doc.new()
+    fragment = Yex.Doc.get_xml_fragment(doc, "document-store")
+
+    Yex.XmlFragment.push(
+      fragment,
+      Yex.XmlElementPrelim.new("blockGroup", [
+        Yex.XmlElementPrelim.new("blockContainer", [
+          Yex.XmlElementPrelim.new("paragraph", [Yex.XmlTextPrelim.from(text)])
+        ])
+      ])
+    )
+
+    Yex.encode_state_as_update!(doc)
   end
 end

@@ -4,7 +4,7 @@ defmodule Textexp.Document.YPersistenceTest do
   alias Textexp.Fixtures
 
   alias Textexp.Document
-  alias Textexp.Document.YPersistence
+  alias Textexp.Document.{UpdateWriter, YPersistence}
   alias YPhoenix.DocServer
 
   defp register_user, do: Fixtures.register_user()
@@ -69,6 +69,7 @@ defmodule Textexp.Document.YPersistenceTest do
     refute Document.get_document!(document.id).snapshot
 
     YPersistence.flush(state, document.id, doc)
+    :ok = UpdateWriter.sync()
 
     assert loaded_text(document.id) == "hello"
   end
@@ -116,6 +117,7 @@ defmodule Textexp.Document.YPersistenceTest do
     state = YPersistence.flush(state, document.id, doc)
     state = edit(state, document, doc, "!")
     YPersistence.flush(state, document.id, doc)
+    :ok = UpdateWriter.sync()
 
     assert Document.History.pending_count(document.id) == 2
     # each edit is from another client, inserting at 0 (see text_update/1)
@@ -136,6 +138,7 @@ defmodule Textexp.Document.YPersistenceTest do
     Yex.apply_update(doc, update)
     state = YPersistence.update_v1(state, update, document.id, doc)
     state = YPersistence.flush(state, document.id, doc)
+    :ok = UpdateWriter.sync()
 
     # appended, the excerpt not saved yet
     assert Document.History.pending_count(document.id) == 2
@@ -248,7 +251,9 @@ defmodule Textexp.Document.YPersistenceTest do
     refute_received {:y_persistence, _, _}
 
     YPersistence.flush(state, document.id, doc)
-    assert_receive {:y_persistence, :save, _}
+    # the update handed over to the UpdateWriter, without waiting for it
+    assert_receive {:y_persistence, :excerpt, _}
+    refute_received {:y_persistence, :save, _}
   end
 
   describe "unbind of an empty document" do
@@ -363,6 +368,7 @@ defmodule Textexp.Document.YPersistenceTest do
       # message normally sent by the DocServer's timer
       send(pid, :flush)
       _ = :sys.get_state(pid)
+      :ok = UpdateWriter.sync()
 
       assert loaded_text(document.id) == "hello"
     end

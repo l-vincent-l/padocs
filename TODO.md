@@ -60,14 +60,17 @@ DocServer and SQLite.
 From the load tests (`loadtest/`, results in its README), on 1 CPU and
 512 MB as the Fly machine.
 
-- **Search: one index per opening.** The weakest point: 10 users searching
-  at once, 20 saturate the CPU (first search 3.1 s at p95, the next ones 1 s),
-  with 200 documents of 1,600 words. Each opening of the search modal builds
-  the user's own Tantivy index of all the documents they can read (0.5 s of
-  CPU, about 7 MB), dropped when it closes. Keep it from one opening to the
-  next (rebuilt when the documents change), or share one index of all the
-  documents and keep the readable ones at search time (as `filter_by_tag`
-  does for tags). Also measure the snippets, cut for each result.
+- **Search: the snippets.** With one index of all the documents, 40 users
+  searching at once hold, 60 saturate the CPU, with 200 documents of 1,600
+  words. Of the 34 ms of a search, the 20 snippets take about 20: Tantivy's
+  generator goes through the whole body of each (0.5 µs a word). Cut them
+  from a bounded part of the body, around the first words found, or only
+  for the results shown.
+- **Search: filter by the tree.** A search keeps the documents the user can
+  read by their ids, about 7 µs each: 65 ms at 10,000. Past some thousands
+  of readable documents, index the ids of each document's ancestors and
+  their owners, and filter by the user's memberships and their own id; a
+  move then indexes the moved documents again.
 - **Broadcast the edits of a document grouped.** The document's
   `Yex.DocServer.Worker` applies each edit and broadcasts it to everyone else
   at once (`broadcast_from`): with everyone writing, the messages grow as the

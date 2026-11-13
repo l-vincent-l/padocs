@@ -29,6 +29,7 @@ defmodule Textexp.Document do
     History,
     Membership,
     Policy,
+    SearchIndex,
     Tag,
     TagDocument,
     TagSearch,
@@ -156,14 +157,25 @@ defmodule Textexp.Document do
     |> Repo.all()
   end
 
+  @doc "The ids of the documents `user` can read."
+  def list_readable_ids(user) do
+    readable_by(user) |> select([document: d], d.id) |> Repo.all()
+  end
+
+  @doc "The ids of all the documents, those in the trash included, for the search index."
+  def list_document_ids, do: Repo.all(from d in Document, select: d.id)
+
   @doc """
-  The documents `user` can read, with the text of their body and the ids of
-  their tags: `{document, text, tag_ids}`.
+  Among `ids`, the documents, those in the trash included, with the text of
+  their body and the ids of their tags: `{document, text, tag_ids}`. For the
+  search index (see `Textexp.Document.Search`).
   """
-  def list_documents_with_text(user) do
+  def list_documents_with_text(ids) do
     documents =
-      readable_by(user)
-      |> select([document: d], struct(d, [:snapshot, :snapshot_update_id | @fields]))
+      from(d in Document,
+        where: d.id in ^ids,
+        select: struct(d, [:snapshot, :snapshot_update_id | @fields])
+      )
       |> Repo.all()
 
     contents = History.contents(documents)
@@ -463,9 +475,11 @@ defmodule Textexp.Document do
   ## Writing
 
   def create_document(user, attrs \\ %{}) do
-    %Document{owner_id: user.id}
-    |> Changeset.cast(attrs, [:title])
-    |> Repo.insert()
+    with {:ok, document} <-
+           %Document{owner_id: user.id} |> Changeset.cast(attrs, [:title]) |> Repo.insert() do
+      if document.title, do: SearchIndex.changed(document.id)
+      {:ok, document}
+    end
   end
 
   @doc """
@@ -698,6 +712,7 @@ defmodule Textexp.Document do
               set: [snapshot_update_id: update.id]
             )
 
+            SearchIndex.changed(document.id)
             {:ok, %{document | snapshot_update_id: update.id}}
           end
         end)
@@ -720,6 +735,8 @@ defmodule Textexp.Document do
         set: [title: title, updated_at: now]
       )
 
+      SearchIndex.changed(id)
+
       Phoenix.PubSub.broadcast(
         Textexp.PubSub,
         YPersistence.topic(id),
@@ -741,6 +758,9 @@ defmodule Textexp.Document do
       {:ok, id}
     end)
 
+    # Its sub-documents, gone with it, nobody can read any more: they are
+    # never found again, even if left in the index.
+    SearchIndex.changed(id)
     :ok
   end
 
@@ -1232,6 +1252,8 @@ defmodule Textexp.Document do
   end
 
   defp broadcast_tags_changed(document_id) do
+    SearchIndex.changed(document_id)
+
     Phoenix.PubSub.broadcast(
       Textexp.PubSub,
       YPersistence.topic(document_id),

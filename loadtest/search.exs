@@ -1,16 +1,14 @@
 # Search: every virtual user (VU) opens one of the documents' page as one of
-# the accounts of loadtest/seed.exs, opens the search modal, which builds the
-# index of all the documents the account can read (every seeded document),
-# then searches a word every 3 seconds or so, for a minute, before leaving.
+# the accounts of loadtest/seed.exs, opens the search modal, then searches a
+# word every 3 seconds or so, for a minute, before leaving. All the seeded
+# documents are readable by every account.
 #
-# The index is built for each user who opens the search, in native memory,
-# and kept while the modal is open: the expected limits are the memory of
-# the open indexes and the time to build them.
+# One index holds all the documents (see Textexp.Document.SearchIndex): the
+# expected limit is the CPU of the searches, their snippets first.
 #
 # Measures, besides Stampede's own (`live.page`, `live.join`, `live.event`):
 #
-#   * `search.first` - from typing the first word to its results, which wait
-#     for the index to be built
+#   * `search.first` - from typing the first word to its results
 #   * `search.query` - the same for the next words
 #
 # Run with loadtest/app.sh, documents filled with text to index, e.g.:
