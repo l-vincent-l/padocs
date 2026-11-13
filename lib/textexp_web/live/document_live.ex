@@ -5,7 +5,7 @@ defmodule TextexpWeb.DocumentLive do
 
   alias Textexp.Accounts
   alias Textexp.Document
-  alias Textexp.Document.{Policy, SearchIndex, YPersistence}
+  alias Textexp.Document.{Policy, YPersistence}
   alias TextexpWeb.Presence
 
   on_mount {TextexpWeb.LiveUserAuth, :live_user_required}
@@ -121,7 +121,6 @@ defmodule TextexpWeb.DocumentLive do
                 :if={@search_open?}
                 module={TextexpWeb.SearchModal}
                 id="search-modal"
-                index={@search_index}
                 user={@current_user}
                 initial_tag={@search_tag}
               />
@@ -1379,7 +1378,6 @@ defmodule TextexpWeb.DocumentLive do
        move_destinations: [],
        inherited_accesses: [],
        search_open?: false,
-       search_index: nil,
        search_tag: nil,
        share_form: nil,
        history_open?: false,
@@ -1478,18 +1476,9 @@ defmodule TextexpWeb.DocumentLive do
     assign(socket, adding_tag?: false, tag_form: to_form(%{"label" => ""}), tag_suggestions: [])
   end
 
-  defp open_search(socket, tag) do
-    socket = close_search(socket)
-    {:ok, index} = SearchIndex.start_link(socket.assigns.current_user)
-    assign(socket, search_open?: true, search_index: index, search_tag: tag)
-  end
+  defp open_search(socket, tag), do: assign(socket, search_open?: true, search_tag: tag)
 
-  defp close_search(%{assigns: %{search_index: nil}} = socket), do: socket
-
-  defp close_search(socket) do
-    SearchIndex.stop(socket.assigns.search_index)
-    assign(socket, search_open?: false, search_index: nil, search_tag: nil)
-  end
+  defp close_search(socket), do: assign(socket, search_open?: false, search_tag: nil)
 
   # Lists the versions of the open document, each with whether it is the
   # first of its day (the list being the last first) and the last of all.

@@ -16,6 +16,10 @@ defmodule Textexp.Application do
       {DNSCluster, query: Application.get_env(:textexp, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Textexp.PubSub},
       TextexpWeb.Presence,
+      # After the Repo and the PubSub: indexes all the documents, then those
+      # changed, as told on the PubSub.
+      {Textexp.Document.SearchIndex,
+       Application.get_env(:textexp, Textexp.Document.SearchIndex, [])},
       # After the Repo, before the DocServers: on shutdown, it writes the
       # last updates they handed over, once they are stopped.
       Textexp.Document.UpdateWriter,

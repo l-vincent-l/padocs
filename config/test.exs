@@ -42,3 +42,7 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# No database when the application starts, in the tests: the search index
+# starts empty, the tests' documents are indexed as they change.
+config :textexp, Textexp.Document.SearchIndex, build: false

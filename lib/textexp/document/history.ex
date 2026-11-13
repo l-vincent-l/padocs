@@ -27,7 +27,7 @@ defmodule Textexp.Document.History do
   """
   import Ecto.Query
 
-  alias Textexp.Document.{Document, Update}
+  alias Textexp.Document.{Document, SearchIndex, Update}
   alias Textexp.SqliteRepo, as: Repo
 
   @minute 60
@@ -51,7 +51,8 @@ defmodule Textexp.Document.History do
   Saves the `excerpt` of the document of `id`, edited last at `at`, which
   becomes its `updated_at`. A document saved without title, but with text,
   gets a dated one. Without text, it stays untitled so that it is deleted
-  when left (see `YPersistence.unbind/3`).
+  when left (see `YPersistence.unbind/3`). The search index is told, to
+  index it again.
 
   The document saved, with its `title` and `updated_at`, or `nil` if it was
   deleted for good.
@@ -81,8 +82,12 @@ defmodule Textexp.Document.History do
            ),
            []
          ) do
-      {1, [document]} -> document
-      {0, []} -> nil
+      {1, [document]} ->
+        SearchIndex.changed(id)
+        document
+
+      {0, []} ->
+        nil
     end
   end
 

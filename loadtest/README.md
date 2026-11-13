@@ -115,3 +115,35 @@ write of all the updates of a second stayed under 200 ms but for 5 of them.
 What the DocServers still wait for: the excerpt every 10 s and the
 compaction every 60 updates (a few `Slow excerpt` and `Slow compact`
 warnings, 200 ms to 1 s, on SQLite at 1,500 VUs).
+
+### With one search index for all the documents
+
+2026-11-13, same machine and steps. `Textexp.Document.SearchIndex` holds one
+index of all the documents, built at start, and indexes again those whose
+title, body or tags changed, every 5 s with one commit. A search runs in the
+caller's process, among the ids of the documents the user can read
+(`id: IN [...]`).
+
+| Test | Held | Broke at | What broke |
+|---|---|---|---|
+| Search, 200 documents of 1,600 words | 40 VUs, first search p95 0.8 s, next ones 0.5 s | 60 | first search p95 3.3 s, next ones 2.7 s, CPU 100% |
+
+At 20 VUs, the first search takes 100 ms at p95 (3.1 s before), as the
+opening builds nothing any more; the container stays at 100 MB at rest.
+What a search costs now, in the container: 34 ms, of which about 20 ms for
+the snippets (0.8 ms each: the French tokenizer goes through the whole
+body, about 0.5 µs a word), 2.6 ms for the readable ids and 2.8 ms to load
+the documents found.
+
+Measured apart (`tantivy_ex` alone, one core):
+
+| | |
+|---|---|
+| One opening before: Yjs decode + text, `add_document`, `commit`, 200 documents | 75-120 ms, 8 ms, 180-200 ms |
+| Filter by readable ids, per search | about 7 µs an id: 10 ms at 1,000, 38 ms at 5,000, 65 ms at 10,000, 140 ms at 20,000 |
+| Memory of an index | 9 MB for 200 documents of 1,600 words (2.6 MB of text), 22-34 MB for 2,000 (24 MB), 57 MB for 20,000 of 200 words (30 MB); plus the writer's 15 MB budget |
+
+Beyond some 5,000 documents readable by one user, the filter would cost
+more than the rest of the search: filter by the tree instead (the ids of
+each document's ancestors and their owners, indexed, against the user's
+memberships).

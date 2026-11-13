@@ -1,9 +1,8 @@
 defmodule TextexpWeb.SearchModal do
   @moduledoc """
   A modal searching the documents the user can read, opened from a document's
-  menu, in `index`: a `Textexp.Document.SearchIndex` started by the LiveView,
-  which stops it when the modal closes, freeing the index. Each search runs in
-  a task, as it waits for the index while it is being built.
+  menu (see `Textexp.Document.Search`). Each search runs in a task, so that
+  the modal stays responsive meanwhile.
 
   Under the empty field, the user's recent documents, and buttons picking a
   scope: their recent documents, their own, those shared with them, or their
@@ -27,7 +26,7 @@ defmodule TextexpWeb.SearchModal do
   import TextexpWeb.DocumentComponents
 
   alias Textexp.Document
-  alias Textexp.Document.SearchIndex
+  alias Textexp.Document.Search
 
   # The scopes: their label, icon, and the text of their empty list
   @scopes [
@@ -444,8 +443,8 @@ defmodule TextexpWeb.SearchModal do
   end
 
   # Filters by `tag`, the field emptied: every document carrying it. A query
-  # then searches among them in the index, which does not follow the tags put
-  # while the modal is open.
+  # then searches among them in the index, which follows the tags put a few
+  # seconds later.
   defp put_tag(socket, tag), do: socket |> assign(tag: tag) |> search("")
 
   # The tags offered under the empty field: the 4 most searched, "…" showing
@@ -501,7 +500,6 @@ defmodule TextexpWeb.SearchModal do
         |> show_results({:ok, in_scope(documents, user, scope)})
 
       {query, tag, scope} ->
-        index = socket.assigns.index
         tag_id = tag && tag.id
 
         socket
@@ -511,11 +509,7 @@ defmodule TextexpWeb.SearchModal do
           more_tags?: false
         )
         |> start_async(:search, fn ->
-          result =
-            with {:ok, documents} <- SearchIndex.search(index, query, tag_id),
-                 do: {:ok, in_scope(documents, user, scope)}
-
-          {query, result}
+          {query, {:ok, query |> Search.search(user, tag_id) |> in_scope(user, scope)}}
         end)
     end
   end

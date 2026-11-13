@@ -41,6 +41,9 @@ defmodule Textexp.DataCase do
     # run first: the updates the test's DocServers handed over are written
     # before its data is rolled back, rather than failing a later test's write
     on_exit(fn -> Textexp.Document.UpdateWriter.sync() end)
+    # the same for the documents the test changed: indexed while they are
+    # still in the database
+    on_exit(fn -> Textexp.Document.SearchIndex.sync() end)
   end
 
   @doc """

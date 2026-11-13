@@ -265,23 +265,19 @@ defmodule TextexpWeb.DocumentLiveTest do
       document: document
     } do
       other = Fixtures.create_document!(owner, %{title: "Recette de la tarte"})
+      :ok = Document.SearchIndex.sync()
       {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
 
       view |> element("#search-button") |> render_click()
       assert has_element?(view, "#search-panel[role=dialog]")
 
       view |> form("#search-modal-form", search: %{query: "tarte"}) |> render_change()
-      # The index is built in the background
+      # The search runs in the background
       assert render_async(view, 2_000) =~ "Recette de la tarte"
       assert has_element?(view, "#search-results a[href='/documents/#{other.id}']")
 
-      # Closing it ends the process holding the index, which frees it
-      index = :sys.get_state(view.pid).socket.assigns.search_index
-      ref = Process.monitor(index)
-
       view |> element("#search-close") |> render_click()
       refute has_element?(view, "#search-panel")
-      assert_receive {:DOWN, ^ref, :process, ^index, :shutdown}
     end
 
     test "the share modal closes with its button and Escape", %{conn: conn, document: document} do
@@ -786,11 +782,12 @@ defmodule TextexpWeb.DocumentLiveTest do
       %{user: user, view: view}
     end
 
-    # Opens the modal, which indexes the documents as they are then, and searches.
+    # Indexes the documents changed so far, opens the modal and searches.
     defp search(view, query) do
+      :ok = Document.SearchIndex.sync()
       view |> element("#search-button") |> render_click()
       view |> form("#search-modal-form", search: %{query: query}) |> render_change()
-      # Searches run in the background, the first one waiting for the index
+      # Searches run in the background
       render_async(view, 2_000)
     end
 
@@ -932,6 +929,7 @@ defmodule TextexpWeb.DocumentLiveTest do
     end
 
     defp open_search(conn, document) do
+      :ok = Document.SearchIndex.sync()
       {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
       view |> element("#search-button") |> render_click()
       view
