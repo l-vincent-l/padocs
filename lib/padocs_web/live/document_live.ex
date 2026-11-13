@@ -44,7 +44,7 @@ defmodule PadocsWeb.DocumentLive do
 
           <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
           <div class="flex flex-1 flex-col">
-            <div class="document-header px-[54px] pt-1">
+            <div class="document-header mx-auto w-full max-w-(--reading-width) px-[54px] pt-1">
               <nav
                 :if={@ancestors != []}
                 id="breadcrumb"
@@ -169,7 +169,7 @@ defmodule PadocsWeb.DocumentLive do
                 data-skeleton
                 role="status"
                 aria-label={gettext("Loading the document")}
-                class="flex flex-col gap-3 px-[54px] py-4 motion-safe:animate-pulse"
+                class="mx-auto flex w-full max-w-(--reading-width) flex-col gap-3 px-[54px] py-4 motion-safe:animate-pulse"
               >
                 <div class="h-4 w-3/4 bg-base-300"></div>
                 <div class="h-4 w-full bg-base-300"></div>

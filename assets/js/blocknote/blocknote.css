@@ -50,3 +50,27 @@
   text-decoration: underline;
   text-underline-offset: 0.3em;
 }
+
+/* A column for reading, centered (--reading-width, see app.css) */
+.bn-root .bn-editor {
+  max-width: var(--reading-width);
+  margin-inline: auto;
+}
+
+/* The text of the documents in a proportional font, the headings keeping the
+   interface's monospace */
+.bn-root .bn-default-styles .bn-block-content:not([data-content-type="heading"]):not([data-content-type="codeBlock"]) {
+  font-family: var(--font-reading);
+  font-size: 16.5px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.bn-root .bn-default-styles .bn-block-content:not([data-content-type="heading"]) :is(strong, b) {
+  font-weight: 600;
+}
+
+.bn-root .bn-default-styles code {
+  font-family: var(--bn-font-family);
+  font-size: 0.9em;
+}

@@ -23,7 +23,7 @@ defmodule PadocsWeb.PublicDocumentLive do
       <%= if @document do %>
         <article
           id="public-document"
-          class="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-4xl flex-col"
+          class="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-(--reading-width) flex-col"
         >
           <div class="document-header px-[54px] pt-8">
             <p
