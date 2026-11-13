@@ -44,6 +44,19 @@ const liveSocket = new LiveSocket("/live", Socket, {
 // page when the socket reconnects.
 window.addEventListener("beforeunload", _e => { liveSocket.unloaded = true })
 
+// A new version was deployed: the page's JavaScript and CSS are out of date
+// (see TextexpWeb.StaticChanged). Reloaded, but not twice within a minute, in
+// case the page itself came from a stale cache.
+window.addEventListener("phx:static-changed", _e => {
+  const key = "textexp:reloaded-at"
+  let last = 0
+  try { last = Number(sessionStorage.getItem(key)) || 0 } catch (_error) {}
+  if (Date.now() - last < 60_000) return
+
+  try { sessionStorage.setItem(key, String(Date.now())) } catch (_error) {}
+  window.location.reload()
+})
+
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
