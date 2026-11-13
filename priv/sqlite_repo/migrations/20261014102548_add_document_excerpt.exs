@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentExcerpt do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentExcerpt do
   @moduledoc """
   Adds `documents.excerpt`, the first lines of the body saved along with the
   snapshot, and fills it for existing documents from their snapshot (without
@@ -23,7 +23,7 @@ defmodule Textexp.SqliteRepo.Migrations.AddDocumentExcerpt do
     for [id, snapshot] <- rows do
       doc = Yex.Doc.new()
       Yex.apply_update(doc, snapshot)
-      excerpt = Textexp.Document.Body.excerpt(doc)
+      excerpt = Padocs.Document.Body.excerpt(doc)
 
       Ecto.Adapters.SQL.query!(repo(), "UPDATE documents SET excerpt = ? WHERE id = ?", [
         excerpt,

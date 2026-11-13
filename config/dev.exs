@@ -1,14 +1,14 @@
 import Config
 
 # Configure your database
-config :textexp, Textexp.SqliteRepo,
+config :padocs, Padocs.SqliteRepo,
   database: Path.join(__DIR__, "../base.sqlite"),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
-# The files of the documents (see Textexp.Files), in a local folder.
-config :textexp, Textexp.Files,
-  storage: {Textexp.Files.LocalStorage, root: Path.join(__DIR__, "../files")}
+# The files of the documents (see Padocs.Files), in a local folder.
+config :padocs, Padocs.Files,
+  storage: {Padocs.Files.LocalStorage, root: Path.join(__DIR__, "../files")}
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -16,7 +16,7 @@ config :textexp, Textexp.Files,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :textexp, TextexpWeb.Endpoint,
+config :padocs, PadocsWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}],
@@ -25,8 +25,8 @@ config :textexp, TextexpWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "lr54C/uBh815Ch26FKtPRdKp08QU6No6/v1ehwwUL0aQcncHSEgTIDSKVa+DE78M",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:textexp, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:textexp, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:padocs, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:padocs, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -54,9 +54,9 @@ config :textexp, TextexpWeb.Endpoint,
 
 # Enable dev routes for dashboard and mailbox
 # The LiveDashboard is open in development.
-config :textexp, :dashboard_auth, false
+config :padocs, :dashboard_auth, false
 
-config :textexp, dev_routes: true
+config :padocs, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

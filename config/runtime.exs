@@ -12,21 +12,21 @@ import Config
 # If you use `mix release`, you need to explicitly enable the server
 # by passing the PHX_SERVER=true when you start it:
 #
-#     PHX_SERVER=true bin/textexp start
+#     PHX_SERVER=true bin/padocs start
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
-  config :textexp, TextexpWeb.Endpoint, server: true
+  config :padocs, PadocsWeb.Endpoint, server: true
 end
 
-config :textexp, TextexpWeb.Endpoint,
+config :padocs, PadocsWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 # With DATABASE_ADAPTER=hrana (see config/config.exs), the database is a libSQL
 # server, e.g. Bunny Database, in every environment.
 if System.get_env("DATABASE_ADAPTER") == "hrana" do
-  config :textexp, Textexp.SqliteRepo,
+  config :padocs, Padocs.SqliteRepo,
     uri:
       System.get_env("BUNNY_DATABASE_URL") ||
         raise("environment variable BUNNY_DATABASE_URL is missing"),
@@ -41,7 +41,7 @@ auth_url =
     do: "https://#{System.get_env("PHX_HOST", "example.com")}/auth",
     else: "http://localhost:#{System.get_env("PORT", "4000")}/auth"
 
-config :textexp, :github,
+config :padocs, :github,
   client_id: System.get_env("GITHUB_CLIENT_ID"),
   client_secret: System.get_env("GITHUB_CLIENT_SECRET"),
   redirect_uri: auth_url
@@ -49,7 +49,7 @@ config :textexp, :github,
 # GITLAB_URL, for a self-hosted instance, must be one trusted to verify its
 # users' email addresses as gitlab.com does: whoever runs it could otherwise
 # sign in to any account here.
-config :textexp, :gitlab,
+config :padocs, :gitlab,
   base_url: System.get_env("GITLAB_URL", "https://gitlab.com"),
   client_id: System.get_env("GITLAB_CLIENT_ID"),
   client_secret: System.get_env("GITLAB_CLIENT_SECRET"),
@@ -57,7 +57,7 @@ config :textexp, :gitlab,
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
-  config :textexp, TextexpWeb.Endpoint,
+  config :padocs, PadocsWeb.Endpoint,
     live_reload: [
       web_console_logger: true,
       patterns: [
@@ -66,8 +66,8 @@ if config_env() == :dev do
         # Gettext translations
         ~r"priv/gettext/.*\.po$"E,
         # Router, Controllers, LiveViews and LiveComponents
-        ~r"lib/textexp_web/router\.ex$"E,
-        ~r"lib/textexp_web/(controllers|live|components)/.*\.(ex|heex)$"E
+        ~r"lib/padocs_web/router\.ex$"E,
+        ~r"lib/padocs_web/(controllers|live|components)/.*\.(ex|heex)$"E
       ]
     ]
 end
@@ -75,7 +75,7 @@ end
 if config_env() == :prod do
   # Credentials of the LiveDashboard (/admin/dashboard), asked through HTTP basic
   # auth. Without them, the dashboard is not served.
-  config :textexp, :dashboard_auth,
+  config :padocs, :dashboard_auth,
     username: System.get_env("DASHBOARD_USER"),
     password: System.get_env("DASHBOARD_PASSWORD")
 
@@ -93,18 +93,18 @@ if config_env() == :prod do
     # longer on its lock, and each keeps a page cache of its own. That cache is
     # SQLite's default of 2 MB here, not ecto_sqlite3's 64 MB, which a growing
     # database would fill on every connection.
-    config :textexp, Textexp.SqliteRepo,
+    config :padocs, Padocs.SqliteRepo,
       database: database_path,
       pool_size: String.to_integer(System.get_env("POOL_SIZE") || "3"),
       cache_size: -2000
   else
     # The libSQL server serializes the writes itself; the pool only bounds the
     # requests in flight.
-    config :textexp, Textexp.SqliteRepo,
+    config :padocs, Padocs.SqliteRepo,
       pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
   end
 
-  # The files of the documents, their images (see Textexp.Files): in an S3
+  # The files of the documents, their images (see Padocs.Files): in an S3
   # bucket when FILES_S3_BUCKET is set, e.g. on Tigris (`fly storage create`
   # sets the AWS_* variables), under an optional FILES_S3_PREFIX; in a Bunny
   # Storage zone when STORAGE_ZONE is set (with STORAGE_ACCESS_KEY,
@@ -116,7 +116,7 @@ if config_env() == :prod do
   files_storage =
     cond do
       bucket = System.get_env("FILES_S3_BUCKET") ->
-        {Textexp.Files.S3Storage,
+        {Padocs.Files.S3Storage,
          bucket: bucket,
          prefix: System.get_env("FILES_S3_PREFIX", ""),
          endpoint:
@@ -132,7 +132,7 @@ if config_env() == :prod do
 
       # The variables Bunny sets in a container linked to a storage zone
       zone = System.get_env("STORAGE_ZONE") ->
-        {Textexp.Files.BunnyStorage,
+        {Padocs.Files.BunnyStorage,
          zone: zone,
          access_key:
            System.get_env("STORAGE_ACCESS_KEY") ||
@@ -146,12 +146,12 @@ if config_env() == :prod do
         root =
           System.get_env("FILES_PATH") ||
             (database_path && Path.join(Path.dirname(database_path), "files")) ||
-            Path.join(System.tmp_dir!(), "textexp_files")
+            Path.join(System.tmp_dir!(), "padocs_files")
 
-        {Textexp.Files.LocalStorage, root: root}
+        {Padocs.Files.LocalStorage, root: root}
     end
 
-  config :textexp, Textexp.Files, storage: files_storage
+  config :padocs, Padocs.Files, storage: files_storage
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
@@ -167,9 +167,9 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
-  config :textexp, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :padocs, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
-  config :textexp, TextexpWeb.Endpoint,
+  config :padocs, PadocsWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -185,7 +185,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :textexp, TextexpWeb.Endpoint,
+  #     config :padocs, PadocsWeb.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -207,7 +207,7 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :textexp, TextexpWeb.Endpoint,
+  #     config :padocs, PadocsWeb.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
@@ -217,7 +217,7 @@ if config_env() == :prod do
   # In production you need to configure the mailer to use a different adapter.
   # Here is an example configuration for Mailgun:
   #
-  #     config :textexp, Textexp.Mailer,
+  #     config :padocs, Padocs.Mailer,
   #       adapter: Swoosh.Adapters.Mailgun,
   #       api_key: System.get_env("MAILGUN_API_KEY"),
   #       domain: System.get_env("MAILGUN_DOMAIN")

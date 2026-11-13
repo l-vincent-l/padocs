@@ -1,4 +1,4 @@
-defmodule Textexp.DataCase do
+defmodule Padocs.DataCase do
   @moduledoc """
   This module defines the setup for tests requiring
   access to the application's data layer.
@@ -10,7 +10,7 @@ defmodule Textexp.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use Textexp.DataCase, async: true`, although
+  by setting `use Padocs.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -18,17 +18,17 @@ defmodule Textexp.DataCase do
 
   using do
     quote do
-      alias Textexp.SqliteRepo
+      alias Padocs.SqliteRepo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import Textexp.DataCase
+      import Padocs.DataCase
     end
   end
 
   setup tags do
-    Textexp.DataCase.setup_sandbox(tags)
+    Padocs.DataCase.setup_sandbox(tags)
     :ok
   end
 
@@ -36,14 +36,14 @@ defmodule Textexp.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Textexp.SqliteRepo, shared: not tags[:async])
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Padocs.SqliteRepo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     # run first: the updates the test's DocServers handed over are written
     # before its data is rolled back, rather than failing a later test's write
-    on_exit(fn -> Textexp.Document.UpdateWriter.sync() end)
+    on_exit(fn -> Padocs.Document.UpdateWriter.sync() end)
     # the same for the documents the test changed: indexed while they are
     # still in the database
-    on_exit(fn -> Textexp.Document.SearchIndex.sync() end)
+    on_exit(fn -> Padocs.Document.SearchIndex.sync() end)
   end
 
   @doc """

@@ -74,7 +74,7 @@ defmodule Loadtest.Session do
     response
     |> Req.Response.get_header("set-cookie")
     |> Enum.find_value(previous, fn header ->
-      case Regex.run(~r/^(_textexp_key=[^;]+)/, header) do
+      case Regex.run(~r/^(_padocs_key=[^;]+)/, header) do
         [_, cookie] -> cookie
         nil -> nil
       end

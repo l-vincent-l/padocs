@@ -11,26 +11,26 @@ import Config
 # Database) with DATABASE_ADAPTER=hrana. Chosen at compile time, as the repo's
 # adapter (after changing it: `mix compile --force`); config/runtime.exs reads
 # the same variable to configure it.
-config :textexp,
+config :padocs,
   repo_adapter:
     if(System.get_env("DATABASE_ADAPTER") == "hrana",
       do: Ecto.Adapters.Hrana,
       else: Ecto.Adapters.SQLite3
     )
 
-config :textexp,
-  ecto_repos: [Textexp.SqliteRepo],
+config :padocs,
+  ecto_repos: [Padocs.SqliteRepo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configure the endpoint
-config :textexp, TextexpWeb.Endpoint,
+config :padocs, PadocsWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: TextexpWeb.ErrorHTML, json: TextexpWeb.ErrorJSON],
+    formats: [html: PadocsWeb.ErrorHTML, json: PadocsWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Textexp.PubSub,
+  pubsub_server: Padocs.PubSub,
   live_view: [signing_salt: "5/7KcGqj"]
 
 # Configure LiveView
@@ -45,12 +45,12 @@ config :phoenix_live_view,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :textexp, Textexp.Mailer, adapter: Swoosh.Adapters.Local
+config :padocs, Padocs.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  textexp: [
+  padocs: [
     args:
       ~w(app=js/app.js blocknote=js/blocknote/blocknote.css --bundle --format=esm --splitting --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=. --loader:.woff=file --loader:.woff2=file --conditions=style),
     cd: Path.expand("../assets", __DIR__),
@@ -60,7 +60,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.3.3",
-  textexp: [
+  padocs: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css

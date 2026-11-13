@@ -1,8 +1,8 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentUpdates do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentUpdates do
   @moduledoc """
   The Yjs log of each document: the updates of its content, appended by its
   DocServer about every second, then merged into ranges, coarser with age:
-  the points of its history (see `Textexp.Document.History`).
+  the points of its history (see `Padocs.Document.History`).
 
   `documents.snapshot` becomes a cache of the updates up to
   `snapshot_update_id`. Each existing snapshot becomes the first update of

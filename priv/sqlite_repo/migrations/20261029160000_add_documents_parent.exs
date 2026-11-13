@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentsParent do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentsParent do
   @moduledoc """
   Sub-documents: a document's parent, `NULL` for a document at the root. A
   document goes with its parent (`ON DELETE CASCADE`).

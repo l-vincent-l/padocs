@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddUsersLastDocument do
+defmodule Padocs.SqliteRepo.Migrations.AddUsersLastDocument do
   @moduledoc """
   The document each user opened last, opened again at `/documents`. Emptied
   when the document is deleted.

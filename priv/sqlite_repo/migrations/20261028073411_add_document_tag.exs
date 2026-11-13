@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.AddDocumentTag do
+defmodule Padocs.SqliteRepo.Migrations.AddDocumentTag do
   @moduledoc """
   Tags, shared by everyone (one per lowercased label, `key`), and the
   documents carrying them. A link goes with its document or its tag.

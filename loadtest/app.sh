@@ -21,17 +21,17 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 database="${LOADTEST_DATABASE:-sqlite3}"
-name=textexp-loadtest
-libsql=textexp-loadtest-libsql
-network=textexp-loadtest
+name=padocs-loadtest
+libsql=padocs-loadtest-libsql
+network=padocs-loadtest
 users="${LOADTEST_USERS:-50}"
 documents="${LOADTEST_DOCUMENT_COUNT:-1}"
 paragraphs="${LOADTEST_PARAGRAPHS:-1}"
 port="${LOADTEST_PORT:-4000}"
 
 case "$database" in
-  sqlite3) image=textexp:loadtest ;;
-  hrana) image=textexp:loadtest-hrana ;;
+  sqlite3) image=padocs:loadtest ;;
+  hrana) image=padocs:loadtest-hrana ;;
   *) echo "LOADTEST_DATABASE: sqlite3 or hrana" >&2; exit 1 ;;
 esac
 
@@ -48,7 +48,7 @@ esac
 docker rm -f "$name" "$libsql" >/dev/null 2>&1 || true
 docker network inspect "$network" >/dev/null 2>&1 || docker network create "$network" >/dev/null
 
-database_env=(-e DATABASE_PATH=/data/textexp.db)
+database_env=(-e DATABASE_PATH=/data/padocs.db)
 
 if [ "$database" = hrana ]; then
   # its port is published only to wait for it here, before the migrations
@@ -66,7 +66,7 @@ if [ "$database" = hrana ]; then
 fi
 
 # The open files limit is set: Docker's default is so high that the Erlang
-# node of `bin/textexp rpc`, which has no `+Q`, sizes its port table on it
+# node of `bin/padocs rpc`, which has no `+Q`, sizes its port table on it
 # and takes gigabytes.
 docker run -d --name "$name" --network "$network" \
   --cpus "${LOADTEST_CPUS:-1}" --memory "${LOADTEST_MEMORY:-512m}" \
@@ -89,5 +89,5 @@ for _ in $(seq 1 60); do
 done
 
 echo "Seeding $users accounts and $documents documents ($database) ..." >&2
-docker exec "$name" /app/bin/textexp rpc \
+docker exec "$name" /app/bin/padocs rpc \
   "Code.eval_file(\"/loadtest/seed.exs\"); Loadtest.Seed.run($users, $documents, $paragraphs)" | tail -1

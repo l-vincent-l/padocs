@@ -1,1 +1,1 @@
-call "%~dp0\textexp" eval Textexp.Release.migrate
+call "%~dp0\padocs" eval Padocs.Release.migrate

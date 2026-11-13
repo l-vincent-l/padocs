@@ -44,7 +44,7 @@ cuts the snippets of its results.
 
 2026-11-10, same machine and steps. Each document being edited now appends
 its edits every second (one `INSERT`), saves its excerpt every 10 s, and is
-compacted every 60 updates (see `Textexp.Document.History`), where it used to
+compacted every 60 updates (see `Padocs.Document.History`), where it used to
 rewrite its snapshot every 10 s.
 
 | Test | Held | Broke at | What broke |
@@ -76,7 +76,7 @@ tried again at the next flush.
 ## With one writer for all the documents
 
 2026-11-10, same machine and steps. The DocServers hand their updates over
-to `Textexp.Document.UpdateWriter`, without waiting, which appends those of
+to `Padocs.Document.UpdateWriter`, without waiting, which appends those of
 all the documents in one `INSERT` of many rows a second.
 
 | Test | Held | Broke at | What broke |
@@ -95,7 +95,7 @@ warnings, 200 ms to 1 s, on SQLite at 1,500 VUs).
 
 ## With one search index for all the documents
 
-2026-11-13, same machine and steps. `Textexp.Document.SearchIndex` holds one
+2026-11-13, same machine and steps. `Padocs.Document.SearchIndex` holds one
 index of all the documents, built at start, and indexes again those whose
 title, body or tags changed, every 5 s with one commit. A search runs in the
 caller's process, among the ids of the documents the user can read

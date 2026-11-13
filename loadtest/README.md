@@ -20,7 +20,7 @@ its options in its header.
 | `session.exs` | the scenarios' environment and sign-in |
 | `editing.exs` | editors in documents: one document, or many, all writing or a few |
 | `search.exs` | users searching all the documents, from the search modal |
-| `top.exs` | the server's longest message queues, during a test: `docker exec textexp-loadtest /app/bin/textexp rpc 'Code.eval_file("/loadtest/top.exs")'` |
+| `top.exs` | the server's longest message queues, during a test: `docker exec padocs-loadtest /app/bin/padocs rpc 'Code.eval_file("/loadtest/top.exs")'` |
 
 Stampede's options apply, e.g. `--vus 100 --duration 2m`, `--find-limit`,
 `--dashboard` (http://127.0.0.1:4040), `--html report.html`. VUs beyond

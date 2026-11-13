@@ -1,4 +1,4 @@
-# Textexp
+# Padocs
 
 To start your Phoenix server:
 
@@ -28,7 +28,7 @@ default, or `hrana`), see `config/config.exs`. On Bunny, the container reads
 pushed to ghcr.io by `.github/workflows/bunny-image.yml`.
 
 To compare them, each `/admin/dashboard` shows the query times measured by
-the server (page Metrics, `textexp.sqlite_repo.query`), once `DASHBOARD_USER`
+the server (page Metrics, `padocs.sqlite_repo.query`), once `DASHBOARD_USER`
 and `DASHBOARD_PASSWORD` are set.
 
 Locally, against a libSQL server:
@@ -40,7 +40,7 @@ Locally, against a libSQL server:
 ## Files
 
 The images of the documents, pasted or dropped in the editor or found in an
-imported Word file, are stored by `Textexp.Files`: PNG, JPEG, GIF or WebP,
+imported Word file, are stored by `Padocs.Files`: PNG, JPEG, GIF or WebP,
 10 MB each at most. They are served at `/files/<id>` to whoever can read
 their document (anyone while it has a public link), and deleted with it, for
 good.
@@ -67,7 +67,7 @@ From the share panel, the owner of a document gives it a public link,
 not its sub-documents. A new link replaces the previous one; the link can be
 removed. Its readers join `y_doc_public:<id>`, where the document's server
 sends its updates but not the editors' awareness (their cursors and
-addresses). See `TextexpWeb.PublicDocumentLive`.
+addresses). See `PadocsWeb.PublicDocumentLive`.
 
 ## Export
 
@@ -80,11 +80,11 @@ From a document's "⋯" menu:
 | Word (.docx), OpenDocument (.odt) | the browser, from the editor, with BlockNote's `@blocknote/xl-docx-exporter` and `@blocknote/xl-odt-exporter` |
 
 The server exports read the saved snapshot, which can miss the last seconds of
-edits (see `Textexp.Document.YPersistence`).
+edits (see `Padocs.Document.YPersistence`).
 
 ## License
 
-Textexp is released under the [MIT license](LICENSE).
+Padocs is released under the [MIT license](LICENSE).
 
 The JavaScript served to the browser also bundles BlockNote's "XL" exporters
 (`@blocknote/xl-*`), licensed under the GPL-3.0 (or a commercial license):

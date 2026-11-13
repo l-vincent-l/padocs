@@ -6,7 +6,7 @@ config :bcrypt_elixir, log_rounds: 1
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
-config :textexp, Textexp.SqliteRepo,
+config :padocs, Padocs.SqliteRepo,
   database: Path.join(__DIR__, "../base_tests.sqlite"),
   pool: Ecto.Adapters.SQL.Sandbox,
   # One connection: SQLite has one writer at a time. With several, a test
@@ -16,20 +16,20 @@ config :textexp, Textexp.SqliteRepo,
   # running test (see DataCase), so one is enough.
   pool_size: 1
 
-# The files of the documents (see Textexp.Files), in a folder of the system's
+# The files of the documents (see Padocs.Files), in a folder of the system's
 # temporary directory.
-config :textexp, Textexp.Files,
-  storage: {Textexp.Files.LocalStorage, root: Path.join(System.tmp_dir!(), "textexp_test_files")}
+config :padocs, Padocs.Files,
+  storage: {Padocs.Files.LocalStorage, root: Path.join(System.tmp_dir!(), "padocs_test_files")}
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :textexp, TextexpWeb.Endpoint,
+config :padocs, PadocsWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "JBFk8hfb/qYj10QxGt83pWM7p5qndA2GtF4GZ9EMjm0Kr51M+xUXszTzAFpGVdHd",
   server: false
 
 # In test we don't send emails
-config :textexp, Textexp.Mailer, adapter: Swoosh.Adapters.Test
+config :padocs, Padocs.Mailer, adapter: Swoosh.Adapters.Test
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
@@ -50,4 +50,4 @@ config :phoenix,
 
 # No database when the application starts, in the tests: the search index
 # starts empty, the tests' documents are indexed as they change.
-config :textexp, Textexp.Document.SearchIndex, build: false
+config :padocs, Padocs.Document.SearchIndex, build: false

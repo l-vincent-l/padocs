@@ -4,7 +4,7 @@
 // is opened. The BlockNote bundle is only loaded on the first import.
 const MAX_BYTES = 2_000_000
 // A Word file is a zip, holding its images, uploaded apart (each up to the
-// server's limit, see Textexp.Files).
+// server's limit, see Padocs.Files).
 const MAX_DOCX_BYTES = 10_000_000
 
 export const DocumentImport = {

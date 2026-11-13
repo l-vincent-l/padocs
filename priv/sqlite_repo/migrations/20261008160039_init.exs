@@ -1,4 +1,4 @@
-defmodule Textexp.SqliteRepo.Migrations.Init do
+defmodule Padocs.SqliteRepo.Migrations.Init do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

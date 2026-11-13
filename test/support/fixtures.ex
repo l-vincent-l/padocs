@@ -1,7 +1,7 @@
-defmodule Textexp.Fixtures do
+defmodule Padocs.Fixtures do
   @moduledoc "Users and sessions for the tests."
 
-  alias Textexp.Accounts
+  alias Padocs.Accounts
 
   @password "a-long-password"
 
@@ -23,19 +23,19 @@ defmodule Textexp.Fixtures do
     email
     |> register_user()
     |> Ecto.Changeset.change(confirmed_at: DateTime.utc_now())
-    |> Textexp.SqliteRepo.update!()
+    |> Padocs.SqliteRepo.update!()
   end
 
   @doc "A document of `owner`."
   def create_document!(owner, attrs \\ %{}) do
-    {:ok, document} = Textexp.Document.create_document(owner, attrs)
+    {:ok, document} = Padocs.Document.create_document(owner, attrs)
     document
   end
 
   @doc "Shares `document`, of `owner`, with `user` as `role`."
   def share!(owner, document, user, role) do
     {:ok, member} =
-      Textexp.Document.share_document(owner, document.id, %{email: user.email, role: role})
+      Padocs.Document.share_document(owner, document.id, %{email: user.email, role: role})
 
     member
   end
