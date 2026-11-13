@@ -126,6 +126,138 @@ defmodule TextexpWeb.YDocRoomChannelTest do
     assert saved_text(socket, document) == nil
   end
 
+  describe "public link" do
+    defp join_public(token, document_id, user \\ nil) do
+      UserSocket
+      |> socket(nil, %{current_user: user})
+      |> subscribe_and_join(YDocRoomChannel, "y_doc_public:#{document_id}", %{
+        "public_token" => token
+      })
+    end
+
+    defp awareness_message(name) do
+      {:ok, client} = Yex.Awareness.new(Yex.Doc.new())
+      Yex.Awareness.set_local_state(client, %{"user" => name})
+      {:ok, update} = Yex.Awareness.encode_update(client, [Yex.Awareness.client_id(client)])
+      {:binary, Yex.Sync.message_encode!({:awareness, update})}
+    end
+
+    test "without a user, the document's own topic is refused", %{
+      owner: owner,
+      document: document
+    } do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+
+      for payload <- [%{}, %{"public_token" => token}] do
+        assert {:error, %{reason: "unauthorized"}} =
+                 UserSocket
+                 |> socket(nil, %{current_user: nil})
+                 |> subscribe_and_join(YDocRoomChannel, "y_doc_room:#{document.id}", payload)
+      end
+    end
+
+    test "the public topic needs a token", %{document: document} do
+      assert {:error, %{reason: "unauthorized"}} =
+               UserSocket
+               |> socket(nil, %{current_user: nil})
+               |> subscribe_and_join(YDocRoomChannel, "y_doc_public:#{document.id}")
+    end
+
+    test "a reader gets the edits, not the editors' awareness", %{
+      owner: owner,
+      document: document
+    } do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+      {:ok, _reply, reader} = join_public(token, document.id)
+
+      # the owner joins with a socket of their own, not subscribed by the test
+      {:ok, _reply, editor} =
+        UserSocket
+        |> socket("user_socket:#{owner.id}", %{current_user: owner})
+        |> Phoenix.ChannelTest.join(YDocRoomChannel, "y_doc_room:#{document.id}")
+
+      push(editor, "yjs", awareness_message(owner.email))
+      _ = :sys.get_state(editor.assigns.doc_pid)
+      push_edit(editor, "hello")
+      _ = :sys.get_state(editor.assigns.doc_pid)
+
+      # the edit, a sync message, comes through the public topic
+      assert_push "yjs", {:binary, <<0, 2, _::binary>>}, 500
+      refute_push "yjs", {:binary, <<1, _::binary>>}, 200
+
+      # a query of the awareness gets nothing either
+      push(reader, "yjs", {:binary, <<3>>})
+      _ = :sys.get_state(reader.channel_pid)
+      refute_push "yjs", {:binary, <<1, _::binary>>}, 200
+    end
+
+    test "a reader's awareness is not shared", %{owner: owner, document: document} do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+      {:ok, _reply, _editor} = join_as(owner, document.id)
+      {:ok, _reply, reader} = join_public(token, document.id)
+
+      push(reader, "yjs", awareness_message("Lecteur anonyme"))
+      _ = :sys.get_state(reader.channel_pid)
+      _ = :sys.get_state(reader.assigns.doc_pid)
+
+      refute_broadcast "yjs", {:binary, <<1, _::binary>>}, 200
+    end
+
+    test "anyone joins with the token, read-only", %{owner: owner, document: document} do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+
+      {:ok, _reply, socket} = join_public(token, document.id)
+      push_edit(socket, "hello")
+
+      assert saved_text(socket, document) == nil
+    end
+
+    test "a signed-in user with the token reads too", %{owner: owner, document: document} do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+      assert {:ok, _reply, _socket} = join_public(token, document.id, register_user())
+    end
+
+    test "a wrong or replaced token is refused", %{owner: owner, document: document} do
+      assert {:error, %{reason: "unauthorized"}} = join_public("nope", document.id)
+
+      {:ok, old} = Document.enable_public_link(owner, document.id)
+      {:ok, _new} = Document.enable_public_link(owner, document.id)
+      assert {:error, %{reason: "unauthorized"}} = join_public(old, document.id)
+    end
+
+    test "the token of another document is refused", %{owner: owner, document: document} do
+      other = Fixtures.create_document!(owner, %{title: "Autre"})
+      {:ok, token} = Document.enable_public_link(owner, other.id)
+
+      assert {:error, %{reason: "unauthorized"}} = join_public(token, document.id)
+    end
+
+    test "a link removed sends its readers away at once", %{owner: owner, document: document} do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+      {:ok, _reply, socket} = join_public(token, document.id)
+      Process.unlink(socket.channel_pid)
+      ref = Process.monitor(socket.channel_pid)
+
+      :ok = Document.disable_public_link(owner, document.id)
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :unauthorized}}
+    end
+
+    test "a document put in the trash sends its readers away", %{
+      owner: owner,
+      document: document
+    } do
+      {:ok, token} = Document.enable_public_link(owner, document.id)
+      {:ok, _reply, socket} = join_public(token, document.id)
+      Process.unlink(socket.channel_pid)
+      ref = Process.monitor(socket.channel_pid)
+
+      :ok = Document.trash_document(document.id, owner)
+
+      assert_receive {:DOWN, ^ref, :process, _pid, {:shutdown, :unauthorized}}
+    end
+  end
+
   test "a member removed leaves the channel at once", %{owner: owner, document: document} do
     member = register_user()
     membership = Fixtures.share!(owner, document, member, :editor)

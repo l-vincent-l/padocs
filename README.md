@@ -37,6 +37,15 @@ Locally, against a libSQL server:
     mix compile --force   # the adapter is compiled in
     mix phx.server
 
+## Public link
+
+From the share panel, the owner of a document gives it a public link,
+`/p/<token>`: anyone with it reads the document live, without an account, but
+not its sub-documents. A new link replaces the previous one; the link can be
+removed. Its readers join `y_doc_public:<id>`, where the document's server
+sends its updates but not the editors' awareness (their cursors and
+addresses). See `TextexpWeb.PublicDocumentLive`.
+
 ## Export
 
 From a document's "⋯" menu:

@@ -26,6 +26,11 @@ defmodule TextexpWeb.Router do
       live "/documents/:id", DocumentLive, :show
     end
 
+    # A document read by its public link, signed in or not
+    live_session :public_routes, on_mount: [{TextexpWeb.LiveUserAuth, :current_user}] do
+      live "/p/:token", PublicDocumentLive, :show
+    end
+
     # A document as a file: PDF, Markdown or Typst (see ExportController)
     get "/documents/:id/export/:format", ExportController, :show
   end

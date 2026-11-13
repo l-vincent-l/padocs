@@ -22,6 +22,11 @@ defmodule Textexp.Document.Document do
   there; its owner, maybe by inheritance, restores it, or deletes it for good
   (see `Textexp.Document.trash_document/2`).
 
+  `public_token` is the secret of its public link, which anyone can read it
+  with, read-only; `nil` without one (see
+  `Textexp.Document.enable_public_link/2`). It is never read along with the
+  document: only its owner sees it.
+
   `role` is the reader's right on it, read along with it (see
   `Textexp.Document.get_document/2`); `snippet`, the fragment of its body
   matching a search (see `Textexp.Document.Search`).
@@ -39,6 +44,7 @@ defmodule Textexp.Document.Document do
     field :snippet, :any, virtual: true
     field :deleted_at, :utc_datetime_usec
     field :position, :integer
+    field :public_token, :string
     belongs_to :owner, Textexp.Accounts.User
     belongs_to :deleted_by, Textexp.Accounts.User
     belongs_to :parent, __MODULE__

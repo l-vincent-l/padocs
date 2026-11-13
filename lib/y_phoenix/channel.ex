@@ -17,6 +17,10 @@ defmodule YPhoenix.Channel do
     * `:supervisor` - `DynamicSupervisor` under which DocServers are started;
     * `:registry_scope` - `:syn` scope in which DocServers are registered by
       document name, so there is only one per document in the cluster;
+    * `:awareness` - `false` for a client that neither receives the others'
+      awareness (cursors, names) nor shares its own: it then joins a channel
+      on the DocServer's `:updates_topic`, while `topic` stays the
+      DocServer's own (default `true`).
   A client with the `:read` permission receives the document and its updates,
   and shares its awareness (cursor, presence), but the updates it sends are
   dropped. A client whose access is removed leaves the channel.
@@ -39,6 +43,8 @@ defmodule YPhoenix.Channel do
          doc_name: doc_name,
          doc_pid: docpid,
          doc_server_opts: opts,
+         doc_topic: topic,
+         awareness?: Keyword.get(opts, :awareness, true),
          actor: actor,
          read_only?: permission == :read
        )}
@@ -61,15 +67,25 @@ defmodule YPhoenix.Channel do
   def handle_in(event, {:binary, chunk}, socket) when event in ["yjs_sync", "yjs"] do
     server = socket.assigns.doc_pid
 
-    if socket.assigns.read_only? and not read_only_message?(chunk) do
-      Logger.debug("Update of read-only client dropped for #{socket.assigns.doc_name}")
-    else
-      DocServer.process_message_v1(server, chunk, self())
-      |> handle_process_message_result(server)
+    cond do
+      socket.assigns.read_only? and not read_only_message?(chunk) ->
+        Logger.debug("Update of read-only client dropped for #{socket.assigns.doc_name}")
+
+      not socket.assigns.awareness? and awareness_message?(chunk) ->
+        :ok
+
+      true ->
+        DocServer.process_message_v1(server, chunk, self())
+        |> handle_process_message_result(server)
     end
 
     {:noreply, socket}
   end
+
+  # An awareness, or a query of the others'.
+  defp awareness_message?(<<1, _::binary>>), do: true
+  defp awareness_message?(<<3>>), do: true
+  defp awareness_message?(_chunk), do: false
 
   # Whether the message leaves the document unchanged, judged on its first
   # bytes as Yex.DocServer itself dispatches them: the client's state vector
@@ -102,7 +118,10 @@ defmodule YPhoenix.Channel do
     do: {:noreply, assign(socket, read_only?: permission == :read)}
 
   def handle_info({:yjs, message, _proc}, socket) do
-    push(socket, "yjs", {:binary, message})
+    if socket.assigns.awareness? or not awareness_message?(message) do
+      push(socket, "yjs", {:binary, message})
+    end
+
     {:noreply, socket}
   end
 
@@ -112,7 +131,7 @@ defmodule YPhoenix.Channel do
       ) do
     # Only handle :DOWN for the current doc_pid. The new DocServer loads the
     # rights again, which may have changed.
-    case start_and_join(socket.topic, doc_name, socket.assigns.actor, opts) do
+    case start_and_join(socket.assigns.doc_topic, doc_name, socket.assigns.actor, opts) do
       {:ok, docpid, permission} ->
         push(socket, "yjs_resync", %{})
         {:noreply, assign(socket, doc_pid: docpid, read_only?: permission == :read)}
@@ -139,7 +158,7 @@ defmodule YPhoenix.Channel do
       :undefined ->
         doc_server_opts =
           [topic: topic, doc_name: doc_name] ++
-            Keyword.drop(opts, [:supervisor, :registry_scope])
+            Keyword.drop(opts, [:supervisor, :registry_scope, :awareness])
 
         DynamicSupervisor.start_child(Keyword.fetch!(opts, :supervisor), %{
           id: DocServer,

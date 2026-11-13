@@ -138,6 +138,7 @@ defmodule TextexpWeb.DocumentLive do
                 members={@streams.members}
                 inherited={@inherited_accesses}
                 current_user_id={@current_user.id}
+                public_token={@public_token}
               />
               <.history_panel :if={@history_open?} versions={@streams.versions} />
               <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
@@ -1185,14 +1186,114 @@ defmodule TextexpWeb.DocumentLive do
     """
   end
 
+  # The public link of the document (see Document.enable_public_link/2):
+  # created, copied, replaced by a new one, or removed.
+  attr :token, :string, default: nil
+
+  defp public_link(assigns) do
+    ~H"""
+    <div id="public-link" class="mt-5 border-t-2 border-dotted border-base-content/30 pt-4">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0">
+          <h3 class="flex items-center gap-1.5 text-xs uppercase">
+            <.icon name="hero-globe-alt" class="size-4" /> Lien public
+          </h3>
+          <p class="mt-0.5 text-xs text-base-content/60">
+            <%= if @token do %>
+              Toute personne qui a ce lien lit le document, sans compte, mais pas ses sous-documents.
+            <% else %>
+              Pour faire lire ce document à des personnes sans compte, en lecture seule.
+            <% end %>
+          </p>
+        </div>
+        <button
+          :if={!@token}
+          id="public-link-enable"
+          type="button"
+          phx-click="enable_public_link"
+          phx-disable-with="Création…"
+          class="btn btn-sm border-base-content bg-base-100 transition-transform hover:-translate-y-px"
+        >
+          <.icon name="hero-link" class="size-4" /> Créer un lien
+        </button>
+      </div>
+      <div :if={@token} class="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          id="public-link-url"
+          type="text"
+          readonly
+          value={url(~p"/p/#{@token}")}
+          aria-label="Lien public"
+          phx-click={JS.dispatch("select")}
+          class="input input-sm min-w-56 flex-1 border-base-content font-mono text-xs"
+        />
+        <button
+          id="public-link-copy"
+          type="button"
+          phx-hook=".CopyLink"
+          data-target="#public-link-url"
+          class="group btn btn-sm btn-primary w-24"
+        >
+          <span class="inline-flex items-center gap-1 group-data-[copied]:hidden">
+            <.icon name="hero-clipboard" class="size-4" /> Copier
+          </span>
+          <span class="hidden items-center gap-1 group-data-[copied]:inline-flex">
+            <.icon name="hero-check" class="size-4" /> Copié
+          </span>
+        </button>
+        <button
+          id="public-link-regenerate"
+          type="button"
+          phx-click="enable_public_link"
+          data-confirm="Le lien actuel ne marchera plus. Créer un nouveau lien ?"
+          title="Remplacer par un nouveau lien : l'actuel ne marchera plus"
+          class="btn btn-sm btn-ghost"
+        >
+          <.icon name="hero-arrow-path" class="size-4" /> Nouveau lien
+        </button>
+        <button
+          id="public-link-disable"
+          type="button"
+          phx-click="disable_public_link"
+          data-confirm="Désactiver le lien public ? Les personnes qui l'ont ne pourront plus lire le document."
+          class="btn btn-sm btn-ghost text-error"
+        >
+          <.icon name="hero-link-slash" class="size-4" /> Désactiver
+        </button>
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".CopyLink">
+          export default {
+            mounted() {
+              this.el.addEventListener("click", async () => {
+                const input = document.querySelector(this.el.dataset.target)
+                try {
+                  await navigator.clipboard.writeText(input.value)
+                } catch {
+                  // without the clipboard API (e.g. over plain HTTP), selected for a copy by hand
+                  input.select()
+                  return
+                }
+                this.el.dataset.copied = ""
+                clearTimeout(this.timer)
+                this.timer = setTimeout(() => delete this.el.dataset.copied, 1500)
+              })
+            },
+            destroyed() { clearTimeout(this.timer) }
+          }
+        </script>
+      </div>
+    </div>
+    """
+  end
+
   attr :form, Phoenix.HTML.Form, required: true
   attr :members, :any, required: true
   attr :inherited, :list, required: true, doc: "see Document.list_inherited_accesses/2"
   attr :current_user_id, :string, required: true
+  attr :public_token, :string, default: nil
 
   # A modal that invites an address as viewer or editor, and lists the members,
-  # then the accesses inherited from the parents, changed from there. Closed by
-  # its button, a click outside or Escape.
+  # then the accesses inherited from the parents, changed from there, and the
+  # public link. Closed by its button, a click outside or Escape.
   defp share_panel(assigns) do
     ~H"""
     <div id="share-modal" class="modal modal-open" phx-window-keydown="close_share" phx-key="Escape">
@@ -1348,6 +1449,7 @@ defmodule TextexpWeb.DocumentLive do
             </li>
           </ul>
         </div>
+        <.public_link token={@public_token} />
       </section>
       <button
         type="button"
@@ -1377,6 +1479,7 @@ defmodule TextexpWeb.DocumentLive do
        moving?: false,
        move_destinations: [],
        inherited_accesses: [],
+       public_token: nil,
        search_open?: false,
        search_tag: nil,
        share_form: nil,
@@ -1609,6 +1712,13 @@ defmodule TextexpWeb.DocumentLive do
   # The roles of the open document read again by its DocServer, as it was put
   # in the trash (the page leaves it on :document_deleted) or restored.
   def handle_info({:access_reloaded, _document_id}, socket), do: {:noreply, socket}
+
+  # The public link changed on another page of its owner.
+  def handle_info({:public_link_changed, document_id, token}, socket) do
+    if socket.assigns.document.id == document_id,
+      do: {:noreply, assign(socket, public_token: token)},
+      else: {:noreply, socket}
+  end
 
   # The user's role on the open document changed: the page is opened again
   # with it, the editor along (its channel already applies it, see
@@ -1964,11 +2074,18 @@ defmodule TextexpWeb.DocumentLive do
   end
 
   def handle_event("toggle_share", _params, socket) do
+    %{current_user: user, document: document} = socket.assigns
+
     {:noreply,
      socket
      |> assign(
        sharing?: true,
        share_form: share_form(),
+       public_token:
+         case Document.public_link_token(user, document.id) do
+           {:ok, token} -> token
+           {:error, _} -> nil
+         end,
        inherited_accesses:
          Document.list_inherited_accesses(
            socket.assigns.current_user,
@@ -2012,6 +2129,32 @@ defmodule TextexpWeb.DocumentLive do
     case Document.remove_member(socket.assigns.current_user, id) do
       :ok -> {:noreply, stream_delete_by_dom_id(socket, :members, "members-#{id}")}
       _ -> {:noreply, put_flash(socket, :error, "Impossible de retirer ce membre")}
+    end
+  end
+
+  # A new token each time: the previous link, if any, stops working.
+  def handle_event("enable_public_link", _params, socket) do
+    %{current_user: user, document: document} = socket.assigns
+
+    case Document.enable_public_link(user, document.id) do
+      {:ok, token} ->
+        {:noreply, socket |> assign(public_token: token) |> put_flash(:info, "Lien public créé")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas partager ce document")}
+    end
+  end
+
+  def handle_event("disable_public_link", _params, socket) do
+    %{current_user: user, document: document} = socket.assigns
+
+    case Document.disable_public_link(user, document.id) do
+      :ok ->
+        {:noreply,
+         socket |> assign(public_token: nil) |> put_flash(:info, "Lien public désactivé")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Vous ne pouvez pas partager ce document")}
     end
   end
 

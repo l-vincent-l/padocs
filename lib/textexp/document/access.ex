@@ -6,6 +6,11 @@ defmodule Textexp.Document.Access do
   loaded in one query then updated by the changes `Textexp.Document`
   broadcasts on `Textexp.Document.members_topic/1`. A document in the trash
   has none.
+
+  The actor joining is a user, or `{:public, token}` for anyone opening the
+  document's public link (see `TextexpWeb.PublicDocumentLive`): they read it
+  while `token` is its public link's; a link changed or removed sends them
+  away.
   """
   @behaviour YPhoenix.Access
 
@@ -18,12 +23,23 @@ defmodule Textexp.Document.Access do
     Phoenix.PubSub.subscribe(Textexp.PubSub, Document.members_topic(document_id))
 
     case Document.access_rights(document_id) do
-      {:ok, roles} -> {:ok, %{document_id: document_id, roles: roles}}
-      :error -> :not_found
+      {:ok, roles} ->
+        {:ok,
+         %{
+           document_id: document_id,
+           roles: roles,
+           public_token: Document.public_token(document_id)
+         }}
+
+      :error ->
+        :not_found
     end
   end
 
   @impl true
+  def permission(%{public_token: token}, {:public, token}) when is_binary(token), do: :read
+  def permission(_rights, {:public, _token}), do: :none
+
   def permission(%{roles: roles}, user) do
     role = Map.get(roles, user.id)
 
@@ -49,11 +65,20 @@ defmodule Textexp.Document.Access do
     {:ok, %{rights | roles: roles}}
   end
 
-  # Put in the trash, where it has no role, or restored.
+  def handle_info(
+        {:public_link_changed, document_id, token},
+        %{document_id: document_id} = rights
+      ),
+      do: {:ok, %{rights | public_token: token}}
+
+  # Put in the trash, where it has no role nor public link, or restored.
   def handle_info({:access_reloaded, document_id}, %{document_id: document_id} = rights) do
     case Document.access_rights(document_id) do
-      {:ok, roles} -> {:ok, %{rights | roles: roles}}
-      :error -> {:ok, %{rights | roles: %{}}}
+      {:ok, roles} ->
+        {:ok, %{rights | roles: roles, public_token: Document.public_token(document_id)}}
+
+      :error ->
+        {:ok, %{rights | roles: %{}, public_token: nil}}
     end
   end
 

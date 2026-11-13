@@ -13,7 +13,12 @@ defmodule Textexp.Document do
   YPersistence saves the documents being edited, whose DocServer checks the
   rights of the clients (see `Textexp.Document.Access`).
 
-  A change of a member's role is broadcast on `members_topic/1`, a rename or a
+  The owner can also give a document a public link (see
+  `enable_public_link/2`): anyone with it reads the document, without an
+  account, but not its sub-documents.
+
+  A change of a member's role or of the public link is broadcast on
+  `members_topic/1`, a rename or a
   change of tags on `Textexp.Document.YPersistence.topic/1`, a move on
   `Textexp.Document.YPersistence.documents_topic/0`.
   """
@@ -314,9 +319,12 @@ defmodule Textexp.Document do
   changed or removed, on it or one of its ancestors. `role` is the user's
   role on it now, `nil` without access.
 
+  `{:public_link_changed, document_id, token}` is broadcast there when its
+  public link is given, changed or removed (`token` is then `nil`).
+
   `{:access_reloaded, document_id}` is broadcast there when all the roles may
   have changed: the document put in the trash, where it has none, or
-  restored. They are read again with `access_rights/1`.
+  restored. They are read again with `access_rights/1` and `public_token/1`.
   """
   def members_topic(document_id), do: "document_members:#{document_id}"
 
@@ -1072,6 +1080,80 @@ defmodule Textexp.Document do
     else
       _ -> {:error, :not_found}
     end
+  end
+
+  ## Public link
+
+  @doc """
+  The token of the public link of the document of `id`, `nil` without one:
+  `{:ok, token}`, or `{:error, :forbidden}` unless `user` may share it.
+  """
+  def public_link_token(user, id) do
+    authorized(id, user, :share, fn document ->
+      {:ok, Repo.one(from d in Document, where: d.id == ^document.id, select: d.public_token)}
+    end)
+  end
+
+  @doc """
+  Gives the document of `id`, that `user` may share, a new public link,
+  which anyone can read it with: the previous one, if any, no longer works.
+  `{:ok, token}`, or `{:error, :forbidden}`.
+  """
+  def enable_public_link(user, id), do: put_public_token(user, id, new_public_token())
+
+  @doc "Removes the public link of the document of `id`, that `user` may share."
+  def disable_public_link(user, id) do
+    with {:ok, nil} <- put_public_token(user, id, nil), do: :ok
+  end
+
+  defp put_public_token(user, id, token) do
+    with {:ok, document_id} <-
+           authorized(id, user, :share, fn document ->
+             Repo.update_all(from(d in Document, where: d.id == ^document.id),
+               set: [public_token: token]
+             )
+
+             {:ok, document.id}
+           end) do
+      Phoenix.PubSub.broadcast(
+        Textexp.PubSub,
+        members_topic(document_id),
+        {:public_link_changed, document_id, token}
+      )
+
+      {:ok, token}
+    end
+  end
+
+  # 144 random bits, in the URL's alphabet.
+  defp new_public_token,
+    do: 18 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+
+  @doc """
+  The document whose public link has `token`, as a viewer reads it:
+  `{:ok, document}`, or `{:error, :not_found}`, also when in the trash.
+  """
+  def get_public_document(token) when is_binary(token) and token != "" do
+    case Repo.one(
+           from d in Document,
+             where: d.public_token == ^token and is_nil(d.deleted_at),
+             select: struct(d, @fields)
+         ) do
+      nil -> {:error, :not_found}
+      document -> {:ok, %{document | role: :viewer}}
+    end
+  end
+
+  def get_public_document(_token), do: {:error, :not_found}
+
+  @doc """
+  The token of the public link of the document of `id`, for its DocServer
+  (see `Textexp.Document.Access`): `nil` without one, or in the trash.
+  """
+  def public_token(id) do
+    Repo.one(
+      from d in Document, where: d.id == ^id and is_nil(d.deleted_at), select: d.public_token
+    )
   end
 
   ## Tags

@@ -6,6 +6,9 @@ defmodule YPhoenix.DocServer do
   Options:
 
     * `:topic` - Phoenix topic on which Yjs messages are broadcast;
+    * `:updates_topic` - optional topic on which only the document's updates
+      are broadcast, not the awareness: for clients that must not see the
+      others' (see the `:awareness` option of `YPhoenix.Channel`);
     * `:doc_name` - document identifier, passed to the persistence;
     * `:endpoint` - Phoenix endpoint used to broadcast;
     * `:persistence` - module implementing `YPhoenix.Persistence`;
@@ -78,6 +81,7 @@ defmodule YPhoenix.DocServer do
      state
      |> assign(%{
        topic: topic,
+       updates_topic: Keyword.get(option, :updates_topic),
        doc_name: doc_name,
        endpoint: endpoint,
        persistence: persistence,
@@ -119,6 +123,10 @@ defmodule YPhoenix.DocServer do
     with {:ok, s} <- Sync.get_update(update),
          {:ok, message} <- Sync.message_encode({:sync, s}) do
       broadcast(state.assigns.endpoint, origin, state.assigns.topic, message)
+
+      if updates_topic = state.assigns.updates_topic do
+        broadcast(state.assigns.endpoint, origin, updates_topic, message)
+      end
     else
       error ->
         error
