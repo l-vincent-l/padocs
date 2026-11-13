@@ -1144,3 +1144,13 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Tags:"
 msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Empty: being deleted"
+msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Empty: deleted when you leave it"
+msgstr ""

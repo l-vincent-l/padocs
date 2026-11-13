@@ -164,6 +164,7 @@ defmodule PadocsWeb.DocumentLive do
               data-user-id={@current_user.id}
               data-user-name={@current_user.email}
               data-editable={to_string(@can_edit?)}
+              data-report-empty
             >
               <div
                 data-skeleton
@@ -284,6 +285,8 @@ defmodule PadocsWeb.DocumentLive do
                   active_id={@document && @document.id}
                   expanded={@expanded}
                   user_id={@current_user.id}
+                  active_empty?={@body_empty?}
+                  deleting={@deleting}
                 />
               </ul>
               <div
@@ -588,6 +591,8 @@ defmodule PadocsWeb.DocumentLive do
   attr :active_id, :string, required: true
   attr :expanded, :any, required: true, doc: "the ids of the documents unfolded"
   attr :user_id, :string, required: true
+  attr :active_empty?, :boolean, required: true, doc: "whether the open document's body is empty"
+  attr :deleting, :any, required: true, doc: "the ids of the empty documents left, being deleted"
 
   attr :parent_writable?, :boolean,
     default: false,
@@ -650,6 +655,18 @@ defmodule PadocsWeb.DocumentLive do
           <.icon name="hero-document-text" class="size-4 shrink-0" />
           <span class="truncate">{document.title || gettext("Untitled")}</span>
         </.link>
+        <.deletion_mark
+          :if={MapSet.member?(@deleting, document.id)}
+          id={"documents-#{document.id}-deleting"}
+          countdown
+        />
+        <.deletion_mark
+          :if={
+            @active_id == document.id and @active_empty? and blank?(document.title) and
+              !@children[document.id]
+          }
+          id={"documents-#{document.id}-empty"}
+        />
         <button
           :if={Policy.can?(document.role, :write)}
           id={"documents-#{document.id}-new"}
@@ -672,6 +689,8 @@ defmodule PadocsWeb.DocumentLive do
           active_id={@active_id}
           expanded={@expanded}
           user_id={@user_id}
+          active_empty?={@active_empty?}
+          deleting={@deleting}
           parent_writable?={Policy.can?(document.role, :write)}
         />
       </ul>
@@ -683,6 +702,55 @@ defmodule PadocsWeb.DocumentLive do
   # ancestors, so that it shows in their whole tree; itself without any. Only
   # those linked to it without a gap: a parent the user cannot read would
   # leave it out of the tree.
+  attr :id, :string, required: true
+  attr :countdown, :boolean, default: false, doc: "whether the document was left, being deleted"
+
+  # An empty document, deleted when left (see YPersistence): a trash in a
+  # dotted ring while open; once left, in a ring emptying over the seconds
+  # before its deletion.
+  defp deletion_mark(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :label,
+        if(assigns.countdown,
+          do: gettext("Empty: being deleted"),
+          else: gettext("Empty: deleted when you leave it")
+        )
+      )
+
+    ~H"""
+    <span
+      id={@id}
+      role="img"
+      aria-label={@label}
+      title={@label}
+      class={[
+        "relative flex size-5 shrink-0 items-center justify-center",
+        if(@countdown, do: "text-error", else: "text-base-content/60")
+      ]}
+    >
+      <svg viewBox="0 0 20 20" class="absolute inset-0 size-5 -rotate-90" aria-hidden="true">
+        <circle
+          cx="10"
+          cy="10"
+          r="8.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          class={
+            if(@countdown,
+              do: "[stroke-dasharray:53.41] motion-safe:animate-countdown",
+              else: "[stroke-dasharray:2_2.45]"
+            )
+          }
+        />
+      </svg>
+      <.icon name="hero-trash-micro" class="size-3" />
+    </span>
+    """
+  end
+
   defp tree_root(nil, _ancestors, _documents), do: []
 
   defp tree_root(document, ancestors, documents) do
@@ -1517,7 +1585,11 @@ defmodule PadocsWeb.DocumentLive do
        # them as trees (see document_items/1), and the documents unfolded.
        documents: Map.new(documents, &{&1.id, &1}),
        expanded: MapSet.new(),
-       ancestors: []
+       ancestors: [],
+       # whether the open document's body is empty (told by its editor), and
+       # the empty documents left, deleted a few seconds later (see YPersistence)
+       body_empty?: false,
+       deleting: MapSet.new()
      )
      |> stream(:viewers, [])
      |> stream(:members, [])
@@ -1644,6 +1716,7 @@ defmodule PadocsWeb.DocumentLive do
 
   defp leave_document(socket) do
     document_id = socket.assigns.document.id
+    socket = socket |> mark_deleting() |> assign(body_empty?: false)
 
     if connected?(socket) do
       Phoenix.PubSub.unsubscribe(Padocs.PubSub, YPersistence.topic(document_id))
@@ -1654,6 +1727,28 @@ defmodule PadocsWeb.DocumentLive do
 
     socket
   end
+
+  # The open document, left empty: YPersistence deletes it once no one has it
+  # open, a few seconds later. Unless other people still have it open, the
+  # sidebar shows it going until :document_deleted, or for 15 s at most.
+  defp mark_deleting(socket) do
+    %{document: document, body_empty?: empty?, current_user: user} = socket.assigns
+
+    alone? =
+      not connected?(socket) or Enum.all?(viewers(document.id), &(&1.id == user.id))
+
+    if empty? and blank?(document.title) and alone? and not Document.has_children?(document.id) do
+      Process.send_after(self(), {:forget_deleting, document.id}, :timer.seconds(15))
+      update(socket, :deleting, &MapSet.put(&1, document.id))
+    else
+      socket
+    end
+  end
+
+  defp blank?(title), do: is_nil(title) or String.trim(title) == ""
+
+  def handle_info({:forget_deleting, document_id}, socket),
+    do: {:noreply, update(socket, :deleting, &MapSet.delete(&1, document_id))}
 
   def handle_info({:document_updated, document_id, at, title}, socket) do
     if socket.assigns.document.id == document_id do
@@ -1689,7 +1784,10 @@ defmodule PadocsWeb.DocumentLive do
   # YPersistence): the latter is open nowhere, so an open one went to the
   # trash, on this page (which said so) or another.
   def handle_info({:document_deleted, document_id}, socket) do
-    socket = update(socket, :documents, &Map.delete(&1, document_id))
+    socket =
+      socket
+      |> update(:documents, &Map.delete(&1, document_id))
+      |> update(:deleting, &MapSet.delete(&1, document_id))
 
     if socket.assigns.document.id == document_id do
       socket =
@@ -1797,6 +1895,13 @@ defmodule PadocsWeb.DocumentLive do
     |> Presence.list_users()
     |> Enum.map(fn %{metas: [meta | _]} -> meta end)
     |> Enum.sort_by(& &1.email)
+  end
+
+  # Told by the editor when the open document's body becomes empty or not.
+  def handle_event("body_emptiness", %{"id" => id, "empty" => empty}, socket) do
+    if socket.assigns.document.id == id and is_boolean(empty),
+      do: {:noreply, assign(socket, body_empty?: empty)},
+      else: {:noreply, socket}
   end
 
   def handle_event("new_document", _params, socket) do
