@@ -348,6 +348,7 @@ msgid "Its owner may have disabled or replaced it, or the document was deleted."
 msgstr ""
 
 #: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Language"
 msgstr ""
@@ -682,7 +683,7 @@ msgstr ""
 msgid "Sign in with %{provider}"
 msgstr ""
 
-#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Sign out"
 msgstr ""
@@ -1038,4 +1039,55 @@ msgstr ""
 #: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "↑ ↓ to choose · Enter to open · Esc to close"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Account"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Back to the documents"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Dark"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Kept in this browser."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Light"
+msgstr ""
+
+#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Preferences"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "System"
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "The language of the interface and of the emails you receive."
+msgstr ""
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Theme"
 msgstr ""

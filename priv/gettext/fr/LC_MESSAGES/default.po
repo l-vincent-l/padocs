@@ -348,6 +348,7 @@ msgid "Its owner may have disabled or replaced it, or the document was deleted."
 msgstr "Son propriétaire a pu le désactiver ou le remplacer, ou le document a été supprimé."
 
 #: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Language"
 msgstr "Langue"
@@ -682,7 +683,7 @@ msgstr "Connectez-vous pour confirmer votre adresse e-mail. Si vous n'avez pas c
 msgid "Sign in with %{provider}"
 msgstr "Se connecter avec %{provider}"
 
-#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Sign out"
 msgstr "Se déconnecter"
@@ -1039,3 +1040,54 @@ msgstr "« %{title} » prendra les accès de son nouveau parent."
 #, elixir-autogen, elixir-format
 msgid "↑ ↓ to choose · Enter to open · Esc to close"
 msgstr "↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Account"
+msgstr "Compte"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Back to the documents"
+msgstr "Retour aux documents"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Dark"
+msgstr "Sombre"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Email address"
+msgstr "Adresse e-mail"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Kept in this browser."
+msgstr "Gardé dans ce navigateur."
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Light"
+msgstr "Clair"
+
+#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Preferences"
+msgstr "Préférences"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "System"
+msgstr "Système"
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "The language of the interface and of the emails you receive."
+msgstr "La langue de l'interface et des e-mails que vous recevez."
+
+#: lib/padocs_web/live/preferences_live.ex
+#, elixir-autogen, elixir-format
+msgid "Theme"
+msgstr "Thème"

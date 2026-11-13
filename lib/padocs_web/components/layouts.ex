@@ -55,16 +55,26 @@ defmodule PadocsWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex items-center gap-4 text-sm">
-          <li :if={@current_user} class="hidden sm:block">
-            {@current_user.email}
+          <%!-- Signed in, the rest is in the preferences --%>
+          <li :if={@current_user}>
+            <.link
+              id="header-preferences-link"
+              navigate={~p"/preferences"}
+              title={gettext("Preferences")}
+              class="flex items-center gap-1.5 hover:underline"
+            >
+              <span class="hidden sm:inline">{@current_user.email}</span>
+              <.icon name="hero-cog-6-tooth" class="size-4" />
+              <span class="sr-only">{gettext("Preferences")}</span>
+            </.link>
           </li>
-          <li>
-            <.sign_out_link current_user={@current_user} />
+          <li :if={!@current_user}>
+            <.link href={~p"/sign-in"} class="link">{gettext("Sign in")}</.link>
           </li>
-          <li>
+          <li :if={!@current_user}>
             <.locale_switch />
           </li>
-          <li>
+          <li :if={!@current_user}>
             <.theme_toggle />
           </li>
         </ul>
@@ -104,42 +114,29 @@ defmodule PadocsWeb.Layouts do
   end
 
   @doc """
-  The account controls at the bottom of a page's sidebar: the user's email,
-  signing out, the language, the theme. See the `sidebar` attribute of
-  `app/1`.
+  The account at the bottom of a page's sidebar: the user's email, leading
+  to their preferences (language, theme, signing out, see
+  `PadocsWeb.PreferencesLive`). See the `sidebar` attribute of `app/1`.
   """
   attr :current_user, :map, required: true
 
   def account(assigns) do
     ~H"""
     <div id="account" class="mt-auto border-t-2 border-dotted border-base-content/40 pt-4 text-sm">
-      <p class="truncate" title={@current_user.email}>{@current_user.email}</p>
-      <%!-- The controls go under the link when they do not fit beside it --%>
-      <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <.sign_out_link current_user={@current_user} />
-        <div class="flex items-center gap-2">
-          <.locale_switch />
-          <.theme_toggle />
-        </div>
-      </div>
+      <.link
+        id="preferences-link"
+        navigate={~p"/preferences"}
+        title={gettext("Preferences")}
+        class="group -mx-2 flex items-center gap-2 px-2 py-1.5 transition-colors hover:bg-base-200"
+      >
+        <span class="min-w-0 flex-1 truncate">{@current_user.email}</span>
+        <.icon
+          name="hero-cog-6-tooth"
+          class="size-4 shrink-0 text-base-content/60 transition-transform duration-300 group-hover:rotate-45 group-hover:text-base-content"
+        />
+        <span class="sr-only">{gettext("Preferences")}</span>
+      </.link>
     </div>
-    """
-  end
-
-  attr :current_user, :map, default: nil
-
-  defp sign_out_link(assigns) do
-    ~H"""
-    <.link
-      :if={@current_user}
-      href={~p"/sign-out"}
-      method="delete"
-      id="sign-out"
-      class="link whitespace-nowrap"
-    >
-      {gettext("Sign out")}
-    </.link>
-    <.link :if={!@current_user} href={~p"/sign-in"} class="link">{gettext("Sign in")}</.link>
     """
   end
 
