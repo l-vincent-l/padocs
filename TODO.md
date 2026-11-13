@@ -39,10 +39,10 @@ DocServer and SQLite.
   pushed, see its README) keeps `:syn` and makes the saves conditional, merging
   the saved snapshot on a conflict: no edit lost when a partition heals.
   To do: rebase it on main (trash, order, roles reloaded by the DocServer);
-  try the conditional `UPDATE` on libSQL / Bunny Database (`ecto_hrana`);
-  check whether the tantivy index is per node, and share it or broadcast the
-  indexing. The `durable-server` branch holds the lock-based alternative, set
-  aside.
+  try the conditional `UPDATE` on libSQL / Bunny Database (`ecto_hrana`).
+  The search index is already per node, its changes broadcast to every node
+  (`SearchIndex.changed/1`). The `durable-server` branch holds the lock-based
+  alternative, set aside.
 - **Updates of the other node.** Each document has a Yjs log
   (`Document.History`): two DocServers of a document, on two nodes, cannot
   lose each other's edits. Still, a DocServer that only appends does not read
@@ -71,6 +71,12 @@ From the load tests (`loadtest/`, results in `PERFORMANCES.md`), on 1 CPU and
   of readable documents, index the ids of each document's ancestors and
   their owners, and filter by the user's memberships and their own id; a
   move then indexes the moved documents again.
+- **Search: the index at start.** `SearchIndex` builds the index of all the
+  documents at each start, in native memory (9 MB for 200 documents of
+  1,600 words, 57 MB for 20,000 of 200 words): until it is done, searches
+  find fewer documents. A document deleted with its parent stays in it until
+  the next start, never found. Measure the build on many documents; past
+  that, keep the index on disk.
 - **Broadcast the edits of a document grouped.** The document's
   `Yex.DocServer.Worker` applies each edit and broadcasts it to everyone else
   at once (`broadcast_from`): with everyone writing, the messages grow as the
