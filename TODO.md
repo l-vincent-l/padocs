@@ -112,8 +112,9 @@ From the load tests (`loadtest/`, results in its README), on 1 CPU and
 - **Images removed from a document** stay stored until the document is
   deleted for good: its history may still show them. Delete those no
   version refers to, when the history is compacted.
-- **Bunny.** Check that the S3 storage works with Bunny's own (Edge Storage
-  speaks S3 or not), else give it an adapter of its own.
+- **Bunny.** A persistent volume with `FILES_PATH` is enough for a small
+  instance. For more, check that the S3 storage works with Bunny's own
+  (Edge Storage speaks S3 or not), else give it an adapter of its own.
 - **S3 against a real service.** `S3Storage` is only tested against a stub
   (`Req.Test`): try it on Tigris and on a MinIO.
 

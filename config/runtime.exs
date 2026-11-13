@@ -108,8 +108,9 @@ if config_env() == :prod do
   # bucket when FILES_S3_BUCKET is set, e.g. on Tigris (`fly storage create`
   # sets the AWS_* variables), under an optional FILES_S3_PREFIX; otherwise in
   # FILES_PATH, by default the folder `files` next to the SQLite database (on
-  # Fly.io, on the volume). Without either, as on Bunny, in a temporary
-  # folder, lost when the container restarts.
+  # Fly.io, on the volume). On Bunny, whose database is remote, FILES_PATH
+  # goes on a persistent volume. Without any, in a temporary folder, lost
+  # when the container restarts.
   files_storage =
     if bucket = System.get_env("FILES_S3_BUCKET") do
       {Textexp.Files.S3Storage,
