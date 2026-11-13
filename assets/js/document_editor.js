@@ -8,7 +8,9 @@
 // blocknote/export.ts); `export_done` (`missing_files`, the files left out) or
 // `export_failed` is sent back. The `show_version`, `hide_version` and
 // `restore_version` events show a version of the document's history, from
-// its Yjs state, hide it, or restore it (see blocknote.tsx).
+// its Yjs state, hide it, or restore it (see blocknote.tsx). With
+// data-report-empty, `body_emptiness` (`id`, `empty`) tells whether the
+// document is empty, when that changes.
 export const DocumentEditor = {
   mounted() {
     const resolveUsers = ids =>
@@ -16,8 +18,16 @@ export const DocumentEditor = {
         this.pushEvent("resolve_users", {ids}, reply => resolve(reply.users))
       )
 
+    // On a document's page (data-report-empty), whether it is empty: the
+    // sidebar shows that it will be deleted when left.
+    const documentId = this.el.dataset.documentId
+    const onEmptyChange =
+      this.el.dataset.reportEmpty === undefined
+        ? undefined
+        : empty => this.pushEvent("body_emptiness", {id: documentId, empty})
+
     this.mounting = import("./blocknote/blocknote").then(({ mountEditor }) =>
-      this.isDestroyed ? null : mountEditor(this.el, {resolveUsers})
+      this.isDestroyed ? null : mountEditor(this.el, {resolveUsers, onEmptyChange})
     )
 
     this.handleEvent("export_document", ({format, filename}) => {

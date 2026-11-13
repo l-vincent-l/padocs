@@ -139,6 +139,19 @@ function Version({ fragment, threadStore, resolveUsers }: VersionProps) {
   return <BlockNoteView editor={editor} editable={false} theme="light" />;
 }
 
+// Empty as the server sees it (see YexBlockNote.empty?/1): only paragraphs,
+// of text alone, without any; an empty document is deleted when left.
+function isEmpty(blocks: any[]): boolean {
+  return blocks.every(
+    (block) =>
+      block.type === "paragraph" &&
+      Array.isArray(block.content) &&
+      block.content.every((inline: any) => inline.type === "text") &&
+      block.content.map((inline: any) => inline.text).join("").trim() === "" &&
+      isEmpty(block.children),
+  );
+}
+
 // The fragment the editor syncs (see Padocs.Document.Body on the server).
 const FRAGMENT = "document-store";
 
@@ -154,13 +167,18 @@ function docFromState(state: Uint8Array): Y.Doc {
  * read-only editor; `data-public-token` for a document read by its public
  * link, then kept nowhere in the browser), which holds the loading skeleton and the
  * hidden editor node. `resolveUsers` gives the users of the given ids. Returns
+ * `onEmptyChange` is told whether the document is empty (see `isEmpty`), once
+ * synced with the server and then each time that changes. Returns
  * the function that tears it all down, and the one exporting the document as
  * a file (see export.ts), and those showing a past version of the document
  * in place of the editor, and restoring it.
  */
 export function mountEditor(
   el: HTMLElement,
-  { resolveUsers }: { resolveUsers: ResolveUsers },
+  {
+    resolveUsers,
+    onEmptyChange,
+  }: { resolveUsers: ResolveUsers; onEmptyChange?: (empty: boolean) => void },
 ): {
   unmount: () => void;
   exportDocument: (format: ExportFormat, filename: string) => Promise<{ missingFiles: number }>;
@@ -215,8 +233,24 @@ export function mountEditor(
     editorNode.hidden = false;
   };
 
-  provider.on("sync", (synced: boolean) => {
-    if (synced) showEditor();
+  // Whether the document is empty, told once it is synced with the server
+  // (before, an empty editor may only be loading), then on each change of it.
+  let editor: BlockNoteEditor<any, any, any> | null = null;
+  let synced = false;
+  let lastEmpty: boolean | null = null;
+  const reportEmpty = () => {
+    if (!onEmptyChange || !editor || !synced) return;
+    const empty = isEmpty(editor.document);
+    if (empty === lastEmpty) return;
+    lastEmpty = empty;
+    onEmptyChange(empty);
+  };
+
+  provider.on("sync", (isSynced: boolean) => {
+    if (!isSynced) return;
+    showEditor();
+    synced = true;
+    reportEmpty();
   });
   persistence?.whenSynced.then(() => {
     if (fragment.length > 0) showEditor();
@@ -226,7 +260,6 @@ export function mountEditor(
   // as if at its end: in its last block, or in a new paragraph after it when
   // that block has no text (e.g. an image).
   const editable = el.dataset.editable !== "false";
-  let editor: BlockNoteEditor<any, any, any> | null = null;
   const editAtEnd = (event: MouseEvent) => {
     if (!editor || !editable || editorNode.hidden) return;
     if (event.target !== el && event.target !== editorNode) return;
@@ -258,7 +291,11 @@ export function mountEditor(
               (await uploadFile(`/documents/${documentId}/files`, file)).url
           : undefined
       }
-      onReady={(e) => (editor = e)}
+      onReady={(e) => {
+        editor = e;
+        e.onChange(reportEmpty);
+        reportEmpty();
+      }}
     />,
   );
 

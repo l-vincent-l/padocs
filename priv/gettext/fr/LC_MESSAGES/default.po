@@ -1144,3 +1144,13 @@ msgstr "Votre adresse e-mail n'a pas été confirmée à temps. Réinitialisez v
 #, elixir-autogen, elixir-format
 msgid "Tags:"
 msgstr "Tags :"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Empty: being deleted"
+msgstr "Vide : en cours de suppression"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Empty: deleted when you leave it"
+msgstr "Vide : supprimé quand vous le quitterez"

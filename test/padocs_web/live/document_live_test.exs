@@ -496,6 +496,55 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert has_element?(view, "#breadcrumb-#{parent.id}", "Projet")
     end
 
+    test "an empty document shows it will be deleted, then goes when left",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+      editor = "#document-editor-#{child.id}[data-report-empty]"
+
+      # Not before its editor says it is empty
+      refute has_element?(view, "#documents-#{child.id}-empty")
+
+      view |> element(editor) |> render_hook("body_emptiness", %{id: child.id, empty: true})
+      assert has_element?(view, "#documents-#{child.id}-empty[title]")
+
+      view |> element(editor) |> render_hook("body_emptiness", %{id: child.id, empty: false})
+      refute has_element?(view, "#documents-#{child.id}-empty")
+
+      view |> element(editor) |> render_hook("body_emptiness", %{id: child.id, empty: true})
+
+      view
+      |> element("#documents-#{parent.id} a[href='/documents/#{parent.id}']")
+      |> render_click()
+
+      assert has_element?(view, "#documents-#{child.id}-deleting")
+      refute has_element?(view, "#documents-#{child.id}-empty")
+
+      # deleted by its DocServer, a few seconds later (see YPersistence)
+      send(view.pid, {:document_deleted, child.id})
+      refute has_element?(view, "#documents-#{child.id}")
+    end
+
+    test "a document with a title or sub-documents is not shown as deleted",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+      editor = "#document-editor-#{parent.id}"
+
+      # its body empty, but it has a title
+      view |> element(editor) |> render_hook("body_emptiness", %{id: parent.id, empty: true})
+      refute has_element?(view, "#documents-#{parent.id}-empty")
+
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      {:ok, _} = Document.rename_document(parent, owner, "")
+      {:ok, view, _html} = live(conn, ~p"/documents/#{parent.id}")
+      view |> element(editor) |> render_hook("body_emptiness", %{id: parent.id, empty: true})
+
+      # no title, but a sub-document: kept when left
+      refute has_element?(view, "#documents-#{parent.id}-empty")
+      render_patch(view, ~p"/documents/#{child.id}")
+      refute has_element?(view, "#documents-#{parent.id}-deleting")
+    end
+
     test "the sub-documents of a sub-document unfold on demand",
          %{conn: conn, owner: owner, parent: parent} do
       {:ok, child} = Document.create_sub_document(parent.id, owner)

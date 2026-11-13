@@ -213,6 +213,16 @@
   --font-mono: "DM Mono", ui-monospace, monospace;
   /* The site name, in pixels */
   --font-pixel: "Silkscreen", "DM Mono", monospace;
+  /* A ring emptying (stroke-dasharray: its length, 2π × 8.5) over the 5 s
+     before an empty document left is deleted, with some margin (see the
+     deletion_mark of DocumentLive) */
+  --animate-countdown: countdown 5.5s linear forwards;
+
+  @keyframes countdown {
+    to {
+      stroke-dashoffset: 53.41;
+    }
+  }
   /* The paragraphs of the documents: proportional, for reading */
   --font-reading: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   /* A hard shadow, offset down right, set off from the box by a gap */
