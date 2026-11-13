@@ -612,6 +612,7 @@ msgid "Root"
 msgstr ""
 
 #: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Search"
 msgstr ""
@@ -1136,4 +1137,9 @@ msgstr ""
 #: lib/padocs_web/controllers/auth_controller.ex
 #, elixir-autogen, elixir-format
 msgid "Your email address was not confirmed in time. Reset your password: this confirms your address and lets you sign in again."
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Tags:"
 msgstr ""

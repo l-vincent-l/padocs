@@ -49,7 +49,7 @@ defmodule PadocsWeb.DocumentLive do
                 :if={@ancestors != []}
                 id="breadcrumb"
                 aria-label={gettext("Parent documents")}
-                class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/60"
+                class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/70"
               >
                 <%= for ancestor <- @ancestors do %>
                   <.link
@@ -76,32 +76,32 @@ defmodule PadocsWeb.DocumentLive do
                   phx-debounce="300"
                   autocomplete="off"
                   readonly={!@can_edit?}
-                  class="w-full bg-transparent text-(--color-document) text-2xl font-medium leading-tight tracking-wide outline-none placeholder:text-base-content/30 sm:text-3xl"
+                  class="w-full bg-transparent text-(--color-document) text-3xl font-medium leading-tight tracking-wide outline-none placeholder:text-base-content/30 sm:text-4xl"
                 />
               </.form>
-              <div class="mt-1 flex items-start justify-between gap-2">
-                <div class="flex min-w-0 flex-col gap-1">
-                  <div class={[
-                    "flex flex-wrap items-center gap-1.5",
-                    (@tag_count == 0 and !@can_edit?) && "hidden"
-                  ]}>
-                    <.tags
-                      tags={@streams.tags}
-                      tag_count={@tag_count}
-                      can_edit?={@can_edit?}
-                      adding_tag?={@adding_tag?}
-                      form={@tag_form}
-                      suggestions={@tag_suggestions}
-                    />
-                  </div>
-                  <p id="last-update" class="text-xs text-base-content/60">
-                    {gettext("Last update: %{at} UTC",
-                      at: Calendar.strftime(@last_update, gettext("%m/%d/%Y %H:%M:%S"))
-                    )}
-                  </p>
+              <%!-- Under the title, on one line: its tags, its last update, and
+                   the people who have it open --%>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <div class={[
+                  "flex flex-wrap items-center gap-1.5",
+                  (@tag_count == 0 and !@can_edit?) && "hidden"
+                ]}>
+                  <.tags
+                    tags={@streams.tags}
+                    tag_count={@tag_count}
+                    can_edit?={@can_edit?}
+                    adding_tag?={@adding_tag?}
+                    form={@tag_form}
+                    suggestions={@tag_suggestions}
+                  />
                 </div>
+                <p id="last-update" class="text-xs text-base-content/70">
+                  {gettext("Last update: %{at} UTC",
+                    at: Calendar.strftime(@last_update, gettext("%m/%d/%Y %H:%M:%S"))
+                  )}
+                </p>
                 <%!-- People who have this document open --%>
-                <ul id="viewers" class="flex -space-x-1.5" phx-update="stream">
+                <ul id="viewers" class="ml-auto flex -space-x-1.5" phx-update="stream">
                   <li
                     :for={{id, viewer} <- @streams.viewers}
                     id={id}
@@ -289,7 +289,7 @@ defmodule PadocsWeb.DocumentLive do
               <div
                 id="documents-root-drop"
                 data-drop-target="root"
-                class="mt-1 hidden items-center justify-center gap-1.5 border-2 border-dashed border-base-content/40 px-3 py-2 text-xs text-base-content/60 transition-colors group-data-[dragging=root]/tree:flex data-[drop-over]:border-base-content data-[drop-over]:bg-base-200 data-[drop-over]:text-base-content"
+                class="mt-1 hidden items-center justify-center gap-1.5 border-2 border-dashed border-base-content/40 px-3 py-2 text-xs text-base-content/70 transition-colors group-data-[dragging=root]/tree:flex data-[drop-over]:border-base-content data-[drop-over]:bg-base-200 data-[drop-over]:text-base-content"
               >
                 <.icon name="hero-arrow-up-left-micro" class="size-4" /> {gettext("Move to the root")}
               </div>
@@ -527,7 +527,7 @@ defmodule PadocsWeb.DocumentLive do
           title={gettext("Fold the menu (Ctrl+\\)")}
           class={[
             "fixed top-1/2 left-[calc(var(--sidebar-width)-0.625rem)] z-40 hidden h-10 w-5 -translate-y-1/2",
-            "cursor-pointer items-center justify-center border border-base-content/40 bg-base-100 text-base-content/60",
+            "cursor-pointer items-center justify-center border border-base-content/40 bg-base-100 text-base-content/70",
             "transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content",
             "focus-visible:border-base-content focus-visible:outline-none",
             "lg:flex lg:group-data-[collapsed]/drawer:hidden"
@@ -544,7 +544,7 @@ defmodule PadocsWeb.DocumentLive do
           title={gettext("Unfold the menu (Ctrl+\\)")}
           class={[
             "fixed top-1/2 left-0 z-40 hidden h-10 w-5 -translate-y-1/2",
-            "cursor-pointer items-center justify-center border border-l-0 border-base-content/40 bg-base-100 text-base-content/60",
+            "cursor-pointer items-center justify-center border border-l-0 border-base-content/40 bg-base-100 text-base-content/70",
             "transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content",
             "focus-visible:border-base-content focus-visible:outline-none",
             "lg:group-data-[collapsed]/drawer:flex"
@@ -781,7 +781,7 @@ defmodule PadocsWeb.DocumentLive do
           phx-click="open_tag_form"
           title={gettext("Add a tag")}
           class={[
-            "inline-flex h-5 cursor-pointer items-center gap-0.5 px-1 text-[0.6875rem] text-base-content/40",
+            "-ml-1 inline-flex h-5 cursor-pointer items-center gap-0.5 px-1 text-xs text-base-content/70",
             "transition-colors hover:text-base-content"
           ]}
         >
@@ -837,7 +837,7 @@ defmodule PadocsWeb.DocumentLive do
           {gettext("History…")}
         </.action_item>
         <div class="my-1 border-t border-dotted border-base-content/30"></div>
-        <p class="px-3 pt-1.5 pb-0.5 text-xs text-base-content/60">{gettext("Export as")}</p>
+        <p class="px-3 pt-1.5 pb-0.5 text-xs text-base-content/70">{gettext("Export as")}</p>
         <%!-- PDF, Markdown and Typst: made on the server, downloaded; Word and
              OpenDocument: made from the editor (see the DocumentEditor hook) --%>
         <.export_link document={@document} format="pdf" icon="hero-document-arrow-down">
@@ -976,7 +976,7 @@ defmodule PadocsWeb.DocumentLive do
       <div class="flex items-start justify-between gap-4 border-b-2 border-dotted border-base-content/40 px-4 py-3">
         <div class="min-w-0">
           <h2 id="history-title" class="text-sm uppercase">{gettext("History")}</h2>
-          <p class="mt-0.5 text-xs text-base-content/60">
+          <p class="mt-0.5 text-xs text-base-content/70">
             {gettext("The edits, by minute, then by hour, day and week as they age (UTC).")}
           </p>
         </div>
@@ -991,13 +991,13 @@ defmodule PadocsWeb.DocumentLive do
         </button>
       </div>
       <ul id="history-versions" phx-update="stream" class="flex-1 overflow-y-auto px-2 py-2">
-        <li id="history-empty" class="hidden px-2 py-3 text-sm text-base-content/60 only:block">
+        <li id="history-empty" class="hidden px-2 py-3 text-sm text-base-content/70 only:block">
           {gettext("No edit saved yet.")}
         </li>
         <li :for={{dom_id, version} <- @versions} id={dom_id}>
           <p
             :if={version.first_of_day?}
-            class="px-2 pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-base-content/60 first:pt-1"
+            class="px-2 pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-base-content/70 first:pt-1"
           >
             {day_label(version.ended_at)}
           </p>
@@ -1018,7 +1018,7 @@ defmodule PadocsWeb.DocumentLive do
             <span class="tabular-nums">{range_label(version)}</span>
             <span
               :if={version.last?}
-              class="text-xs text-base-content/60 group-aria-[current]:text-primary-content/80"
+              class="text-xs text-base-content/70 group-aria-[current]:text-primary-content/80"
             >
               {gettext("the latest")}
             </span>
@@ -1046,7 +1046,7 @@ defmodule PadocsWeb.DocumentLive do
         {gettext("Version of %{at} UTC",
           at: Calendar.strftime(@version.ended_at, gettext("%m/%d/%Y at %H:%M"))
         )}
-        <span class="text-base-content/60">— {gettext("read only")}</span>
+        <span class="text-base-content/70">— {gettext("read only")}</span>
       </span>
       <button
         :if={@can_edit?}
@@ -1119,7 +1119,7 @@ defmodule PadocsWeb.DocumentLive do
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 id="move-title" class="text-sm uppercase">{gettext("Move to…")}</h2>
-            <p class="mt-0.5 truncate text-xs text-base-content/60">
+            <p class="mt-0.5 truncate text-xs text-base-content/70">
               {gettext("“%{title}” will take the accesses of its new parent.",
                 title: @document.title || gettext("Untitled")
               )}
@@ -1153,7 +1153,7 @@ defmodule PadocsWeb.DocumentLive do
             >
               <.icon name="hero-document-text" class="size-4 shrink-0" />
               <span class="flex min-w-0 flex-col">
-                <span :if={path != []} class="truncate text-xs text-base-content/60">
+                <span :if={path != []} class="truncate text-xs text-base-content/70">
                   {Enum.join(path, " / ")}
                 </span>
                 <span class="truncate">{destination.title || gettext("Untitled")}</span>
@@ -1163,7 +1163,7 @@ defmodule PadocsWeb.DocumentLive do
           <li
             :if={@destinations == [] and !@can_move_to_root?}
             id="move-empty"
-            class="py-2 text-sm text-base-content/60"
+            class="py-2 text-sm text-base-content/70"
           >
             {gettext("No other document to put it in.")}
           </li>
@@ -1212,7 +1212,7 @@ defmodule PadocsWeb.DocumentLive do
           <h3 class="flex items-center gap-1.5 text-xs uppercase">
             <.icon name="hero-globe-alt" class="size-4" /> {gettext("Public link")}
           </h3>
-          <p class="mt-0.5 text-xs text-base-content/60">
+          <p class="mt-0.5 text-xs text-base-content/70">
             <%= if @token do %>
               {gettext(
                 "Anyone with this link reads the document, without an account, but not its sub-documents."
@@ -1328,7 +1328,7 @@ defmodule PadocsWeb.DocumentLive do
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 id="share-title" class="text-sm uppercase">{gettext("Share this document")}</h2>
-            <p class="mt-0.5 text-xs text-base-content/60">
+            <p class="mt-0.5 text-xs text-base-content/70">
               {gettext("The person must already have an account.")}
             </p>
           </div>
@@ -1376,7 +1376,7 @@ defmodule PadocsWeb.DocumentLive do
           phx-update="stream"
           class="mt-2 divide-y-2 divide-dotted divide-base-content/30"
         >
-          <li id="members-empty" class="hidden py-2 text-sm text-base-content/60 only:block">
+          <li id="members-empty" class="hidden py-2 text-sm text-base-content/70 only:block">
             {if @inherited == [],
               do: gettext("Not shared yet."),
               else: gettext("No access of its own to this document.")}
@@ -1431,7 +1431,7 @@ defmodule PadocsWeb.DocumentLive do
         </ul>
         <div :if={@inherited != []} id="inherited-accesses" class="mt-5">
           <h3 class="text-xs uppercase">{gettext("Inherited accesses")}</h3>
-          <p class="mt-0.5 text-xs text-base-content/60">
+          <p class="mt-0.5 text-xs text-base-content/70">
             {gettext("Given by the parent documents: they are changed from these documents.")}
           </p>
           <ul class="mt-1 divide-y-2 divide-dotted divide-base-content/30">
@@ -1451,7 +1451,7 @@ defmodule PadocsWeb.DocumentLive do
                   >{gettext("(you)")}</span>
                 </span>
               </span>
-              <span class="flex min-w-0 shrink-0 items-center gap-2 text-xs text-base-content/60">
+              <span class="flex min-w-0 shrink-0 items-center gap-2 text-xs text-base-content/70">
                 <%= if access.from do %>
                   <.link
                     id={"inherited-#{access.user_id}-from"}

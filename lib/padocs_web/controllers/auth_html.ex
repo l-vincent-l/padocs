@@ -55,7 +55,9 @@ defmodule PadocsWeb.AuthHTML do
       </a>
       <a href="/auth/user/gitlab" class="btn w-full">
         <img src={~p"/images/gitlab.svg"} alt="" class="size-5" /> {gettext(
-          "Sign in with %{provider}", provider: "GitLab")}
+          "Sign in with %{provider}",
+          provider: "GitLab"
+        )}
       </a>
     </.auth_page>
     """

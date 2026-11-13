@@ -132,7 +132,7 @@ defmodule PadocsWeb.Layouts do
         <span class="min-w-0 flex-1 truncate">{@current_user.email}</span>
         <.icon
           name="hero-cog-6-tooth"
-          class="size-4 shrink-0 text-base-content/60 transition-transform duration-300 group-hover:rotate-45 group-hover:text-base-content"
+          class="size-4 shrink-0 text-base-content/70 transition-transform duration-300 group-hover:rotate-45 group-hover:text-base-content"
         />
         <span class="sr-only">{gettext("Preferences")}</span>
       </.link>
@@ -218,7 +218,7 @@ defmodule PadocsWeb.Layouts do
           "cursor-pointer px-1.5 py-1 font-medium transition-colors",
           if(locale == @current,
             do: "bg-base-300",
-            else: "text-base-content/60 hover:bg-base-200 hover:text-base-content"
+            else: "text-base-content/70 hover:bg-base-200 hover:text-base-content"
           )
         ]}
       >

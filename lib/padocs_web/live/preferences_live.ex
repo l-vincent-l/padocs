@@ -20,7 +20,7 @@ defmodule PadocsWeb.PreferencesLive do
           <.link
             id="preferences-back"
             navigate={~p"/documents"}
-            class="inline-flex items-center gap-1 text-xs text-base-content/60 transition-colors hover:text-base-content"
+            class="inline-flex items-center gap-1 text-xs text-base-content/70 transition-colors hover:text-base-content"
           >
             <.icon name="hero-arrow-left-micro" class="size-4" /> {gettext("Back to the documents")}
           </.link>
@@ -28,7 +28,7 @@ defmodule PadocsWeb.PreferencesLive do
         </div>
 
         <.section id="preferences-language" title={gettext("Language")}>
-          <p class="text-xs text-base-content/60">
+          <p class="text-xs text-base-content/70">
             {gettext("The language of the interface and of the emails you receive.")}
           </p>
           <form
@@ -53,7 +53,7 @@ defmodule PadocsWeb.PreferencesLive do
         </.section>
 
         <.section id="preferences-theme" title={gettext("Theme")}>
-          <p class="text-xs text-base-content/60">
+          <p class="text-xs text-base-content/70">
             {gettext("Kept in this browser.")}
           </p>
           <%!-- The theme chosen marks its button through the attributes of
@@ -89,7 +89,7 @@ defmodule PadocsWeb.PreferencesLive do
         <.section id="preferences-account" title={gettext("Account")}>
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="min-w-0">
-              <p class="text-xs text-base-content/60">{gettext("Email address")}</p>
+              <p class="text-xs text-base-content/70">{gettext("Email address")}</p>
               <p id="account-email" class="truncate">{@current_user.email}</p>
             </div>
             <.link
@@ -105,10 +105,10 @@ defmodule PadocsWeb.PreferencesLive do
           <div
             :if={is_nil(@current_user.confirmed_at)}
             id="account-unconfirmed"
-            class="mt-4 flex flex-wrap items-center justify-between gap-3 border-2 border-dashed border-warning/60 px-3 py-2.5"
+            class="mt-4 flex flex-wrap items-center justify-between gap-3 border-2 border-warning bg-warning/15 px-3 py-2.5"
           >
             <p class="flex min-w-0 items-center gap-2 text-xs">
-              <.icon name="hero-exclamation-triangle" class="size-4 shrink-0 text-warning" />
+              <.icon name="hero-exclamation-triangle" class="size-4 shrink-0" />
               <%= cond do %>
                 <% @confirmation_sent -> %>
                   {gettext("A new confirmation link is on its way to your inbox.")}
