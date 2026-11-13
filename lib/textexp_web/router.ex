@@ -21,13 +21,16 @@ defmodule TextexpWeb.Router do
     pipe_through :browser
 
     # Each LiveView requires a signed-in user (see LiveUserAuth).
-    live_session :authenticated_routes, on_mount: [{TextexpWeb.LiveUserAuth, :current_user}] do
+    # A page out of date after a deploy is reloaded (see StaticChanged).
+    live_session :authenticated_routes,
+      on_mount: [{TextexpWeb.LiveUserAuth, :current_user}, TextexpWeb.StaticChanged] do
       live "/documents", DocumentLive, :index
       live "/documents/:id", DocumentLive, :show
     end
 
     # A document read by its public link, signed in or not
-    live_session :public_routes, on_mount: [{TextexpWeb.LiveUserAuth, :current_user}] do
+    live_session :public_routes,
+      on_mount: [{TextexpWeb.LiveUserAuth, :current_user}, TextexpWeb.StaticChanged] do
       live "/p/:token", PublicDocumentLive, :show
     end
 
