@@ -103,11 +103,28 @@ From the load tests (`loadtest/`, results in its README), on 1 CPU and
   sub-document goes and comes back with its parent. If a sub-document can one
   day be restored alone, put it at the root when its parent is gone.
 
+## Files
+
+- **Images of imports never done.** The images of a Word file are uploaded
+  before its document is created: an import that fails leaves them, without
+  document, readable by their owner only. Delete those older than a day, in
+  a periodic job.
+- **Images removed from a document** stay stored until the document is
+  deleted for good: its history may still show them. Delete those no
+  version refers to, when the history is compacted.
+- **Against real services.** `S3Storage` and `BunnyStorage` are only
+  tested against stubs (`Req.Test`): try them on Tigris, a MinIO and the
+  Bunny Storage zone.
+- **Bunny Storage sends the bytes through the application**, its API having
+  no signed URLs: serve them by a pull zone with token authentication, when
+  the images get many.
+
 ## Export
 
-- **Images in the PDF.** They are links, not embedded: the server would have
-  to download them, with the care that takes (only http(s), size and time
-  limits, no internal addresses).
+- **Images in the PDF.** They are links, not embedded. Those stored by
+  `Textexp.Files` could be read from the storage and embedded; the others
+  would have to be downloaded, with the care that takes (only http(s), size
+  and time limits, no internal addresses).
 - **Up-to-date server exports.** The PDF, Markdown and Typst read the saved
   snapshot, which can miss the last seconds of edits: ask the running
   DocServer for its state, or flush it first.

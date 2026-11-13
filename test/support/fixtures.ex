@@ -46,4 +46,21 @@ defmodule Textexp.Fixtures do
       user_token: Accounts.generate_user_session_token(user)
     })
   end
+
+  @doc "The Yjs state of a BlockNote document holding one paragraph of `text`."
+  def yjs_state(text) do
+    doc = Yex.Doc.new()
+
+    doc
+    |> Yex.Doc.get_xml_fragment("document-store")
+    |> Yex.XmlFragment.push(
+      Yex.XmlElementPrelim.new("blockGroup", [
+        Yex.XmlElementPrelim.new("blockContainer", [
+          Yex.XmlElementPrelim.new("paragraph", [Yex.XmlTextPrelim.from(text)])
+        ])
+      ])
+    )
+
+    Yex.encode_state_as_update!(doc)
+  end
 end

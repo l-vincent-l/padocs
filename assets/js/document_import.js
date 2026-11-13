@@ -3,7 +3,8 @@
 // Yjs state sent to the server, which creates the document. One imported file
 // is opened. The BlockNote bundle is only loaded on the first import.
 const MAX_BYTES = 2_000_000
-// A Word file is a zip, holding its images, which are left out.
+// A Word file is a zip, holding its images, uploaded apart (each up to the
+// server's limit, see Textexp.Files).
 const MAX_DOCX_BYTES = 10_000_000
 
 export const DocumentImport = {
@@ -44,11 +45,12 @@ export const DocumentImport = {
 
     try {
       const content = format === "docx" ? await file.arrayBuffer() : await file.text()
-      const {state, missingImages} = await toYjsState(content, format)
+      const {state, fileIds, missingImages} = await toYjsState(content, format)
 
       return await this.push("import_document", {
         name: file.name,
         state: toBase64(state),
+        file_ids: fileIds,
         missing_images: missingImages,
       })
     } catch (error) {

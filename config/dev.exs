@@ -6,6 +6,10 @@ config :textexp, Textexp.SqliteRepo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
+# The files of the documents (see Textexp.Files), in a local folder.
+config :textexp, Textexp.Files,
+  storage: {Textexp.Files.LocalStorage, root: Path.join(__DIR__, "../files")}
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #

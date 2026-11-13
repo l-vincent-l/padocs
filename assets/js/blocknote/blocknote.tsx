@@ -20,6 +20,7 @@ import { Socket } from "phoenix";
 import { BlockNoteEditor, User } from "@blocknote/core";
 import { watchSyncStatus } from "./sync_status";
 import type { ExportFormat } from "./export";
+import { uploadFile } from "./upload";
 
 const usercolors = [
   "#30bced",
@@ -57,6 +58,9 @@ type EditorProps = {
   editable: boolean;
   threadStore: ThreadStore;
   resolveUsers: ResolveUsers;
+  // Stores an image dropped, pasted or chosen in the editor; without it,
+  // images are only embedded by their URL.
+  uploadFile?: (file: File) => Promise<string>;
   onReady: (editor: BlockNoteEditor<any, any, any>) => void;
 };
 
@@ -67,6 +71,7 @@ function Editor({
   editable,
   threadStore,
   resolveUsers,
+  uploadFile,
   onReady,
 }: EditorProps) {
   const editor = useCreateBlockNote(
@@ -78,6 +83,7 @@ function Editor({
       },
       // resolveUsers gives the names of the comments' authors
       extensions: [CommentsExtension({ threadStore, resolveUsers })],
+      uploadFile,
     }),
   );
   // In braces: what an effect returns is called by React as its cleanup.
@@ -219,6 +225,13 @@ export function mountEditor(
       editable={editable}
       threadStore={threadStore}
       resolveUsers={resolveUsers}
+      uploadFile={
+        // into this document, on the server (see TextexpWeb.FileController)
+        editable && !publicToken
+          ? async (file: File) =>
+              (await uploadFile(`/documents/${documentId}/files`, file)).url
+          : undefined
+      }
       onReady={(e) => (editor = e)}
     />,
   );

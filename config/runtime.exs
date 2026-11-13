@@ -104,6 +104,55 @@ if config_env() == :prod do
       pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
   end
 
+  # The files of the documents, their images (see Textexp.Files): in an S3
+  # bucket when FILES_S3_BUCKET is set, e.g. on Tigris (`fly storage create`
+  # sets the AWS_* variables), under an optional FILES_S3_PREFIX; in a Bunny
+  # Storage zone when STORAGE_ZONE is set (with STORAGE_ACCESS_KEY,
+  # STORAGE_REGION or STORAGE_HOSTNAME, as Bunny names them); otherwise in
+  # FILES_PATH, by default the folder `files` next to the SQLite database (on
+  # Fly.io, on the volume). On Bunny, whose database is remote, FILES_PATH
+  # goes on a persistent volume. Without any, in a temporary folder, lost
+  # when the container restarts.
+  files_storage =
+    cond do
+      bucket = System.get_env("FILES_S3_BUCKET") ->
+        {Textexp.Files.S3Storage,
+         bucket: bucket,
+         prefix: System.get_env("FILES_S3_PREFIX", ""),
+         endpoint:
+           System.get_env("AWS_ENDPOINT_URL_S3") ||
+             raise("environment variable AWS_ENDPOINT_URL_S3 is missing"),
+         region: System.get_env("AWS_REGION", "auto"),
+         access_key_id:
+           System.get_env("AWS_ACCESS_KEY_ID") ||
+             raise("environment variable AWS_ACCESS_KEY_ID is missing"),
+         secret_access_key:
+           System.get_env("AWS_SECRET_ACCESS_KEY") ||
+             raise("environment variable AWS_SECRET_ACCESS_KEY is missing")}
+
+      # The variables Bunny sets in a container linked to a storage zone
+      zone = System.get_env("STORAGE_ZONE") ->
+        {Textexp.Files.BunnyStorage,
+         zone: zone,
+         access_key:
+           System.get_env("STORAGE_ACCESS_KEY") ||
+             raise("environment variable STORAGE_ACCESS_KEY is missing"),
+         hostname: System.get_env("STORAGE_HOSTNAME"),
+         region: System.get_env("STORAGE_REGION")}
+
+      true ->
+        database_path = System.get_env("DATABASE_PATH")
+
+        root =
+          System.get_env("FILES_PATH") ||
+            (database_path && Path.join(Path.dirname(database_path), "files")) ||
+            Path.join(System.tmp_dir!(), "textexp_files")
+
+        {Textexp.Files.LocalStorage, root: root}
+    end
+
+  config :textexp, Textexp.Files, storage: files_storage
+
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
   # want to use a different value for prod and you most likely don't want
