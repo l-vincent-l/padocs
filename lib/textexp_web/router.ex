@@ -13,6 +13,14 @@ defmodule TextexpWeb.Router do
     plug :fetch_current_user
   end
 
+  # The files of the documents (see FileController): the session and its
+  # CSRF token, but neither HTML nor layout.
+  pipeline :files do
+    plug :fetch_session
+    plug :protect_from_forgery
+    plug :fetch_current_user
+  end
+
   pipeline :dashboard do
     plug :dashboard_auth
   end
@@ -33,6 +41,14 @@ defmodule TextexpWeb.Router do
 
     # A document as a file: PDF, Markdown or Typst (see ExportController)
     get "/documents/:id/export/:format", ExportController, :show
+  end
+
+  scope "/", TextexpWeb do
+    pipe_through :files
+
+    post "/files", FileController, :create
+    post "/documents/:id/files", FileController, :create
+    get "/files/:id", FileController, :show
   end
 
   scope "/", TextexpWeb do

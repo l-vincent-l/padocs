@@ -37,6 +37,26 @@ Locally, against a libSQL server:
     mix compile --force   # the adapter is compiled in
     mix phx.server
 
+## Files
+
+The images of the documents, pasted or dropped in the editor or found in an
+imported Word file, are stored by `Textexp.Files`: PNG, JPEG, GIF or WebP,
+10 MB each at most. They are served at `/files/<id>` to whoever can read
+their document (anyone while it has a public link), and deleted with it, for
+good.
+
+| Storage | Set by |
+|---|---|
+| S3 bucket (Tigris, AWS, MinIO…), private: a browser is redirected to a URL signed for 5 minutes | `FILES_S3_BUCKET`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION` (`auto` by default), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optionally `FILES_S3_PREFIX` |
+| Local folder, otherwise | `FILES_PATH`, by default `files/` next to the SQLite database (on Fly.io, the volume) |
+
+On Bunny, without a bucket nor a database file, they go to a temporary
+folder, lost when the container restarts: give it a bucket.
+
+On Fly.io, `fly storage create` makes a Tigris bucket and sets the `AWS_*`
+secrets; `FILES_S3_BUCKET` is then its name. Litestream's bucket can be
+shared, with `FILES_S3_PREFIX=files-store/` for instance.
+
 ## Public link
 
 From the share panel, the owner of a document gives it a public link,

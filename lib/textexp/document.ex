@@ -27,6 +27,7 @@ defmodule Textexp.Document do
   alias Ecto.Changeset
   alias Textexp.Accounts
   alias Textexp.Accounts.User
+  alias Textexp.Files
 
   alias Textexp.Document.{
     Body,
@@ -685,9 +686,10 @@ defmodule Textexp.Document do
   @doc """
   Creates a document from the full Yjs state of its content, e.g. a file
   converted by BlockNote in the browser. The state is checked by applying it,
-  and its excerpt saved along.
+  and its excerpt saved along. `file_ids` are the files `user` uploaded for
+  it beforehand, its images, put into it (see `Textexp.Files.attach/3`).
   """
-  def import_document(user, title, snapshot) do
+  def import_document(user, title, snapshot, file_ids \\ []) do
     doc = Yex.Doc.new()
 
     changeset =
@@ -720,6 +722,7 @@ defmodule Textexp.Document do
               set: [snapshot_update_id: update.id]
             )
 
+            Files.attach(user, file_ids, document.id)
             SearchIndex.changed(document.id)
             {:ok, %{document | snapshot_update_id: update.id}}
           end
@@ -756,15 +759,19 @@ defmodule Textexp.Document do
   end
 
   @doc """
-  Deletes the document of `id` for good, with its sub-documents (`ON DELETE
-  CASCADE`).
+  Deletes the document of `id` for good, with its sub-documents and their
+  files (`ON DELETE CASCADE`), then the bytes of those files.
   """
   def delete_document(id) do
-    Repo.transact(fn ->
-      Repo.delete_all(from d in Document, where: d.id == ^id)
-      delete_unused_tags()
-      {:ok, id}
-    end)
+    {:ok, file_ids} =
+      Repo.transact(fn ->
+        file_ids = id |> subtree_ids() |> Files.list_ids()
+        Repo.delete_all(from d in Document, where: d.id == ^id)
+        delete_unused_tags()
+        {:ok, file_ids}
+      end)
+
+    Files.delete_stored(file_ids)
 
     # Its sub-documents, gone with it, nobody can read any more: they are
     # never found again, even if left in the index.

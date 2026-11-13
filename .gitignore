@@ -39,3 +39,6 @@ npm-debug.log
 
 
 
+
+# The files of the documents, in development (see config/dev.exs).
+/files/

@@ -28,7 +28,7 @@ defmodule TextexpWeb.PublicDocumentLiveTest do
 
     assert has_element?(
              view,
-             "#public-editor-#{document.id}[phx-hook=DocumentEditor][data-editable=false][data-public-token=#{token}]"
+             ~s(#public-editor-#{document.id}[phx-hook="DocumentEditor"][data-editable="false"][data-public-token="#{token}"])
            )
 
     # nothing of the signed-in page

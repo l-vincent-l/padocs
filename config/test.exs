@@ -16,6 +16,11 @@ config :textexp, Textexp.SqliteRepo,
   # running test (see DataCase), so one is enough.
   pool_size: 1
 
+# The files of the documents (see Textexp.Files), in a folder of the system's
+# temporary directory.
+config :textexp, Textexp.Files,
+  storage: {Textexp.Files.LocalStorage, root: Path.join(System.tmp_dir!(), "textexp_test_files")}
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :textexp, TextexpWeb.Endpoint,

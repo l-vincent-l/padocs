@@ -1788,7 +1788,12 @@ defmodule TextexpWeb.DocumentLive do
 
     with {:ok, snapshot} <- Base.decode64(state),
          {:ok, document} <-
-           Document.import_document(socket.assigns.current_user, title, snapshot) do
+           Document.import_document(
+             socket.assigns.current_user,
+             title,
+             snapshot,
+             List.wrap(params["file_ids"])
+           ) do
       {:reply, %{id: document.id},
        socket
        |> list_new_document(%{document | role: :owner})
@@ -2276,7 +2281,7 @@ defmodule TextexpWeb.DocumentLive do
   defp members(socket),
     do: Document.list_members(socket.assigns.current_user, socket.assigns.document.id)
 
-  # The images of a Word file are left out (see convert.ts).
+  # The images of a Word file the server refused (see convert.ts).
   defp imported_message(title, 1), do: "« #{title} » importé, sans son image"
 
   defp imported_message(title, missing) when is_integer(missing) and missing > 1,
