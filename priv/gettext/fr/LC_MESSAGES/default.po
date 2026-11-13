@@ -218,6 +218,7 @@ msgstr "Document introuvable"
 msgid "Document shared with %{email}"
 msgstr "Document partagé avec %{email}"
 
+#: lib/padocs_web/components/document_components.ex
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
 msgid "Documents with the tag “%{tag}”"

@@ -286,7 +286,14 @@ defmodule PadocsWeb.SearchModal do
               role="option"
               class="[&[aria-selected=true]>div]:border-base-content [&[aria-selected=true]>div]:bg-base-200"
             >
-              <.document_card document={document} snippet={document.snippet} />
+              <.document_card
+                document={document}
+                snippet={document.snippet}
+                on_tag={
+                  &(JS.push("filter_tag", value: %{id: &1.id}, target: @myself)
+                    |> JS.focus(to: "#search-modal-query"))
+                }
+              />
             </li>
           <% end %>
         </ul>
@@ -437,6 +444,19 @@ defmodule PadocsWeb.SearchModal do
 
   def handle_event("pick_tag", %{"id" => id}, socket) do
     case Enum.find(socket.assigns.tag_suggestions, &(&1.id == id)) do
+      nil ->
+        {:noreply, socket}
+
+      tag ->
+        Document.record_tag_search(socket.assigns.user, tag.id)
+        {:noreply, socket |> push_event("search:clear", %{}) |> put_tag(tag)}
+    end
+  end
+
+  # A tag of a result: it becomes the filter, in place of the previous one.
+  # Looked up among the tags the user can see, the id coming from the browser.
+  def handle_event("filter_tag", %{"id" => id}, socket) do
+    case Enum.find(Document.visible_tags(socket.assigns.user), &(&1.id == id)) do
       nil ->
         {:noreply, socket}
 
