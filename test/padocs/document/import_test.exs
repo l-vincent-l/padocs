@@ -39,13 +39,13 @@ defmodule Padocs.Document.ImportTest do
 
   test "refuses a state that is not Yjs", %{user: user} do
     assert {:error, changeset} = Document.import_document(user, "Bad", <<1, 2, 3>>)
-    assert "contenu illisible" in errors_on(changeset).snapshot
+    assert "unreadable content" in errors_on(changeset).snapshot
   end
 
   test "refuses a too large state", %{user: user} do
     assert {:error, changeset} =
              Document.import_document(user, "Big", :binary.copy("x", 5_000_001))
 
-    assert "contenu trop volumineux" in errors_on(changeset).snapshot
+    assert "content too large" in errors_on(changeset).snapshot
   end
 end

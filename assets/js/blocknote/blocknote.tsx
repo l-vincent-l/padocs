@@ -18,7 +18,7 @@ import { PhoenixChannelProvider } from "y-phoenix-channel";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { Socket } from "phoenix";
 import { BlockNoteEditor, User } from "@blocknote/core";
-import { fr } from "@blocknote/core/locales";
+import { en, fr } from "@blocknote/core/locales";
 import { watchSyncStatus } from "./sync_status";
 import type { ExportFormat } from "./export";
 import { uploadFile } from "./upload";
@@ -34,9 +34,10 @@ const usercolors = [
   "#1be7ff",
 ];
 
-// The editor's menus and panels in French. Its translation says
-// "Télécharger" (download) for uploading a file: "Importer" here.
-const dictionary = {
+// The editor's menus and panels in the page's language (its `lang`, see
+// PadocsWeb.Locale). The French translation says "Télécharger" (download)
+// for uploading a file: "Importer" here.
+const french = {
   ...fr,
   file_panel: {
     ...fr.file_panel,
@@ -53,6 +54,8 @@ const dictionary = {
     },
   },
 };
+
+const dictionary = document.documentElement.lang === "en" ? en : french;
 
 const myColor = usercolors[Math.floor(Math.random() * usercolors.length)];
 type ResolveUsers = (ids: string[]) => Promise<User[]>;

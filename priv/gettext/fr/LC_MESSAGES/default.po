@@ -1,0 +1,1041 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n>1);\n"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%m/%d %H:%M"
+msgstr "%d/%m %H:%M"
+
+#: lib/padocs_web/components/document_components.ex
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%m/%d/%Y"
+msgstr "%d/%m/%Y"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "%m/%d/%Y %H:%M"
+msgstr "%d/%m/%Y %H:%M"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%m/%d/%Y %H:%M:%S"
+msgstr "%d/%m/%Y %H:%M:%S"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%m/%d/%Y at %H:%M"
+msgstr "%d/%m/%Y à %H:%M"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%{email} is now a viewer"
+msgstr "%{email} est maintenant lecteur"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%{email} is now an editor"
+msgstr "%{email} est maintenant éditeur"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "(you)"
+msgstr "(vous)"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "A document cannot go under itself or one of its sub-documents"
+msgstr "Un document ne peut pas aller sous lui-même ou l'un de ses sous-documents"
+
+#: lib/padocs_web/components/core_components.ex
+#, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr "Actions"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Actions of the document"
+msgstr "Actions du document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Add a tag"
+msgstr "Ajouter un tag"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "All the tags"
+msgstr "Tous les tags"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Already have an account?"
+msgstr "Déjà un compte ?"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "An image could not be fetched: the export is without it"
+msgid_plural "%{count} images could not be fetched: the export is without them"
+msgstr[0] "Une image n'a pas pu être récupérée : l'export est sans elle"
+msgstr[1] "%{count} images n'ont pas pu être récupérées : l'export est sans elles"
+
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Anonymous reader"
+msgstr "Lecteur anonyme"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Anyone with this link reads the document, without an account, but not its sub-documents."
+msgstr "Toute personne qui a ce lien lit le document, sans compte, mais pas ses sous-documents."
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "Attempting to reconnect"
+msgstr "Tentative de reconnexion"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Back to the document"
+msgstr "Revenir au document"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Choose a new password"
+msgstr "Choisir un nouveau mot de passe"
+
+#: lib/padocs/accounts/user_notifier.ex
+#, elixir-autogen, elixir-format
+msgid "Click this link to confirm your email address:"
+msgstr "Cliquez sur ce lien pour confirmer votre adresse e-mail :"
+
+#: lib/padocs/accounts/user_notifier.ex
+#, elixir-autogen, elixir-format
+msgid "Click this link to reset your password:"
+msgstr "Cliquez sur ce lien pour réinitialiser votre mot de passe :"
+
+#: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Close"
+msgstr "Fermer"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Close the history"
+msgstr "Fermer l'historique"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Close the menu"
+msgstr "Fermer le menu"
+
+#: lib/padocs/accounts/user_notifier.ex
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Confirm your email address"
+msgstr "Confirmer votre adresse e-mail"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Copied"
+msgstr "Copié"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Copy"
+msgstr "Copier"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Create a link"
+msgstr "Créer un lien"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Creating…"
+msgstr "Création…"
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "Dark theme"
+msgstr "Thème sombre"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete for good"
+msgstr "Supprimer définitivement"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete for good all the documents of the trash?"
+msgstr "Supprimer définitivement tous les documents de la corbeille ?"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete for good “%{title}” and its sub-documents?"
+msgstr "Supprimer définitivement « %{title} » et ses sous-documents ?"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Delete “%{title}” for good"
+msgstr "Supprimer définitivement « %{title} »"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Deleted on %{at} UTC"
+msgstr "Supprimé le %{at} UTC"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Disable"
+msgstr "Désactiver"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Disable the public link? The people who have it will no longer read the document."
+msgstr "Désactiver le lien public ? Les personnes qui l'ont ne pourront plus lire le document."
+
+#: lib/padocs_web/controllers/export_controller.ex
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Document not found"
+msgstr "Document introuvable"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Document shared with %{email}"
+msgstr "Document partagé avec %{email}"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Documents with the tag “%{tag}”"
+msgstr "Documents avec le tag « %{tag} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Drag to resize, double-click for the default width"
+msgstr "Glisser pour redimensionner, double-clic pour la largeur par défaut"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Editor"
+msgstr "Éditeur"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Email"
+msgstr "Adresse e-mail"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Email me a sign-in link"
+msgstr "Recevoir un lien de connexion par e-mail"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Empty the trash"
+msgstr "Vider la corbeille"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Export as"
+msgstr "Exporter en"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Export…"
+msgstr "Exporter…"
+
+#: lib/padocs_web/controllers/file_controller.ex
+#, elixir-autogen, elixir-format
+msgid "File not found"
+msgstr "Fichier introuvable"
+
+#: lib/padocs_web/controllers/file_controller.ex
+#, elixir-autogen, elixir-format
+msgid "File unavailable"
+msgstr "Fichier indisponible"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Fold the menu"
+msgstr "Replier le menu"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Fold the menu (Ctrl+\\)"
+msgstr "Replier le menu (Ctrl+\\)"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Forgot your password?"
+msgstr "Mot de passe oublié ?"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Given by the parent documents: they are changed from these documents."
+msgstr "Donnés par les documents parents : ils se changent depuis ces documents."
+
+#: lib/padocs/accounts/user_notifier.ex
+#, elixir-autogen, elixir-format
+msgid "Hello, %{email}! Click this link to sign in:"
+msgstr "Bonjour %{email} ! Cliquez sur ce lien pour vous connecter :"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "History"
+msgstr "Historique"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "History…"
+msgstr "Historique…"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "If this address has an account, you will receive a reset link shortly."
+msgstr "Si cette adresse a un compte, vous recevrez bientôt un lien de réinitialisation."
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "If this address is valid, you will receive a sign-in link shortly."
+msgstr "Si cette adresse est valide, vous recevrez bientôt un lien de connexion."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import files (Markdown, HTML, text or Word)"
+msgstr "Importer des fichiers (Markdown, HTML, texte ou Word)"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Incorrect email or password"
+msgstr "Adresse e-mail ou mot de passe incorrect"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Inherited accesses"
+msgstr "Accès hérités"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Inherited from “%{title}”"
+msgstr "Hérité de « %{title} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Invite"
+msgstr "Inviter"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Inviting…"
+msgstr "Invitation…"
+
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Its owner may have disabled or replaced it, or the document was deleted."
+msgstr "Son propriétaire a pu le désactiver ou le remplacer, ou le document a été supprimé."
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "Language"
+msgstr "Langue"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Last update: %{at} UTC"
+msgstr "Dernière mise à jour : %{at} UTC"
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "Light theme"
+msgstr "Thème clair"
+
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Link unavailable"
+msgstr "Lien indisponible"
+
+#: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Loading the document"
+msgstr "Chargement du document"
+
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Member"
+msgstr "Membre"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Move to the root"
+msgstr "Mettre à la racine"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Move to…"
+msgstr "Déplacer vers…"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "My documents"
+msgstr "Mes documents"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Need an account?"
+msgstr "Pas encore de compte ?"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "New document"
+msgstr "Nouveau document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "New link"
+msgstr "Nouveau lien"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "New sub-document"
+msgstr "Nouveau sous-document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "New sub-document of “%{title}”"
+msgstr "Nouveau sous-document de « %{title} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "New tag"
+msgstr "Nouveau tag"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "No access of its own to this document."
+msgstr "Aucun accès propre à ce document."
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "No document opened recently"
+msgstr "Aucun document ouvert récemment"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "No document shared with you"
+msgstr "Aucun document partagé avec vous"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "No edit saved yet."
+msgstr "Aucune modification enregistrée pour l'instant."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "No other document to put it in."
+msgstr "Aucun autre document où le mettre."
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "No result"
+msgstr "Aucun résultat"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Not shared yet."
+msgstr "Pas encore partagé."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Offline — your edits are kept on this device"
+msgstr "Hors ligne — vos modifications sont gardées sur cet appareil"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Open the menu"
+msgstr "Ouvrir le menu"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Owner"
+msgstr "Propriétaire"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Parent documents"
+msgstr "Documents parents"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Password"
+msgstr "Mot de passe"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Password confirmation"
+msgstr "Confirmation du mot de passe"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Public link"
+msgstr "Lien public"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Public link created"
+msgstr "Lien public créé"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Public link disabled"
+msgstr "Lien public désactivé"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Put in the trash"
+msgstr "Mettre à la corbeille"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Put this document and its sub-documents in the trash?"
+msgstr "Mettre ce document et ses sous-documents à la corbeille ?"
+
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Read only, by a public link"
+msgstr "Lecture seule, par un lien public"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Recent"
+msgstr "Récents"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Register"
+msgstr "Créer un compte"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Remember me"
+msgstr "Rester connecté"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Remove %{email}"
+msgstr "Retirer %{email}"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Remove the access of %{email}?"
+msgstr "Retirer l'accès de %{email} ?"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Remove the filter “%{filter}”"
+msgstr "Retirer le filtre « %{filter} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Remove the tag “%{tag}”"
+msgstr "Retirer le tag « %{tag} »"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Remove “%{filter}”"
+msgstr "Retirer « %{filter} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Replace the content of the document with this version? The edits made since stay in the history."
+msgstr "Remplacer le contenu du document par cette version ? Les modifications faites depuis restent dans l'historique."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Replace with a new link: the current one will stop working"
+msgstr "Remplacer par un nouveau lien : l'actuel ne marchera plus"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Reset the password"
+msgstr "Réinitialiser le mot de passe"
+
+#: lib/padocs/accounts/user_notifier.ex
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Reset your password"
+msgstr "Réinitialiser votre mot de passe"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Restore"
+msgstr "Restaurer"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Restore this version"
+msgstr "Restaurer cette version"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Restore “%{title}”"
+msgstr "Restaurer « %{title} »"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Results"
+msgstr "Résultats"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Role of %{email}"
+msgstr "Rôle de %{email}"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Root"
+msgstr "Racine"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Search"
+msgstr "Rechercher"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Search the documents"
+msgstr "Rechercher dans les documents"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Search these documents"
+msgstr "Rechercher parmi ces documents"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Searching"
+msgstr "Recherche en cours"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Send a reset link"
+msgstr "Envoyer un lien de réinitialisation"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Share this document"
+msgstr "Partager ce document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Share, move, export…"
+msgstr "Partager, déplacer, exporter…"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Shared with me"
+msgstr "Partagés avec moi"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Share…"
+msgstr "Partager…"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Show all the tags"
+msgstr "Afficher tous les tags"
+
+#: lib/padocs_web/components/document_components.ex
+#, elixir-autogen, elixir-format
+msgid "Show the %{count} tags"
+msgstr "Afficher les %{count} tags"
+
+#: lib/padocs_web/components/layouts.ex
+#: lib/padocs_web/controllers/auth_controller.ex
+#: lib/padocs_web/controllers/auth_html.ex
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Sign in"
+msgstr "Se connecter"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Sign in to confirm your email address. If you did not create this account, reset its password instead."
+msgstr "Connectez-vous pour confirmer votre adresse e-mail. Si vous n'avez pas créé ce compte, réinitialisez plutôt son mot de passe."
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "Sign in with %{provider}"
+msgstr "Se connecter avec %{provider}"
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+#: lib/padocs_web/controllers/oauth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Signing in with %{provider} failed. Check that your email address is verified there. If you already have an account here with this address, confirm it first, then sign in again."
+msgstr "La connexion avec %{provider} a échoué. Vérifiez que votre adresse e-mail y est confirmée. Si vous avez déjà un compte ici avec cette adresse, confirmez-le d'abord, puis reconnectez-vous."
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "Something went wrong!"
+msgstr "Une erreur est survenue !"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Sub-documents of “%{title}”"
+msgstr "Sous-documents de « %{title} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Synced"
+msgstr "Synchronisé"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Syncing…"
+msgstr "Synchronisation…"
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "System theme"
+msgstr "Thème du système"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The current link will stop working. Create a new link?"
+msgstr "Le lien actuel ne marchera plus. Créer un nouveau lien ?"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The edits, by minute, then by hour, day and week as they age (UTC)."
+msgstr "Les modifications, par minute, puis par heure, jour et semaine en vieillissant (UTC)."
+
+#: lib/padocs_web/controllers/export_controller.ex
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The export failed"
+msgstr "L'export a échoué"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "The link is invalid or it has expired."
+msgstr "Le lien est invalide ou a expiré."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The person must already have an account."
+msgstr "La personne doit déjà avoir un compte."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The role of this member could not be changed"
+msgstr "Impossible de changer le rôle de ce membre"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "The search is not available"
+msgstr "La recherche n'est pas disponible"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The server does not answer, trying again soon"
+msgstr "Le serveur ne répond pas, nouvel essai bientôt"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "The trash is empty"
+msgstr "La corbeille est vide"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "The version could not be restored"
+msgstr "La version n'a pas pu être restaurée"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "This document was put in the trash"
+msgstr "Ce document a été mis à la corbeille"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "This link confirms another account: sign out first."
+msgstr "Ce lien confirme un autre compte : déconnectez-vous d'abord."
+
+#: lib/padocs_web/live/public_document_live.ex
+#, elixir-autogen, elixir-format
+msgid "This link leads to no document"
+msgstr "Ce lien ne mène à aucun document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "This member could not be removed"
+msgstr "Impossible de retirer ce membre"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "This version was merged with a more recent one"
+msgstr "Cette version a été regroupée avec une plus récente"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "To let people without an account read this document, read only."
+msgstr "Pour faire lire ce document à des personnes sans compte, en lecture seule."
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Today"
+msgstr "Aujourd'hui"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Trash"
+msgstr "Corbeille"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Unfold the menu"
+msgstr "Déplier le menu"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Unfold the menu (Ctrl+\\)"
+msgstr "Déplier le menu (Ctrl+\\)"
+
+#: lib/padocs_web/controllers/export_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Unknown format"
+msgstr "Format inconnu"
+
+#: lib/padocs/document.ex
+#: lib/padocs_web/components/document_components.ex
+#: lib/padocs_web/live/document_live.ex
+#: lib/padocs_web/live/public_document_live.ex
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Untitled"
+msgstr "Sans titre"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Version of %{at} UTC"
+msgstr "Version du %{at} UTC"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Version of %{at} UTC restored"
+msgstr "Version du %{at} UTC restaurée"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Version restored"
+msgstr "Version restaurée"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Viewer"
+msgstr "Lecteur"
+
+#: lib/padocs_web/components/layouts.ex
+#, elixir-autogen, elixir-format
+msgid "We can't find the internet"
+msgstr "Impossible de joindre Internet"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Width of the menu"
+msgstr "Largeur du menu"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Yesterday"
+msgstr "Hier"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#: lib/padocs_web/controllers/oauth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "You are now signed in"
+msgstr "Vous êtes connecté"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "You are now signed out"
+msgstr "Vous êtes déconnecté"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You can no longer read this document"
+msgstr "Vous ne pouvez plus lire ce document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot add a sub-document here"
+msgstr "Vous ne pouvez pas ajouter de sous-document ici"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot change the tags of this document"
+msgstr "Vous ne pouvez pas modifier les tags de ce document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot delete this document"
+msgstr "Vous ne pouvez pas supprimer ce document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot edit this document"
+msgstr "Vous ne pouvez pas modifier ce document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot move this document here"
+msgstr "Vous ne pouvez pas déplacer ce document ici"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot rename this document"
+msgstr "Vous ne pouvez pas renommer ce document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "You cannot share this document"
+msgstr "Vous ne pouvez pas partager ce document"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "You have already signed in another way, but have not confirmed your account. You can confirm it with the link we sent you, or by resetting your password."
+msgstr "Vous vous êtes déjà connecté autrement, mais n'avez pas confirmé votre compte. Vous pouvez le confirmer avec le lien que nous vous avons envoyé, ou en réinitialisant votre mot de passe."
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "You have no document yet"
+msgstr "Vous n'avez pas encore de document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your access to this document was removed"
+msgstr "Votre accès à ce document a été retiré"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your email address has now been confirmed"
+msgstr "Votre adresse e-mail est confirmée"
+
+#: lib/padocs_web/controllers/auth_controller.ex
+#, elixir-autogen, elixir-format
+msgid "Your password has successfully been reset"
+msgstr "Votre mot de passe a été réinitialisé"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Your rights on this document changed"
+msgstr "Vos droits sur ce document ont changé"
+
+#: lib/padocs/accounts/user_notifier.ex
+#, elixir-autogen, elixir-format
+msgid "Your sign-in link"
+msgstr "Votre lien de connexion"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "address@example.com"
+msgstr "adresse@exemple.fr"
+
+#: lib/padocs_web/components/core_components.ex
+#, elixir-autogen, elixir-format
+msgid "close"
+msgstr "fermer"
+
+#: lib/padocs_web/controllers/auth_html.ex
+#, elixir-autogen, elixir-format
+msgid "or"
+msgstr "ou"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "read only"
+msgstr "lecture seule"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "the latest"
+msgstr "la plus récente"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "via %{title}"
+msgstr "via %{title}"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "via a parent document"
+msgstr "via un document parent"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{name}” could not be imported"
+msgstr "Impossible d'importer « %{name} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{name}” could not be read"
+msgstr "Impossible de lire « %{name} »"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is too large (%{max} MB at most)"
+msgstr "« %{name} » est trop volumineux (%{max} Mo au plus)"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{title}” imported"
+msgstr "« %{title} » importé"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{title}” imported, without its image"
+msgid_plural "“%{title}” imported, without its %{count} images"
+msgstr[0] "« %{title} » importé, sans son image"
+msgstr[1] "« %{title} » importé, sans ses %{count} images"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{title}” moved"
+msgstr "« %{title} » déplacé"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{title}” put in the trash"
+msgstr "« %{title} » mis à la corbeille"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "“%{title}” restored"
+msgstr "« %{title} » restauré"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{title}” will take the accesses of its new parent."
+msgstr "« %{title} » prendra les accès de son nouveau parent."
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "↑ ↓ to choose · Enter to open · Esc to close"
+msgstr "↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer"

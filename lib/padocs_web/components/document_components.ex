@@ -3,6 +3,7 @@ defmodule PadocsWeb.DocumentComponents do
   Components displaying documents.
   """
   use Phoenix.Component
+  use Gettext, backend: PadocsWeb.Gettext
 
   alias Phoenix.LiveView.JS
 
@@ -39,14 +40,14 @@ defmodule PadocsWeb.DocumentComponents do
             navigate={~p"/documents/#{@document.id}"}
             class="no-underline outline-none after:absolute after:inset-0"
           >
-            {@document.title || "Sans titre"}
+            {@document.title || gettext("Untitled")}
           </.link>
         </h2>
         <time
           datetime={DateTime.to_iso8601(@document.updated_at)}
           class="shrink-0 text-[0.6875rem] tabular-nums text-base-content/60 sm:text-xs"
         >
-          {Calendar.strftime(@document.updated_at, "%d/%m/%Y")}
+          {Calendar.strftime(@document.updated_at, gettext("%m/%d/%Y"))}
           <span class="hidden sm:inline">
             {Calendar.strftime(@document.updated_at, "%H:%M")} UTC
           </span>
@@ -73,7 +74,7 @@ defmodule PadocsWeb.DocumentComponents do
             JS.remove_class("max-sm:hidden", to: "#card-tags-#{@document.id} [data-extra-tag]")
             |> JS.hide()
           }
-          aria-label={"Afficher les #{length(@document.tags)} tags"}
+          aria-label={gettext("Show the %{count} tags", count: length(@document.tags))}
           class="relative z-10 cursor-pointer rounded px-1 text-[0.6875rem] text-base-content/60 transition-colors hover:bg-base-300 hover:text-base-content sm:hidden"
         >
           +{length(@document.tags) - 2}

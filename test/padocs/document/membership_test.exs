@@ -48,18 +48,18 @@ defmodule Padocs.Document.MembershipTest do
 
     test "refuses an address without account", %{owner: owner, document: document} do
       assert {:error, changeset} = share(owner, document, "nobody@example.com", :viewer)
-      assert "aucun compte avec cette adresse" in errors_on(changeset).email
+      assert "no account has this address" in errors_on(changeset).email
     end
 
     test "refuses an unconfirmed account", %{owner: owner, document: document} do
       assert {:error, changeset} = share(owner, document, Fixtures.register_user().email, :viewer)
-      assert "ce compte n'a pas encore confirmé son adresse" in errors_on(changeset).email
+      assert "this account has not confirmed its address yet" in errors_on(changeset).email
     end
 
     test "refuses the owner's own address", %{owner: owner, document: document} do
       assert {:error, changeset} = share(owner, document, owner.email, :editor)
       assert [message] = errors_on(changeset).email
-      assert message =~ "propriétaire"
+      assert message =~ "owner"
     end
 
     test "is reserved to the owner", %{owner: owner, document: document} do

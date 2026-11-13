@@ -1,29 +1,46 @@
 defmodule Padocs.Accounts.UserNotifier do
-  @moduledoc "The emails sent to users: links to confirm, sign in, reset a password."
+  @moduledoc """
+  The emails sent to users: links to confirm, sign in, reset a password. In
+  their language (see `PadocsWeb.Locale`).
+  """
+  use Gettext, backend: PadocsWeb.Gettext
   import Swoosh.Email
 
   alias Padocs.Mailer
 
   def deliver_confirmation_instructions(user, url) do
-    deliver(user.email, "Confirm your email address", """
-    <p>Click this link to confirm your email:</p>
-    <p><a href="#{url}">#{url}</a></p>
-    """)
+    in_locale(user, fn ->
+      deliver(user.email, gettext("Confirm your email address"), """
+      <p>#{gettext("Click this link to confirm your email address:")}</p>
+      <p><a href="#{url}">#{url}</a></p>
+      """)
+    end)
   end
 
   def deliver_login_instructions(user, url) do
-    deliver(user.email, "Your login link", """
-    <p>Hello, #{user.email}! Click this link to sign in:</p>
-    <p><a href="#{url}">#{url}</a></p>
-    """)
+    in_locale(user, fn ->
+      deliver(user.email, gettext("Your sign-in link"), """
+      <p>#{gettext("Hello, %{email}! Click this link to sign in:", email: user.email)}</p>
+      <p><a href="#{url}">#{url}</a></p>
+      """)
+    end)
   end
 
   def deliver_reset_password_instructions(user, url) do
-    deliver(user.email, "Reset your password", """
-    <p>Click this link to reset your password:</p>
-    <p><a href="#{url}">#{url}</a></p>
-    """)
+    in_locale(user, fn ->
+      deliver(user.email, gettext("Reset your password"), """
+      <p>#{gettext("Click this link to reset your password:")}</p>
+      <p><a href="#{url}">#{url}</a></p>
+      """)
+    end)
   end
+
+  # In the language the user chose, else the one of the request that sends it
+  # (the page they are on).
+  defp in_locale(%{locale: locale}, fun) when is_binary(locale),
+    do: Gettext.with_locale(PadocsWeb.Gettext, locale, fun)
+
+  defp in_locale(_user, fun), do: fun.()
 
   defp deliver(recipient, subject, body) do
     email =

@@ -18,7 +18,10 @@ defmodule Padocs.MixProject do
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
-      consolidate_protocols: Mix.env() != :dev
+      consolidate_protocols: Mix.env() != :dev,
+      # The files of the messages, without line numbers: they change only
+      # when the messages do (see the precommit alias)
+      gettext: [write_reference_line_numbers: false]
     ]
   end
 
@@ -116,7 +119,14 @@ defmodule Padocs.MixProject do
         "esbuild padocs --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        # a message added or changed must be extracted and translated
+        "gettext.extract --check-up-to-date",
+        "test"
+      ]
     ]
   end
 end

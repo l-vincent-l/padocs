@@ -36,7 +36,7 @@ defmodule PadocsWeb.OAuthController do
          {:ok, user} <- Accounts.sign_in_with_provider(provider, user_info, token) do
       conn
       |> delete_session(:oauth_session_params)
-      |> put_flash(:info, "You are now signed in")
+      |> put_flash(:info, gettext("You are now signed in"))
       |> UserAuth.log_in_user(user)
     else
       _ -> failure(conn, provider)
@@ -78,11 +78,13 @@ defmodule PadocsWeb.OAuthController do
     name = if provider == "gitlab", do: "GitLab", else: "GitHub"
 
     conn
-    |> put_flash(:error, """
-    Signing in with #{name} failed.
-    Check that your email address is verified there. If you already have an
-    account here with this address, confirm it first, then sign in again.
-    """)
+    |> put_flash(
+      :error,
+      gettext(
+        "Signing in with %{provider} failed. Check that your email address is verified there. If you already have an account here with this address, confirm it first, then sign in again.",
+        provider: name
+      )
+    )
     |> redirect(to: ~p"/sign-in")
   end
 end

@@ -5,6 +5,9 @@ defmodule Padocs.Accounts.User do
   addresses are compared without case.
   """
   use Ecto.Schema
+  # The messages of the changesets, translated where shown (see
+  # PadocsWeb.CoreComponents.translate_error/1)
+  use Gettext, backend: PadocsWeb.Gettext
   import Ecto.Changeset
   import Ecto.Query
 
@@ -16,6 +19,8 @@ defmodule Padocs.Accounts.User do
     field :confirmed_at, :utc_datetime_usec
     # Opened again at /documents (see Padocs.Document.last_opened/1)
     field :last_document_id, :binary_id
+    # The language chosen, `nil` for the browser's (see PadocsWeb.Locale)
+    field :locale, :string
   end
 
   @doc "The users whose email address is `email`, whatever its case."
@@ -29,7 +34,9 @@ defmodule Padocs.Accounts.User do
     |> cast(attrs, [:email])
     |> update_change(:email, &String.trim/1)
     |> validate_required([:email])
-    |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/, message: "adresse invalide")
+    |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
+      message: dgettext_noop("errors", "is not a valid address")
+    )
     |> validate_length(:email, max: 160)
     |> validate_unique_email()
     |> unique_constraint(:email, name: "users_unique_email_index")
@@ -38,7 +45,7 @@ defmodule Padocs.Accounts.User do
   defp validate_unique_email(changeset) do
     with email when is_binary(email) <- get_change(changeset, :email),
          true <- Padocs.SqliteRepo.exists?(by_email_query(email)) do
-      add_error(changeset, :email, "un compte existe déjà avec cette adresse")
+      add_error(changeset, :email, dgettext_noop("errors", "an account already has this address"))
     else
       _ -> changeset
     end
@@ -54,7 +61,10 @@ defmodule Padocs.Accounts.User do
       |> cast(attrs, [:password])
       |> validate_required([:password])
       |> validate_length(:password, min: 8, max: 72, count: :bytes)
-      |> validate_confirmation(:password, required: true, message: "ne correspond pas")
+      |> validate_confirmation(:password,
+        required: true,
+        message: dgettext_noop("errors", "does not match")
+      )
 
     if changeset.valid? do
       changeset

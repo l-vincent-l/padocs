@@ -11,6 +11,7 @@ defmodule PadocsWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_user
+    plug PadocsWeb.Locale
   end
 
   # The files of the documents (see FileController): the session and its
@@ -19,6 +20,7 @@ defmodule PadocsWeb.Router do
     plug :fetch_session
     plug :protect_from_forgery
     plug :fetch_current_user
+    plug PadocsWeb.Locale
   end
 
   pipeline :dashboard do
@@ -31,14 +33,22 @@ defmodule PadocsWeb.Router do
     # Each LiveView requires a signed-in user (see LiveUserAuth).
     # A page out of date after a deploy is reloaded (see StaticChanged).
     live_session :authenticated_routes,
-      on_mount: [{PadocsWeb.LiveUserAuth, :current_user}, PadocsWeb.StaticChanged] do
+      on_mount: [
+        {PadocsWeb.LiveUserAuth, :current_user},
+        PadocsWeb.Locale,
+        PadocsWeb.StaticChanged
+      ] do
       live "/documents", DocumentLive, :index
       live "/documents/:id", DocumentLive, :show
     end
 
     # A document read by its public link, signed in or not
     live_session :public_routes,
-      on_mount: [{PadocsWeb.LiveUserAuth, :current_user}, PadocsWeb.StaticChanged] do
+      on_mount: [
+        {PadocsWeb.LiveUserAuth, :current_user},
+        PadocsWeb.Locale,
+        PadocsWeb.StaticChanged
+      ] do
       live "/p/:token", PublicDocumentLive, :show
     end
 
@@ -58,6 +68,9 @@ defmodule PadocsWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    # The language of the interface (see PadocsWeb.Locale)
+    post "/locale", LocaleController, :update
 
     get "/sign-in", AuthController, :sign_in
     post "/sign-in", AuthController, :create_session

@@ -273,4 +273,12 @@ defmodule Padocs.Accounts do
     )
     |> Repo.insert_or_update()
   end
+
+  @doc """
+  Keeps `locale` as the language `user` chose, one of
+  `PadocsWeb.Locale.locales/0`.
+  """
+  def put_user_locale(%User{} = user, locale) when is_binary(locale) do
+    user |> Ecto.Changeset.change(locale: locale) |> Repo.update()
+  end
 end

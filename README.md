@@ -37,6 +37,24 @@ Locally, against a libSQL server:
     mix compile --force   # the adapter is compiled in
     mix phx.server
 
+## Languages
+
+The interface is in French or English (`PadocsWeb.Locale`): the language a
+user chose with the FR / EN switch, kept on their account (and in the
+session when signed out), else their browser's (`Accept-Language`), else
+French. Their emails are in it too, and the editor (BlockNote's own
+translations), the dates and the PDF export follow it.
+
+The texts are written in English in the code, through Gettext
+(`gettext("Share this document")`), and translated in
+`priv/gettext/fr/LC_MESSAGES/*.po`. After adding or changing one:
+
+    mix gettext.extract --merge   # then translate the new msgstr in fr/
+
+`mix precommit` fails while the extracted messages are out of date. The
+messages of changesets go to the `errors` domain (`dgettext_noop("errors",
+...)`), translated where they are shown.
+
 ## Files
 
 The images of the documents, pasted or dropped in the editor or found in an

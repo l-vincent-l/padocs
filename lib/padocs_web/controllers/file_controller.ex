@@ -57,7 +57,7 @@ defmodule PadocsWeb.FileController do
   def show(conn, %{"id" => id}) do
     case Files.get_readable(id, conn.assigns.current_user) do
       {:ok, file} -> send_stored(conn, file)
-      {:error, :not_found} -> conn |> put_status(:not_found) |> text("Fichier introuvable")
+      {:error, :not_found} -> conn |> put_status(:not_found) |> text(gettext("File not found"))
     end
   end
 
@@ -74,7 +74,7 @@ defmodule PadocsWeb.FileController do
             conn |> put_image_headers(file) |> send_resp(200, data)
 
           {:error, _reason} ->
-            conn |> put_status(:service_unavailable) |> text("Fichier indisponible")
+            conn |> put_status(:service_unavailable) |> text(gettext("File unavailable"))
         end
 
       {:url, url} ->

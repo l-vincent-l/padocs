@@ -83,6 +83,6 @@ defmodule Padocs.Accounts.OAuthTest do
     conn = get(conn, ~p"/auth/user/github")
 
     assert redirected_to(conn) == ~p"/sign-in"
-    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Signing in with GitHub failed"
+    assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "La connexion avec GitHub a échoué"
   end
 end

@@ -170,7 +170,7 @@ defmodule PadocsWeb.AuthControllerTest do
       conn = post(build_conn(), ~p"/magic_link/#{link_token("/magic_link")}")
 
       refute get_session(conn, :user_token)
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "have not confirmed your account"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "n'avez pas confirmé votre compte"
     end
   end
 

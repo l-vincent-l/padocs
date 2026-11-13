@@ -35,9 +35,10 @@ defmodule YexBlockNote.Typst do
   }
 
   def to_typst(blocks, opts \\ []) do
-    body = blocks |> Enum.flat_map(&block_with_children/1) |> join_blocks()
+    lang = Keyword.get(opts, :lang, "fr")
+    body = blocks |> Enum.flat_map(&block_with_children(&1, lang)) |> join_blocks()
 
-    preamble(opts[:title], Keyword.get(opts, :lang, "fr")) <> body <> "\n"
+    preamble(opts[:title], lang) <> body <> "\n"
   end
 
   @doc """
@@ -76,10 +77,16 @@ defmodule YexBlockNote.Typst do
   # A block as `{kind, typst}`, kind telling which list an item belongs to,
   # its nested blocks under it. A block without content leaves its nested
   # blocks in its place.
-  defp block_with_children(%{type: type, children: children} = block) do
-    children = Enum.flat_map(children, &block_with_children/1)
+  defp block_with_children(%{type: type, children: children} = block, lang) do
+    children = Enum.flat_map(children, &block_with_children(&1, lang))
 
-    case block(type, block) do
+    typst =
+      case media(type, block, lang) do
+        :other -> block(type, block)
+        media -> media
+      end
+
+    case typst do
       nil -> children
       {kind, typst} -> [{kind, nest(typst, join_blocks(children), kind)}]
     end
@@ -114,17 +121,6 @@ defmodule YexBlockNote.Typst do
   defp block("table", block), do: {:block, table(block.content.rows)}
   defp block("divider", _block), do: {:block, "#line(length: 100%, stroke: 0.5pt + gray)"}
 
-  defp block(tag, %{props: props}) when tag in ["image", "video", "audio", "file"] do
-    url = props["url"]
-    name = Enum.find([props["caption"], props["name"], url], &(&1 not in [nil, ""]))
-
-    label = %{"image" => "Image", "video" => "Vidéo", "audio" => "Son", "file" => "Fichier"}
-
-    if url in [nil, ""],
-      do: nil,
-      else: {:block, "#link(#{string(url)})[#" <> string("#{label[tag]} : #{name}") <> "]"}
-  end
-
   # Paragraphs, and blocks unknown to this module, keep their text, aligned
   # as in the editor.
   defp block(_tag, block) do
@@ -137,6 +133,28 @@ defmodule YexBlockNote.Typst do
       end
     end)
   end
+
+  # A file block: a link to it, its kind named in the document's language
+  # (French or English), or `nil` without URL. `:other` for another block.
+  defp media(tag, %{props: props}, lang) when tag in ["image", "video", "audio", "file"] do
+    url = props["url"]
+    name = Enum.find([props["caption"], props["name"], url], &(&1 not in [nil, ""]))
+
+    if url in [nil, ""],
+      do: nil,
+      else: {:block, "#link(#{string(url)})[#" <> string(media_label(tag, name, lang)) <> "]"}
+  end
+
+  defp media(_tag, _block, _lang), do: :other
+
+  @media_labels %{
+    "fr" => %{"image" => "Image", "video" => "Vidéo", "audio" => "Son", "file" => "Fichier"},
+    "en" => %{"image" => "Image", "video" => "Video", "audio" => "Audio", "file" => "File"}
+  }
+
+  # French puts a space before the colon.
+  defp media_label(tag, name, "fr"), do: "#{@media_labels["fr"][tag]} : #{name}"
+  defp media_label(tag, name, _lang), do: "#{@media_labels["en"][tag]}: #{name}"
 
   # The block made by `fun` from the formatted text of `block`; none when it
   # has no text.

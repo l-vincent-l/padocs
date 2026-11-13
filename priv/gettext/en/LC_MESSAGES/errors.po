@@ -110,3 +110,43 @@ msgstr ""
 
 msgid "must be equal to %{number}"
 msgstr ""
+
+#: lib/padocs/accounts/user.ex
+#, elixir-autogen, elixir-format
+msgid "an account already has this address"
+msgstr ""
+
+#: lib/padocs/document.ex
+#, elixir-autogen, elixir-format
+msgid "content too large"
+msgstr ""
+
+#: lib/padocs/accounts/user.ex
+#, elixir-autogen, elixir-format
+msgid "does not match"
+msgstr ""
+
+#: lib/padocs/accounts/user.ex
+#, elixir-autogen, elixir-format
+msgid "is not a valid address"
+msgstr ""
+
+#: lib/padocs/document.ex
+#, elixir-autogen, elixir-format
+msgid "no account has this address"
+msgstr ""
+
+#: lib/padocs/document.ex
+#, elixir-autogen, elixir-format
+msgid "this account has not confirmed its address yet"
+msgstr ""
+
+#: lib/padocs/document.ex
+#, elixir-autogen, elixir-format
+msgid "this is the owner's address"
+msgstr ""
+
+#: lib/padocs/document.ex
+#, elixir-autogen, elixir-format
+msgid "unreadable content"
+msgstr ""

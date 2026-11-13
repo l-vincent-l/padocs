@@ -29,16 +29,19 @@ defmodule PadocsWeb.ExportController do
       )
     else
       {:error, :not_found} ->
-        conn |> put_status(:not_found) |> text("Document introuvable")
+        conn |> put_status(:not_found) |> text(gettext("Document not found"))
 
       {:error, _reason} ->
-        conn |> put_status(:internal_server_error) |> text("Export impossible")
+        conn |> put_status(:internal_server_error) |> text(gettext("The export failed"))
     end
   end
 
-  def show(conn, _params), do: conn |> put_status(:not_found) |> text("Format inconnu")
+  def show(conn, _params), do: conn |> put_status(:not_found) |> text(gettext("Unknown format"))
 
-  defp content(document, "pdf"), do: Document.pdf(document)
+  # In the language of the interface (see PadocsWeb.Locale)
+  defp content(document, "pdf"), do: Document.pdf(document, locale())
   defp content(document, "md"), do: {:ok, Document.markdown(document)}
-  defp content(document, "typ"), do: {:ok, Document.typst(document)}
+  defp content(document, "typ"), do: {:ok, Document.typst(document, locale())}
+
+  defp locale, do: Gettext.get_locale(PadocsWeb.Gettext)
 end
