@@ -55,16 +55,26 @@ defmodule PadocsWeb.SearchModal do
      |> stream(:results, [])}
   end
 
-  # The first update can bring `initial_tag`, a tag picked on the page: the
-  # modal opens filtered by it. Later ones bring it again, ignored.
+  # The first update can bring `initial_tag`, a tag picked on the page, or
+  # `initial_scope`, e.g. :trash from a link: the modal opens filtered by it.
+  # Later ones bring them again, ignored.
   def update(assigns, socket) do
     {tag, assigns} = Map.pop(assigns, :initial_tag)
+    {scope, assigns} = Map.pop(assigns, :initial_scope)
     socket = assign(socket, assigns)
 
     cond do
-      socket.assigns.initialized? -> {:ok, socket}
-      tag -> {:ok, socket |> assign(initialized?: true) |> put_tag(tag)}
-      true -> {:ok, socket |> assign(initialized?: true) |> search("")}
+      socket.assigns.initialized? ->
+        {:ok, socket}
+
+      tag ->
+        {:ok, socket |> assign(initialized?: true) |> put_tag(tag)}
+
+      scope in @scope_names ->
+        {:ok, socket |> assign(initialized?: true, scope: scope) |> search("")}
+
+      true ->
+        {:ok, socket |> assign(initialized?: true) |> search("")}
     end
   end
 

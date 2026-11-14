@@ -125,6 +125,7 @@ defmodule PadocsWeb.DocumentLive do
                 id="search-modal"
                 user={@current_user}
                 initial_tag={@search_tag}
+                initial_scope={@search_scope}
               />
               <.move_panel
                 :if={@moving?}
@@ -1576,6 +1577,7 @@ defmodule PadocsWeb.DocumentLive do
        public_token: nil,
        search_open?: false,
        search_tag: nil,
+       search_scope: nil,
        share_form: nil,
        history_open?: false,
        # the versions listed, by id, and the one shown in place of the editor
@@ -1598,7 +1600,9 @@ defmodule PadocsWeb.DocumentLive do
 
   # /documents opens the document the user opened last, else the one they
   # updated last, else a new one (deleted if left empty, see YPersistence).
-  def handle_params(_params, _uri, %{assigns: %{live_action: :index}} = socket) do
+  # ?search=trash (e.g. the link of the message after putting a document in
+  # the trash) goes along, to open the trash there.
+  def handle_params(params, _uri, %{assigns: %{live_action: :index}} = socket) do
     user = socket.assigns.current_user
 
     document =
@@ -1607,7 +1611,20 @@ defmodule PadocsWeb.DocumentLive do
         document
       end
 
-    {:noreply, push_patch(socket, to: ~p"/documents/#{document.id}", replace: true)}
+    query = Map.take(params, ["search"])
+    {:noreply, push_patch(socket, to: ~p"/documents/#{document.id}?#{query}", replace: true)}
+  end
+
+  # The trash, in the search modal. The address keeps its parameter while it
+  # is open (a reload opens it again), and loses it when it closes.
+  def handle_params(%{"id" => id, "search" => "trash"}, uri, socket) do
+    {:noreply, socket} = handle_params(%{"id" => id}, uri, socket)
+
+    if socket.assigns.document && socket.assigns.document.id == id do
+      {:noreply, assign(socket, search_open?: true, search_tag: nil, search_scope: :trash)}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Going from one document to another is a live patch: the same process
@@ -1679,7 +1696,8 @@ defmodule PadocsWeb.DocumentLive do
 
   defp open_search(socket, tag), do: assign(socket, search_open?: true, search_tag: tag)
 
-  defp close_search(socket), do: assign(socket, search_open?: false, search_tag: nil)
+  defp close_search(socket),
+    do: assign(socket, search_open?: false, search_tag: nil, search_scope: nil)
 
   # Lists the versions of the open document, each with whether it is the
   # first of its day (the list being the last first) and the last of all.
@@ -2052,7 +2070,15 @@ defmodule PadocsWeb.DocumentLive do
     end
   end
 
-  def handle_event("close_search", _params, socket), do: {:noreply, close_search(socket)}
+  def handle_event("close_search", _params, socket) do
+    # opened by ?search=trash: the address without it
+    socket =
+      if socket.assigns.search_scope,
+        do: push_patch(socket, to: ~p"/documents/#{socket.assigns.document.id}", replace: true),
+        else: socket
+
+    {:noreply, close_search(socket)}
+  end
 
   # A Word or OpenDocument file, made from the editor by the DocumentEditor
   # hook, which answers with export_done or export_failed.
@@ -2090,10 +2116,11 @@ defmodule PadocsWeb.DocumentLive do
       :ok ->
         {:noreply,
          socket
-         |> put_flash(
-           :info,
-           gettext("“%{title}” put in the trash", title: document.title || gettext("Untitled"))
-         )
+         |> put_flash(:info, %{
+           message:
+             gettext("“%{title}” put in the trash", title: document.title || gettext("Untitled")),
+           link: {gettext("See the trash"), ~p"/documents?search=trash"}
+         })
          |> push_navigate(to: ~p"/documents")}
 
       {:error, _} ->

@@ -1154,3 +1154,8 @@ msgstr "Vide : en cours de suppression"
 #, elixir-autogen, elixir-format
 msgid "Empty: deleted when you leave it"
 msgstr "Vide : supprimé quand vous le quitterez"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "See the trash"
+msgstr "Voir la corbeille"

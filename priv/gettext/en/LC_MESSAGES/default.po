@@ -1154,3 +1154,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Empty: deleted when you leave it"
 msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "See the trash"
+msgstr ""
