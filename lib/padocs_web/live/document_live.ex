@@ -706,9 +706,9 @@ defmodule PadocsWeb.DocumentLive do
   attr :id, :string, required: true
   attr :countdown, :boolean, default: false, doc: "whether the document was left, being deleted"
 
-  # An empty document, deleted when left (see YPersistence): a trash in a
-  # dotted ring while open; once left, in a ring emptying over the seconds
-  # before its deletion.
+  # An empty document, deleted for good when left (see YPersistence), not put
+  # in the trash: a cross in a dotted ring while open; once left, in a ring
+  # emptying over the seconds before its deletion.
   defp deletion_mark(assigns) do
     assigns =
       assign(
@@ -747,7 +747,7 @@ defmodule PadocsWeb.DocumentLive do
           }
         />
       </svg>
-      <.icon name="hero-trash-micro" class="size-3" />
+      <.icon name="hero-x-mark-micro" class="size-3" />
     </span>
     """
   end
