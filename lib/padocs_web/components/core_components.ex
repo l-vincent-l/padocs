@@ -75,7 +75,20 @@ defmodule PadocsWeb.CoreComponents do
         <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
         <div>
           <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
+          <%!-- A message, or a message and a link: %{message: ..., link: {label, path}} --%>
+          <%= case msg do %>
+            <% %{message: message, link: {label, path}} -> %>
+              <p>{message}</p>
+              <.link
+                id={"#{@id}-link"}
+                navigate={path}
+                class="mt-1 inline-flex items-center gap-1 font-medium underline decoration-dotted underline-offset-2 hover:decoration-solid"
+              >
+                {label} <.icon name="hero-arrow-right-micro" class="size-4" />
+              </.link>
+            <% _ -> %>
+              <p>{msg}</p>
+          <% end %>
         </div>
         <div class="flex-1" />
         <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>

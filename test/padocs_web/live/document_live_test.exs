@@ -1192,10 +1192,28 @@ defmodule PadocsWeb.DocumentLiveTest do
          %{conn: conn, user: user, open: open} do
       {:ok, view, _html} = live(conn, ~p"/documents/#{open.id}")
 
-      assert {:error, {:live_redirect, %{to: "/documents"}}} =
+      assert {:error, {:live_redirect, %{to: "/documents"} = redirect}} =
                view |> element("#trash-button") |> render_click()
 
       assert {:error, :not_found} = Document.get_document(open.id, user)
+
+      # The message links to the trash: /documents goes on to the last
+      # document opened, the message along, with the search open on the trash
+      {:error, {:live_redirect, redirect}} =
+        follow_redirect({:error, {:live_redirect, redirect}}, conn)
+
+      {:ok, view, _html} = follow_redirect({:error, {:live_redirect, redirect}}, conn)
+      assert has_element?(view, "#flash-info a#flash-info-link[href='/documents?search=trash']")
+
+      {:error, {:live_redirect, %{to: to}}} = live(conn, ~p"/documents?search=trash")
+      assert to =~ "?search=trash"
+      {:ok, view, _html} = live(conn, to)
+      assert has_element?(view, "#search-panel #restore-#{open.id}")
+
+      # closed, the address loses the parameter
+      view |> element("#search-close") |> render_click()
+      refute has_element?(view, "#search-panel")
+      refute assert_patch(view) =~ "search="
 
       other = Fixtures.create_document!(user, %{title: "Autre"})
       view = open_search(conn, other)
