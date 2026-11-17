@@ -5,7 +5,7 @@ time, organize documents in a tree, find them with full-text search, and share
 them with your team or with a public link. It all runs as a single Elixir
 application next to a SQLite file.
 
-![A document in Padocs: the sidebar with sub-documents, tags, a checklist and a table](docs/images/document.png)
+![A document in Padocs: the recent documents, its sub-documents shown beside them, tags, a checklist and a table](docs/images/document.png)
 
 ## Why Padocs
 
@@ -34,8 +34,10 @@ everything else in one [Phoenix](https://www.phoenixframework.org) application:
   who have the document open shown next to its title.
 - **Offline**: edits made without a connection are kept in the browser and
   merged when it comes back.
-- **Sub-documents**: a tree in the sidebar, reordered by drag and drop. Access
-  is inherited from the parents.
+- **Sub-documents**: a tree opened from the document, or shown beside it,
+  reordered by drag and drop. Access is inherited from the parents.
+- **A sidebar** listing the recent documents, your own, those shared with you
+  or the trash.
 - **Search**: full-text search with snippets, filters (recent, mine, shared
   with me, trash) and tags.
 - **Sharing**: viewer and editor roles per document, and a public read-only
