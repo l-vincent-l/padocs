@@ -5,14 +5,14 @@ behind its HTTPS, with a persistent disk for the SQLite database. What Padocs
 needs, the emails and the storage of the images: [Deployment](README.md);
 every variable: [Configuration](../configuration.md).
 
-`render.yaml` describes the service (a Blueprint). It has not been tried on
-Render yet: the image's part, a disk mounted as root and the host name taken
-from Render, has been tried with Podman.
+`render.yaml` describes the service (a Blueprint). Tried on Render, from the
+repository.
 
 ## Create the service
 
 1. **New** → **Blueprint**, then the repository (a fork of yours, or
-   `https://github.com/l-vincent-l/padocs`).
+   `https://github.com/l-vincent-l/padocs`) and its branch. **Blueprint
+   Path**: `render.yaml`, the default.
 2. Render reads `render.yaml` and asks for `SECRET_KEY_BASE`: at least 64
    characters, from `mix phx.gen.secret` or `openssl rand -base64 48`. Keep
    it: a new one signs everyone out.
