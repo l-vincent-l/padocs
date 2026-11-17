@@ -147,12 +147,12 @@ CMD ["/app/bin/fly_start"]
 # DATABASE_ADAPTER=hrana, a libSQL server (Bunny Database).
 FROM runtime AS final
 
-USER nobody
-
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
 # ENTRYPOINT ["/tini", "--"]
 
-# run pending migrations, then start the server
-CMD ["/bin/sh", "-c", "/app/bin/migrate && exec /app/bin/server"]
+# The migrations, then the server, as nobody: bin/start starts as root to give
+# the database's folder to nobody first, for the hosts that mount their volume
+# as root (Render, Railway).
+CMD ["/app/bin/start"]

@@ -1,0 +1,27 @@
+# Render Blueprint (see docs/deployment/render.md): New > Blueprint, this
+# repository. One web service built from the Dockerfile (its last stage,
+# `final`), with a persistent disk for the SQLite database and the images.
+#
+# A disk needs a paid instance, keeps the service to one instance and stops the
+# old one before starting the new one on each deploy: what SQLite needs anyway.
+services:
+  - type: web
+    name: padocs
+    runtime: docker
+    plan: 0.5c-512mb
+    region: frankfurt
+    healthCheckPath: /sign-in
+    disk:
+      name: padocs-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      # At least 64 characters, asked when the Blueprint is created (Render's
+      # generateValue gives 44): `mix phx.gen.secret` or
+      # `openssl rand -base64 48`.
+      - key: SECRET_KEY_BASE
+        sync: false
+      - key: DATABASE_PATH
+        value: /data/padocs.db
+      # PHX_HOST defaults to the service's <name>.onrender.com host name
+      # (RENDER_EXTERNAL_HOSTNAME); set it for a domain of your own.

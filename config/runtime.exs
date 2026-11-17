@@ -23,11 +23,13 @@ end
 config :padocs, PadocsWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
-# The public host name: PHX_HOST, or on Fly.io <app>.fly.dev, from the
-# FLY_APP_NAME that Fly sets in every machine.
+# The public host name: PHX_HOST, or the host name the platform gives the
+# application: on Fly.io <app>.fly.dev, from the FLY_APP_NAME that Fly sets in
+# every machine; on Render <service>.onrender.com, RENDER_EXTERNAL_HOSTNAME.
 public_host =
   System.get_env("PHX_HOST") ||
     if(fly_app = System.get_env("FLY_APP_NAME"), do: "#{fly_app}.fly.dev") ||
+    System.get_env("RENDER_EXTERNAL_HOSTNAME") ||
     "example.com"
 
 # With DATABASE_ADAPTER=hrana (see config/config.exs), the database is a libSQL

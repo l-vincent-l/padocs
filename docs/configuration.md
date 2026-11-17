@@ -14,15 +14,15 @@ PHX_HOST=docs.example.org
 DATABASE_PATH=/data/padocs.db
 ```
 
-The release started by `bin/server` (as the Docker image does) sets
-`PHX_SERVER=true` itself.
+The release started by `bin/server` (as the Docker image does, through
+`bin/start`) sets `PHX_SERVER=true` itself.
 
 ## Application
 
 | Variable | Required | Default | Meaning |
 |---|---|---|---|
 | `SECRET_KEY_BASE` | yes, in production | | signs and encrypts the cookies; generate one with `mix phx.gen.secret` and keep it: a new one signs everyone out |
-| `PHX_HOST` | yes, in production, but on Fly.io | `<app>.fly.dev` on Fly.io (from `FLY_APP_NAME`, set by Fly), else `example.com` | the public host name; the links are built as `https://<PHX_HOST>` |
+| `PHX_HOST` | yes, in production, but on Fly.io and Render | `<app>.fly.dev` on Fly.io (from `FLY_APP_NAME`), the `RENDER_EXTERNAL_HOSTNAME` on Render, else `example.com` | the public host name; the links are built as `https://<PHX_HOST>` |
 | `PORT` | no | `4000` | the HTTP port |
 | `PHX_SERVER` | for a release | | starts the HTTP server; set by `bin/server` |
 | `DNS_CLUSTER_QUERY` | no | | a DNS name whose records are the other nodes to connect to (`DNSCluster`); without it, one node |

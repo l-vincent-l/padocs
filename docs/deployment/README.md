@@ -25,6 +25,7 @@ Every variable, with its default: [Configuration](../configuration.md).
   (Quadlet).
 - [Coolify](coolify.md): on a server of yours, from
   `docker-compose.coolify.yaml`, with HTTPS by Let's Encrypt.
+- [Render](render.md): from `render.yaml`, with a persistent disk.
 - [Fly.io](fly-io.md): one machine suspended when idle, SQLite on a volume
   streamed to Tigris by Litestream. The reference deployment.
 - [Bunny](bunny.md): a Magic Container with Bunny Database (libSQL).

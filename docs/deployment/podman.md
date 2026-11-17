@@ -21,9 +21,9 @@ The image is then `localhost/padocs:latest`.
 
 ## The volume and the secret
 
-The database and the images go on a volume. The image runs as `nobody` (uid
-65534 in the container), and its `/data` belongs to it: a new named volume
-mounted there takes that owner, nothing to `chown`.
+The database and the images go on a volume. The image starts as root (your
+own user, rootless), gives the database's folder to `nobody` (uid 65534 in
+the container), then runs as `nobody`: nothing to `chown`.
 
 ```sh
 podman volume create padocs-data

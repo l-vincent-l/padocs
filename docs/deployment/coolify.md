@@ -39,9 +39,8 @@ From the file, Coolify:
   host name to `PHX_HOST` (`SERVICE_FQDN_PADOCS`): changing the domain changes
   `PHX_HOST` at the next deployment;
 - creates the volume `padocs-data`, mounted on `/data`, where the database
-  is (`DATABASE_PATH=/data/padocs.db`) and the images by default. The image's
-  `/data` belongs to `nobody`, which the release runs as: the new volume takes
-  that owner;
+  is (`DATABASE_PATH=/data/padocs.db`) and the images by default. The image
+  gives it to `nobody`, which the release runs as;
 - gives a stop 30 s, for the documents being edited to save their last
   edits.
 
