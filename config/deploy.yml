@@ -31,6 +31,9 @@ env:
   clear:
     PHX_HOST: docs.example.org
     DATABASE_PATH: /data/padocs.db
+    # The container's host name (<server>-<id>) holds dots, which a short
+    # Erlang node name cannot: `bin/padocs remote` and `rpc` need this one.
+    RELEASE_NODE: padocs@localhost
   secret:
     - SECRET_KEY_BASE
 
