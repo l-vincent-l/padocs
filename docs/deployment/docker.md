@@ -12,12 +12,11 @@ docker build --target final -t padocs .
 ```
 
 The database and the images go on a volume. The image runs as `nobody` (uid
-65534): give it the volume first.
+65534), and its `/data` belongs to it: a new named volume mounted there takes
+that owner. A folder of the host mounted instead (`-v /srv/padocs:/data`)
+must be given to uid 65534 first.
 
 ```sh
-docker volume create padocs-data
-docker run --rm -v padocs-data:/data debian:trixie-slim chown 65534:65534 /data
-
 docker run -d --name padocs --restart unless-stopped \
   -p 4000:4000 \
   -v padocs-data:/data \

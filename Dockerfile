@@ -108,6 +108,13 @@ ENV LC_ALL=en_US.UTF-8
 WORKDIR "/app"
 RUN chown nobody /app
 
+# The usual mount point of the database and the images, owned by nobody: a new
+# named volume mounted there takes this owner (Docker, Podman, Coolify), so the
+# release can write to it without a chown first.
+RUN mkdir /data && chown nobody:nogroup /data
+
+EXPOSE 4000
+
 # set runner ENV
 ENV MIX_ENV="prod"
 

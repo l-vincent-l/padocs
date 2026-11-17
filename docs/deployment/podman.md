@@ -22,12 +22,11 @@ The image is then `localhost/padocs:latest`.
 ## The volume and the secret
 
 The database and the images go on a volume. The image runs as `nobody` (uid
-65534 in the container): give it the volume first. Rootless, root in a
-container is your own user, so this works without `sudo`.
+65534 in the container), and its `/data` belongs to it: a new named volume
+mounted there takes that owner, nothing to `chown`.
 
 ```sh
 podman volume create padocs-data
-podman run --rm -v padocs-data:/data docker.io/debian:trixie-slim chown 65534:65534 /data
 ```
 
 Keep `SECRET_KEY_BASE` in a Podman secret rather than in a file: generate it

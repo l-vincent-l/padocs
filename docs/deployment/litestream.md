@@ -89,8 +89,7 @@ podman run -d --name padocs \
 
 With Docker, the same with `docker` (and without `,Z`, which only relabels
 the file for SELinux). This image starts as root to give the volume to
-`nobody`: the volume needs no `chown` beforehand. Rootless, Podman's root is
-your own user.
+`nobody`, whatever its owner.
 
 ## Look at the replica
 
