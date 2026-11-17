@@ -27,6 +27,8 @@ Every variable, with its default: [Configuration](../configuration.md).
   `docker-compose.coolify.yaml`, with HTTPS by Let's Encrypt.
 - [Kamal](kamal.md): from your computer to a server of yours, over SSH,
   with HTTPS by Let's Encrypt.
+- [Dokku](dokku.md): a small Heroku on a server of yours, deployed by
+  `git push`.
 - [Render](render.md): from `render.yaml`, with a persistent disk.
 - [Fly.io](fly-io.md): one machine suspended when idle, SQLite on a volume
   streamed to Tigris by Litestream. The reference deployment.
