@@ -23,6 +23,13 @@ end
 config :padocs, PadocsWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# The public host name: PHX_HOST, or on Fly.io <app>.fly.dev, from the
+# FLY_APP_NAME that Fly sets in every machine.
+public_host =
+  System.get_env("PHX_HOST") ||
+    if(fly_app = System.get_env("FLY_APP_NAME"), do: "#{fly_app}.fly.dev") ||
+    "example.com"
+
 # With DATABASE_ADAPTER=hrana (see config/config.exs), the database is a libSQL
 # server, e.g. Bunny Database, in every environment.
 if System.get_env("DATABASE_ADAPTER") == "hrana" do
@@ -38,7 +45,7 @@ end
 # its client id and secret, signing in with a provider fails.
 auth_url =
   if config_env() == :prod,
-    do: "https://#{System.get_env("PHX_HOST", "example.com")}/auth",
+    do: "https://#{public_host}/auth",
     else: "http://localhost:#{System.get_env("PORT", "4000")}/auth"
 
 config :padocs, :github,
@@ -86,7 +93,7 @@ if config_env() == :prod do
       System.get_env("DATABASE_PATH") ||
         raise """
         environment variable DATABASE_PATH is missing.
-        For example: /data/textexp.db
+        For example: /data/padocs.db
         """
 
     # SQLite runs one write transaction at a time: more connections only wait
@@ -165,12 +172,10 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
-
   config :padocs, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :padocs, PadocsWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: public_host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.

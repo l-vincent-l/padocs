@@ -1,9 +1,13 @@
-# Fly.io deployment: one machine, suspended when no one is connected (its memory
-# is saved, no stop signal is sent) and resumed on the next request. A deploy or
-# a host migration drops the saved memory: the machine then boots from scratch.
+# Fly.io deployment of Padocs, to copy for your own (see
+# docs/deployment/fly-io.md): set `app`, then create the app, its volume and
+# its bucket. The reference deployment is in fly.textexp.toml.
+#
+# One machine, suspended when no one is connected (its memory is saved, no stop
+# signal is sent) and resumed on the next request. A deploy or a host migration
+# drops the saved memory: the machine then boots from scratch.
 # The database is a SQLite file on the volume, replicated to Tigris by
 # Litestream (see litestream.yml and bin/fly_start).
-app = "textexp"
+app = "padocs"  # your app's name, unique on Fly.io
 primary_region = "cdg"
 # The stop signal goes to Litestream, which forwards it to the release; enough
 # time for the DocServers to flush and for Litestream's last sync.
@@ -14,12 +18,13 @@ kill_timeout = "30s"
   build-target = "fly"
 
 [env]
-  PHX_HOST = "textexp.fly.dev"
+  # PHX_HOST defaults to <app>.fly.dev; set it for a domain of your own:
+  # PHX_HOST = "docs.example.org"
   PORT = "4000"
-  DATABASE_PATH = "/data/textexp.db"
+  DATABASE_PATH = "/data/padocs.db"
 
 [mounts]
-  source = "textexp_data"
+  source = "padocs_data"  # the volume, `fly volumes create padocs_data`
   destination = "/data"
 
 [http_service]

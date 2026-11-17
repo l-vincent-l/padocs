@@ -129,6 +129,10 @@ FROM runtime AS fly
 
 COPY --from=docker.io/litestream/litestream:0.5.17-scratch /usr/local/bin/litestream /usr/local/bin/litestream
 COPY litestream.yml /etc/litestream.yml
+# The replica's path in the bucket (litestream.yml). In the image rather than in
+# bin/fly_start, so that a litestream command run by hand (fly ssh console)
+# finds the same replica.
+ENV LITESTREAM_REPLICA_PATH=padocs.db
 
 CMD ["/app/bin/fly_start"]
 

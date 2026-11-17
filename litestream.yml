@@ -1,7 +1,9 @@
 # Litestream configuration of the Fly.io image (see the `fly` stage of the
 # Dockerfile). The bucket and its credentials (BUCKET_NAME, AWS_ACCESS_KEY_ID,
-# AWS_SECRET_ACCESS_KEY) are the secrets set by `fly storage create`.
+# AWS_SECRET_ACCESS_KEY) are the secrets set by `fly storage create`. The
+# replica's path in the bucket, LITESTREAM_REPLICA_PATH, is padocs.db by
+# default (Dockerfile).
 dbs:
   - path: ${DATABASE_PATH}
     replica:
-      url: s3://${BUCKET_NAME}/textexp.db?endpoint=fly.storage.tigris.dev&region=auto
+      url: s3://${BUCKET_NAME}/${LITESTREAM_REPLICA_PATH}?endpoint=fly.storage.tigris.dev&region=auto
