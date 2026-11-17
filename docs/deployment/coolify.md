@@ -48,12 +48,28 @@ From the file, Coolify:
 The other variables (GitHub sign-in, images on S3, the dashboard…) go in the
 resource's **Environment Variables**.
 
-## The first deployment is slow
+## Building on the server, or not
 
-Coolify builds the image on the server: the Elixir dependencies and the Rust
-code of the search index and of Yjs. On 2 virtual CPUs, it took about a
-quarter of an hour. The next deployments reuse Docker's cache and are much
-faster, as long as the dependencies do not change.
+With `docker-compose.coolify.yaml`, Coolify builds the image on the server:
+the Elixir dependencies and the Rust code of the search index and of Yjs.
+On 2 virtual CPUs, the first build took about a quarter of an hour; the
+next ones reuse Docker's cache and are much faster, as long as the
+dependencies do not change.
+
+To skip the build, pull the image that GitHub builds on every push to main
+(`.github/workflows/sqlite-image.yml`) instead. No repository is needed then:
+**+ New** → **Docker Compose Empty**, and paste `docker-compose.coolify.yaml`
+with its `build:` block replaced by
+
+```yaml
+    image: ghcr.io/l-vincent-l/padocs:sqlite
+```
+
+A deployment then only pulls the image: to update, deploy again. A fork
+publishes its own, `ghcr.io/<owner>/<repository>:sqlite`; its package must be
+public on GitHub for Coolify to pull it without credentials. The image is
+built for `linux/amd64` only. This way has not been tried yet: the image is
+published once this workflow has run on main.
 
 ## Backups
 
