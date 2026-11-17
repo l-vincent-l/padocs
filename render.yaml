@@ -10,7 +10,7 @@ services:
     runtime: docker
     plan: 0.5c-512mb
     region: frankfurt
-    healthCheckPath: /sign-in
+    healthCheckPath: /health
     disk:
       name: padocs-data
       mountPath: /data

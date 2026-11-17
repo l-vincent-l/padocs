@@ -14,7 +14,8 @@ config :padocs, PadocsWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [
-      # paths: ["/health"],
+      # The health check, which the hosts call over plain HTTP
+      paths: ["/health"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]

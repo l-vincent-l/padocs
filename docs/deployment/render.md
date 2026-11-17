@@ -32,7 +32,7 @@ service: without `PHX_HOST`, the host name is the one Render sets in
 | Region | `frankfurt` |
 | Disk | `padocs-data`, 1 GB, mounted on `/data`; it can grow, not shrink |
 | Variables | `DATABASE_PATH=/data/padocs.db`, `SECRET_KEY_BASE` asked at creation |
-| Health check | `/sign-in` |
+| Health check | `/health`, 200 once the database answers |
 
 Render builds the last stage of the `Dockerfile`, `final`: it cannot choose
 another. Its disk is mounted as root; the image starts as root, gives the
