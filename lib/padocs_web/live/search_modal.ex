@@ -86,7 +86,7 @@ defmodule PadocsWeb.SearchModal do
         role="dialog"
         aria-modal="true"
         aria-labelledby="search-title"
-        class="modal-box flex max-h-[85dvh] w-11/12 max-w-2xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
+        class="modal-box flex max-h-[85dvh] w-11/12 max-w-4xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
       >
         <div class="flex items-start justify-between gap-4">
           <h2 id="search-title" class="text-sm uppercase">{gettext("Search")}</h2>
@@ -379,9 +379,12 @@ defmodule PadocsWeb.SearchModal do
     """
   end
 
-  # The scopes: their label, icon, and the text of their empty list, in the
-  # user's language (see PadocsWeb.Locale)
-  defp scopes do
+  @doc """
+  The scopes: their label, icon, and the text of their empty list, in the
+  user's language (see PadocsWeb.Locale). The sidebar of DocumentLive lists
+  them too.
+  """
+  def scopes do
     [
       recent: {gettext("Recent"), "hero-clock", gettext("No document opened recently")},
       own: {gettext("My documents"), "hero-user", gettext("You have no document yet")},

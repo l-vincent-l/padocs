@@ -582,6 +582,7 @@ msgstr "Réinitialiser le mot de passe"
 msgid "Reset your password"
 msgstr "Réinitialiser votre mot de passe"
 
+#: lib/padocs_web/live/document_live.ex
 #: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Restore"
@@ -592,6 +593,7 @@ msgstr "Restaurer"
 msgid "Restore this version"
 msgstr "Restaurer cette version"
 
+#: lib/padocs_web/live/document_live.ex
 #: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "Restore “%{title}”"
@@ -1029,6 +1031,7 @@ msgstr "« %{title} » déplacé"
 msgid "“%{title}” put in the trash"
 msgstr "« %{title} » mis à la corbeille"
 
+#: lib/padocs_web/live/document_live.ex
 #: lib/padocs_web/live/search_modal.ex
 #, elixir-autogen, elixir-format
 msgid "“%{title}” restored"
@@ -1159,3 +1162,23 @@ msgstr "Vide : supprimé quand vous le quitterez"
 #, elixir-autogen, elixir-format
 msgid "See the trash"
 msgstr "Voir la corbeille"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Sub-documents"
+msgstr "Sous-documents"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Remove from the page"
+msgstr "Retirer de la page"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Show on the page"
+msgstr "Montrer sur la page"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Manage the trash"
+msgstr "Gérer la corbeille"

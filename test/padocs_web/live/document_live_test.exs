@@ -430,7 +430,7 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert owner_id == user.id
     end
 
-    test "the sidebar shows the tree of the open document, from its highest parent",
+    test "the sub-documents show the tree of the open document, from its highest parent",
          %{conn: conn, user: user} do
       other = register_user()
       own = Fixtures.create_document!(user, %{title: "Mine"})
@@ -442,7 +442,7 @@ defmodule PadocsWeb.DocumentLiveTest do
 
       {:ok, view, _html} = live(conn, ~p"/documents/#{own.id}")
 
-      assert has_element?(view, "#documents > #documents-#{own.id} > div.menu-active")
+      assert has_element?(view, "#tree-panel #documents > #documents-#{own.id} > div.menu-active")
       assert has_element?(view, "#documents-#{own.id} #documents-#{child.id}")
       refute has_element?(view, "#documents-#{grandchild.id}")
       refute has_element?(view, "#documents-#{sibling.id}")
@@ -454,6 +454,67 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert has_element?(view, "#documents-#{own.id} #documents-#{child.id} > div.menu-active")
       assert has_element?(view, "#documents-#{child.id} #documents-#{grandchild.id}")
       refute has_element?(view, "#documents-#{sibling.id}")
+    end
+
+    test "the sidebar lists the documents opened last, the last first",
+         %{conn: conn, user: user} do
+      first = Fixtures.create_document!(user, %{title: "First"})
+      second = Fixtures.create_document!(user, %{title: "Second"})
+      unopened = Fixtures.create_document!(user, %{title: "Never opened"})
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{first.id}")
+      assert has_element?(view, ~s(#sidebar-scope-recent[aria-current="true"]))
+      assert has_element?(view, "#sidebar-documents > #sidebar-#{first.id} > a.menu-active")
+      refute has_element?(view, "#sidebar-#{unopened.id}")
+
+      render_patch(view, ~p"/documents/#{second.id}")
+      assert has_element?(view, "#sidebar-documents > li:nth-child(2)#sidebar-#{second.id}")
+      assert has_element?(view, "#sidebar-documents > li:nth-child(3)#sidebar-#{first.id}")
+      refute has_element?(view, "#sidebar-#{first.id} > a.menu-active")
+    end
+
+    test "the sidebar lists the user's documents, or those shared with them",
+         %{conn: conn, user: user} do
+      other = register_user()
+      own = Fixtures.create_document!(user, %{title: "Mine"})
+      shared = Fixtures.create_document!(other, %{title: "Shared"})
+      Fixtures.share!(other, shared, user, :viewer)
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{own.id}")
+
+      view |> element("#sidebar-scope-own") |> render_click()
+      assert has_element?(view, ~s(#sidebar-scope-own[aria-current="true"]))
+      assert has_element?(view, "#sidebar-#{own.id}")
+      refute has_element?(view, "#sidebar-#{shared.id}")
+
+      view |> element("#sidebar-scope-shared") |> render_click()
+      assert has_element?(view, "#sidebar-#{shared.id} a[href='/documents/#{shared.id}']")
+      refute has_element?(view, "#sidebar-#{own.id}")
+    end
+
+    test "the sidebar lists the trash, where a document is restored",
+         %{conn: conn, user: user} do
+      document = Fixtures.create_document!(user, %{title: "Open"})
+      trashed = Fixtures.create_document!(user, %{title: "Trashed"})
+      :ok = Document.trash_document(trashed.id, user)
+
+      {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
+      refute has_element?(view, "#sidebar-#{trashed.id}")
+
+      view |> element("#sidebar-scope-trash") |> render_click()
+      refute has_element?(view, "#sidebar-#{trashed.id} a")
+
+      assert has_element?(
+               view,
+               "#sidebar-open-trash[href='/documents/#{document.id}?search=trash']"
+             )
+
+      view |> element("#sidebar-restore-#{trashed.id}") |> render_click()
+      refute has_element?(view, "#sidebar-#{trashed.id}")
+      assert Document.list_trash(user) == []
+
+      view |> element("#sidebar-scope-own") |> render_click()
+      assert has_element?(view, "#sidebar-#{trashed.id}")
     end
   end
 
@@ -467,6 +528,18 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert has_element?(view, "#sidebar-collapse[data-sidebar-toggle]")
       assert has_element?(view, "#sidebar-expand[data-sidebar-toggle]")
       assert has_element?(view, ~s(#app-drawer > #sidebar-resize[role="separator"]))
+    end
+
+    test "has a button opening the sub-documents, which can be shown on the page",
+         %{conn: conn} do
+      owner = register_user()
+      document = Fixtures.create_document!(owner)
+      {:ok, view, _html} = live(log_in(conn, owner), ~p"/documents/#{document.id}")
+
+      assert has_element?(view, ~s(#tree-toggle[aria-controls="tree-panel"]))
+      assert has_element?(view, "#tree-panel[phx-hook] #documents-#{document.id}")
+      assert has_element?(view, "#tree-panel #tree-pin[data-tree-pin]")
+      assert has_element?(view, "#tree-panel #tree-unpin[data-tree-pin]")
     end
   end
 
@@ -1326,7 +1399,7 @@ defmodule PadocsWeb.DocumentLiveTest do
       |> render()
       |> LazyHTML.from_fragment()
       |> LazyHTML.query("#documents-#{parent.id} > ul > li > [data-document-row] a span.truncate")
-      |> Enum.map(&LazyHTML.text/1)
+      |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
     end
 
     test "the sidebar shows them in their order", %{conn: conn, parent: parent} do
