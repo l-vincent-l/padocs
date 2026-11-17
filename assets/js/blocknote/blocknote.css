@@ -51,10 +51,12 @@
   text-underline-offset: 0.3em;
 }
 
-/* A column for reading, centered (--reading-width, see app.css) */
+/* A column for reading, centered (--reading-width and --reading-margin, see
+   app.css) */
 .bn-root .bn-editor {
   max-width: var(--reading-width);
-  margin-inline: auto;
+  margin-left: var(--reading-margin);
+  margin-right: auto;
 }
 
 /* The text of the documents in a proportional font, the headings keeping the

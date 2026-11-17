@@ -340,3 +340,7 @@
 /* The width of a document's column: about 70 characters of text, plus the
    editor's side margins (54 px each, where its block handles sit). */
 :root { --reading-width: calc(42rem + 108px); }
+
+/* The left margin of a document's column: centered, or, beside the
+   sub-documents shown on the page, set by DocumentLive (see the tree-panel). */
+:root { --reading-margin: auto; }

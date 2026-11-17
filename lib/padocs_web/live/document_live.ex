@@ -10,6 +10,9 @@ defmodule PadocsWeb.DocumentLive do
 
   on_mount {PadocsWeb.LiveUserAuth, :live_user_required}
 
+  # How many documents the menu lists among those opened last
+  @recent 15
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user} full_width sidebar>
@@ -24,202 +27,377 @@ defmodule PadocsWeb.DocumentLive do
         <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" />
 
         <%!-- Room for the history panel, on large screens --%>
+        <%!-- With the sub-documents shown on the page, the document keeps
+             the place it has without them, the column taking its left
+             margin; when the margin is narrower than the column, the
+             document moves just beside it (100cqw: the width of this
+             element, the column's included) --%>
         <div class={[
-          "drawer-content flex flex-col transition-[padding] duration-200 ease-out",
-          @history_open? && "lg:pr-80"
+          "@container drawer-content flex flex-col transition-[padding] duration-200 ease-out lg:flex-row",
+          if(@history_open?,
+            do: "lg:pr-80",
+            else:
+              "lg:group-data-[tree-pinned]/drawer:[--reading-margin:max(0px,calc((100cqw_-_var(--reading-width))_/_2_-_16rem))]"
+          )
         ]}>
-          <%!-- The menu's open button (small screens only), and the document's
-               actions on the right, above the title --%>
-          <div class="flex min-h-12 items-center justify-between px-2 pt-2 lg:px-[54px] lg:pt-4">
-            <label
-              id="sidebar-open"
-              for="sidebar-drawer"
-              aria-label={gettext("Open the menu")}
-              class="btn btn-square btn-ghost drawer-button lg:hidden"
-            >
-              <.icon name="hero-bars-3" class="size-5" />
-            </label>
-            <.document_actions :if={@document} document={@document} can_share?={@can_share?} />
-          </div>
-
-          <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
-          <div class="flex flex-1 flex-col">
-            <div class="document-header mx-auto w-full max-w-(--reading-width) px-[54px] pt-1">
-              <nav
-                :if={@ancestors != []}
-                id="breadcrumb"
-                aria-label={gettext("Parent documents")}
-                class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/70"
+          <div class="flex min-w-0 flex-1 flex-col">
+            <%!-- The menu's open button (small screens only), the button of
+               the sub-documents, and the document's actions on the right,
+               above the title. It stays at the top of
+               the screen, on a blur that fades out downwards: the document
+               scrolled under it shows blurred there. --%>
+            <div class="sticky top-0 z-10 flex h-14 items-center justify-between px-2 pt-2 lg:h-16 lg:px-[54px] lg:pt-4">
+              <div
+                aria-hidden="true"
+                class="pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 bg-base-100/70 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
               >
-                <%= for ancestor <- @ancestors do %>
-                  <.link
-                    id={"breadcrumb-#{ancestor.id}"}
-                    patch={~p"/documents/#{ancestor.id}"}
-                    class="max-w-48 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
-                  >
-                    {ancestor.title || gettext("Untitled")}
-                  </.link>
-                  <.icon name="hero-chevron-right-micro" class="size-3 shrink-0" />
-                <% end %>
-              </nav>
-              <.form
-                for={@title_form}
-                id="title-form"
-                phx-change="update_title"
-                phx-submit="update_title"
-              >
-                <input
-                  id="document-title"
-                  name="title"
-                  value={@title_form[:title].value}
-                  placeholder={gettext("Untitled")}
-                  phx-debounce="300"
-                  autocomplete="off"
-                  readonly={!@can_edit?}
-                  class="w-full bg-transparent text-(--color-document) text-3xl font-medium leading-tight tracking-wide outline-none placeholder:text-base-content/30 sm:text-4xl"
-                />
-              </.form>
-              <%!-- Under the title, on one line: its tags, its last update, and
-                   the people who have it open --%>
-              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                <div class={[
-                  "flex flex-wrap items-center gap-1.5",
-                  (@tag_count == 0 and !@can_edit?) && "hidden"
-                ]}>
-                  <.tags
-                    tags={@streams.tags}
-                    tag_count={@tag_count}
-                    can_edit?={@can_edit?}
-                    adding_tag?={@adding_tag?}
-                    form={@tag_form}
-                    suggestions={@tag_suggestions}
-                  />
-                </div>
-                <p id="last-update" class="text-xs text-base-content/70">
-                  {gettext("Last update: %{at} UTC",
-                    at: Calendar.strftime(@last_update, gettext("%m/%d/%Y %H:%M:%S"))
-                  )}
-                </p>
-                <%!-- People who have this document open --%>
-                <ul id="viewers" class="ml-auto flex -space-x-1.5" phx-update="stream">
-                  <li
-                    :for={{id, viewer} <- @streams.viewers}
-                    id={id}
-                    title={viewer.email}
-                    class={[
-                      "flex size-6 items-center justify-center border-2 border-base-content text-[0.625rem] font-medium uppercase",
-                      "transition-transform duration-150 hover:z-10 hover:-translate-y-0.5",
-                      if(viewer.id == @current_user.id,
-                        do: "bg-primary text-primary-content",
-                        else: "bg-base-300 text-base-content"
-                      )
-                    ]}
-                  >
-                    {String.first(to_string(viewer.email))}
-                  </li>
-                </ul>
               </div>
-              <.live_component
-                :if={@search_open?}
-                module={PadocsWeb.SearchModal}
-                id="search-modal"
-                user={@current_user}
-                initial_tag={@search_tag}
-                initial_scope={@search_scope}
-              />
-              <.move_panel
-                :if={@moving?}
-                document={@document}
-                destinations={@move_destinations}
-                can_move_to_root?={
-                  @document.parent_id != nil and @document.owner_id == @current_user.id
-                }
-              />
-              <.share_panel
-                :if={@sharing?}
-                form={@share_form}
-                members={@streams.members}
-                inherited={@inherited_accesses}
-                current_user_id={@current_user.id}
-                public_token={@public_token}
-              />
-              <.history_panel :if={@history_open?} versions={@streams.versions} />
-              <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
+              <%!-- On large screens, close to the menu's edge --%>
+              <div class="flex items-center gap-1 lg:-ml-[46px]">
+                <label
+                  id="sidebar-open"
+                  for="sidebar-drawer"
+                  aria-label={gettext("Open the menu")}
+                  class="btn btn-square btn-ghost drawer-button lg:hidden"
+                >
+                  <.icon name="hero-bars-3" class="size-5" />
+                </label>
+                <%!-- Opens the sub-documents, unless they are shown on the page
+                     (see the SubDocuments hook); while the history is open,
+                     which hides them there, too --%>
+                <button
+                  id="tree-toggle"
+                  type="button"
+                  aria-controls="tree-panel"
+                  aria-expanded="false"
+                  aria-label={gettext("Sub-documents")}
+                  title={gettext("Sub-documents")}
+                  class={[
+                    "btn btn-square btn-ghost btn-sm aria-expanded:bg-base-200",
+                    !@history_open? && "group-data-[tree-pinned]/drawer:hidden"
+                  ]}
+                >
+                  <.icon name="hero-rectangle-stack" class="size-5" />
+                </button>
+              </div>
+              <.document_actions :if={@document} document={@document} can_share?={@can_share?} />
             </div>
-            <.version_banner
-              :if={@viewed_version}
-              version={@viewed_version}
-              can_edit?={@can_edit?}
-            />
-            <%!-- Managed by the DocumentEditor hook: LiveView must not touch it. Its
+
+            <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
+            <div class="flex flex-1 flex-col">
+              <div class="document-header mr-auto ml-(--reading-margin) w-full max-w-(--reading-width) px-[54px] pt-1">
+                <nav
+                  :if={@ancestors != []}
+                  id="breadcrumb"
+                  aria-label={gettext("Parent documents")}
+                  class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/70"
+                >
+                  <%= for ancestor <- @ancestors do %>
+                    <.link
+                      id={"breadcrumb-#{ancestor.id}"}
+                      patch={~p"/documents/#{ancestor.id}"}
+                      class="max-w-48 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
+                    >
+                      {ancestor.title || gettext("Untitled")}
+                    </.link>
+                    <.icon name="hero-chevron-right-micro" class="size-3 shrink-0" />
+                  <% end %>
+                </nav>
+                <.form
+                  for={@title_form}
+                  id="title-form"
+                  phx-change="update_title"
+                  phx-submit="update_title"
+                >
+                  <input
+                    id="document-title"
+                    name="title"
+                    value={@title_form[:title].value}
+                    placeholder={gettext("Untitled")}
+                    phx-debounce="300"
+                    autocomplete="off"
+                    readonly={!@can_edit?}
+                    class="w-full bg-transparent text-(--color-document) text-3xl font-medium leading-tight tracking-wide outline-none placeholder:text-base-content/30 sm:text-4xl"
+                  />
+                </.form>
+                <%!-- Under the title, on one line: its tags, its last update, and
+                   the people who have it open --%>
+                <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  <div class={[
+                    "flex flex-wrap items-center gap-1.5",
+                    (@tag_count == 0 and !@can_edit?) && "hidden"
+                  ]}>
+                    <.tags
+                      tags={@streams.tags}
+                      tag_count={@tag_count}
+                      can_edit?={@can_edit?}
+                      adding_tag?={@adding_tag?}
+                      form={@tag_form}
+                      suggestions={@tag_suggestions}
+                    />
+                  </div>
+                  <p id="last-update" class="text-xs text-base-content/70">
+                    {gettext("Last update: %{at} UTC",
+                      at: Calendar.strftime(@last_update, gettext("%m/%d/%Y %H:%M:%S"))
+                    )}
+                  </p>
+                  <%!-- People who have this document open --%>
+                  <ul id="viewers" class="ml-auto flex -space-x-1.5" phx-update="stream">
+                    <li
+                      :for={{id, viewer} <- @streams.viewers}
+                      id={id}
+                      title={viewer.email}
+                      class={[
+                        "flex size-6 items-center justify-center border-2 border-base-content text-[0.625rem] font-medium uppercase",
+                        "transition-transform duration-150 hover:z-10 hover:-translate-y-0.5",
+                        if(viewer.id == @current_user.id,
+                          do: "bg-primary text-primary-content",
+                          else: "bg-base-300 text-base-content"
+                        )
+                      ]}
+                    >
+                      {String.first(to_string(viewer.email))}
+                    </li>
+                  </ul>
+                </div>
+                <.live_component
+                  :if={@search_open?}
+                  module={PadocsWeb.SearchModal}
+                  id="search-modal"
+                  user={@current_user}
+                  initial_tag={@search_tag}
+                  initial_scope={@search_scope}
+                />
+                <.move_panel
+                  :if={@moving?}
+                  document={@document}
+                  destinations={@move_destinations}
+                  can_move_to_root?={
+                    @document.parent_id != nil and @document.owner_id == @current_user.id
+                  }
+                />
+                <.share_panel
+                  :if={@sharing?}
+                  form={@share_form}
+                  members={@streams.members}
+                  inherited={@inherited_accesses}
+                  current_user_id={@current_user.id}
+                  public_token={@public_token}
+                />
+                <.history_panel :if={@history_open?} versions={@streams.versions} />
+                <hr class="mt-3 mb-1 border-t-2 border-dotted border-base-content/40" />
+              </div>
+              <.version_banner
+                :if={@viewed_version}
+                version={@viewed_version}
+                can_edit?={@can_edit?}
+              />
+              <%!-- Managed by the DocumentEditor hook: LiveView must not touch it. Its
                    id changes with the document so that LiveView replaces it, and the
                    hook mounts a new editor. The skeleton is removed and the editor
                    shown once the content is loaded. No ids inside: morphdom would
                    move the previous editor's nodes into the new element. --%>
-            <div
-              id={"document-editor-#{@document.id}"}
-              class={["flex-1 w-full pb-16", @can_edit? && "cursor-text"]}
-              phx-hook="DocumentEditor"
-              phx-update="ignore"
-              data-document-id={@document.id}
-              data-user-id={@current_user.id}
-              data-user-name={@current_user.email}
-              data-editable={to_string(@can_edit?)}
-              data-report-empty
-            >
               <div
-                data-skeleton
-                role="status"
-                aria-label={gettext("Loading the document")}
-                class="mx-auto flex w-full max-w-(--reading-width) flex-col gap-3 px-[54px] py-4 motion-safe:animate-pulse"
+                id={"document-editor-#{@document.id}"}
+                class={["flex-1 w-full pb-16", @can_edit? && "cursor-text"]}
+                phx-hook="DocumentEditor"
+                phx-update="ignore"
+                data-document-id={@document.id}
+                data-user-id={@current_user.id}
+                data-user-name={@current_user.email}
+                data-editable={to_string(@can_edit?)}
+                data-report-empty
               >
-                <div class="h-4 w-3/4 bg-base-300"></div>
-                <div class="h-4 w-full bg-base-300"></div>
-                <div class="h-4 w-5/6 bg-base-300"></div>
-                <div class="h-4 w-2/5 bg-base-300"></div>
-                <div class="mt-4 h-4 w-11/12 bg-base-300"></div>
-                <div class="h-4 w-2/3 bg-base-300"></div>
-              </div>
-              <div data-editor hidden></div>
-              <%!-- State of the sync with the server, set by the editor in
+                <div
+                  data-skeleton
+                  role="status"
+                  aria-label={gettext("Loading the document")}
+                  class="mr-auto ml-(--reading-margin) flex w-full max-w-(--reading-width) flex-col gap-3 px-[54px] py-4 motion-safe:animate-pulse"
+                >
+                  <div class="h-4 w-3/4 bg-base-300"></div>
+                  <div class="h-4 w-full bg-base-300"></div>
+                  <div class="h-4 w-5/6 bg-base-300"></div>
+                  <div class="h-4 w-2/5 bg-base-300"></div>
+                  <div class="mt-4 h-4 w-11/12 bg-base-300"></div>
+                  <div class="h-4 w-2/3 bg-base-300"></div>
+                </div>
+                <div data-editor hidden></div>
+                <%!-- State of the sync with the server, set by the editor in
                      data-state: hidden while all is well, shown when the
                      connection is lost or the document's server does not
                      answer, then briefly once synced again (see
                      assets/js/blocknote/sync_status.ts). --%>
-              <div
-                data-sync-status
-                data-state="hidden"
-                role="status"
-                aria-live="polite"
-                class={[
-                  "group pointer-events-none fixed bottom-5 left-1/2 z-30 -translate-x-1/2",
-                  "flex max-w-[calc(100vw-2rem)] items-center gap-2 border-2 border-base-content px-3 py-1.5",
-                  "text-sm font-medium shadow-[3px_3px_0_0_var(--color-base-content)]",
-                  "bg-base-100 text-base-content transition duration-300 ease-out",
-                  "data-[state=hidden]:translate-y-3 data-[state=hidden]:opacity-0",
-                  "data-[state=offline]:bg-warning data-[state=offline]:text-warning-content",
-                  "data-[state=server_down]:bg-error data-[state=server_down]:text-error-content",
-                  "data-[state=synced]:bg-success data-[state=synced]:text-success-content"
-                ]}
-              >
-                <span class="hidden items-center gap-2 group-data-[state=offline]:inline-flex">
-                  <.icon name="hero-signal-slash" class="size-4 shrink-0" />
-                  {gettext("Offline — your edits are kept on this device")}
-                </span>
-                <span class="hidden items-center gap-2 group-data-[state=syncing]:inline-flex">
-                  <.icon name="hero-arrow-path" class="size-4 shrink-0 motion-safe:animate-spin" />
-                  {gettext("Syncing…")}
-                </span>
-                <span class="hidden items-center gap-2 group-data-[state=server_down]:inline-flex">
-                  <.icon name="hero-exclamation-triangle" class="size-4 shrink-0" />
-                  {gettext("The server does not answer, trying again soon")}
-                </span>
-                <span class="hidden items-center gap-2 group-data-[state=synced]:inline-flex">
-                  <.icon name="hero-check" class="size-4 shrink-0" /> {gettext("Synced")}
-                </span>
+                <div
+                  data-sync-status
+                  data-state="hidden"
+                  role="status"
+                  aria-live="polite"
+                  class={[
+                    "group pointer-events-none fixed bottom-5 left-1/2 z-30 -translate-x-1/2",
+                    "flex max-w-[calc(100vw-2rem)] items-center gap-2 border-2 border-base-content px-3 py-1.5",
+                    "text-sm font-medium shadow-[3px_3px_0_0_var(--color-base-content)]",
+                    "bg-base-100 text-base-content transition duration-300 ease-out",
+                    "data-[state=hidden]:translate-y-3 data-[state=hidden]:opacity-0",
+                    "data-[state=offline]:bg-warning data-[state=offline]:text-warning-content",
+                    "data-[state=server_down]:bg-error data-[state=server_down]:text-error-content",
+                    "data-[state=synced]:bg-success data-[state=synced]:text-success-content"
+                  ]}
+                >
+                  <span class="hidden items-center gap-2 group-data-[state=offline]:inline-flex">
+                    <.icon name="hero-signal-slash" class="size-4 shrink-0" />
+                    {gettext("Offline — your edits are kept on this device")}
+                  </span>
+                  <span class="hidden items-center gap-2 group-data-[state=syncing]:inline-flex">
+                    <.icon name="hero-arrow-path" class="size-4 shrink-0 motion-safe:animate-spin" />
+                    {gettext("Syncing…")}
+                  </span>
+                  <span class="hidden items-center gap-2 group-data-[state=server_down]:inline-flex">
+                    <.icon name="hero-exclamation-triangle" class="size-4 shrink-0" />
+                    {gettext("The server does not answer, trying again soon")}
+                  </span>
+                  <span class="hidden items-center gap-2 group-data-[state=synced]:inline-flex">
+                    <.icon name="hero-check" class="size-4 shrink-0" /> {gettext("Synced")}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
+
+          <%!-- The tree of the open document, from its highest parent: under
+               the button of the top bar, opened by it; or, shown on the page,
+               a column beside the menu (on top of the page on small screens),
+               hidden while the history is open. See the SubDocuments hook. --%>
+          <aside
+            id="tree-panel"
+            phx-hook=".SubDocuments"
+            aria-labelledby="tree-title"
+            class={[
+              "fixed z-30 hidden max-h-[min(32rem,calc(100dvh-5rem))] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto",
+              "border-2 border-base-content bg-base-100 p-3 shadow-hard group-data-[tree-open]/drawer:flex",
+              !@history_open? &&
+                [
+                  "group-data-[tree-pinned]/drawer:static group-data-[tree-pinned]/drawer:order-first group-data-[tree-pinned]/drawer:flex",
+                  "group-data-[tree-pinned]/drawer:w-full group-data-[tree-pinned]/drawer:max-w-none group-data-[tree-pinned]/drawer:max-h-none",
+                  "group-data-[tree-pinned]/drawer:z-auto group-data-[tree-pinned]/drawer:shadow-none group-data-[tree-pinned]/drawer:px-4 group-data-[tree-pinned]/drawer:py-4",
+                  "group-data-[tree-pinned]/drawer:border-0 group-data-[tree-pinned]/drawer:border-b group-data-[tree-pinned]/drawer:border-base-content/20",
+                  "lg:group-data-[tree-pinned]/drawer:sticky lg:group-data-[tree-pinned]/drawer:top-0 lg:group-data-[tree-pinned]/drawer:h-dvh",
+                  "lg:group-data-[tree-pinned]/drawer:w-64 lg:group-data-[tree-pinned]/drawer:shrink-0 lg:group-data-[tree-pinned]/drawer:border-b-0 lg:group-data-[tree-pinned]/drawer:pt-6"
+                ]
+            ]}
+          >
+            <h2 id="tree-title" class="mb-2 px-1 text-xs uppercase text-base-content/70">
+              {gettext("Sub-documents")}
+            </h2>
+            <.document_tree
+              document={@document}
+              ancestors={@ancestors}
+              documents={@documents}
+              expanded={@expanded}
+              user_id={@current_user.id}
+              active_empty?={@body_empty?}
+              deleting={@deleting}
+            />
+            <button
+              id="tree-pin"
+              type="button"
+              data-tree-pin
+              class="mt-3 flex items-center gap-1.5 self-start px-1 text-xs text-base-content/70 hover:text-base-content hover:underline group-data-[tree-pinned]/drawer:hidden"
+            >
+              <.icon name="hero-arrow-left-end-on-rectangle-micro" class="size-4" />
+              {gettext("Show on the page")}
+            </button>
+            <button
+              id="tree-unpin"
+              type="button"
+              data-tree-pin
+              class="mt-3 hidden items-center gap-1.5 self-start px-1 text-xs text-base-content/70 hover:text-base-content hover:underline group-data-[tree-pinned]/drawer:flex"
+            >
+              <.icon name="hero-arrow-right-start-on-rectangle-micro" class="size-4" />
+              {gettext("Remove from the page")}
+            </button>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".SubDocuments">
+              // The sub-documents: opened under their button of the top bar,
+              // closed by it, Escape, a click elsewhere or opening a document;
+              // or shown on the page, as a column (on top of the page on small
+              // screens), the choice
+              // being kept in this browser. The state is in attributes of
+              // #app-drawer, set through this.js() so that LiveView's patches
+              // keep them.
+              const KEY = "padocs:sub-documents"
+
+              export default {
+                mounted() {
+                  this.drawer = document.getElementById("app-drawer")
+                  this.button = document.getElementById("tree-toggle")
+                  this.open = false
+                  this.pinned = this.load()
+                  this.apply()
+
+                  this.onClick = e => {
+                    if (this.button.contains(e.target)) return this.setOpen(!this.open)
+                    if (e.target.closest("[data-tree-pin]")) return this.togglePinned()
+                    if (!this.open) return
+                    if (!this.el.contains(e.target) || e.target.closest("a")) this.setOpen(false)
+                  }
+                  this.onKey = e => {
+                    if (e.key === "Escape" && this.open) {
+                      this.setOpen(false)
+                      this.button.focus()
+                    }
+                  }
+                  this.onResize = () => this.setOpen(false)
+                  document.addEventListener("click", this.onClick)
+                  window.addEventListener("keydown", this.onKey)
+                  window.addEventListener("resize", this.onResize)
+                },
+                destroyed() {
+                  document.removeEventListener("click", this.onClick)
+                  window.removeEventListener("keydown", this.onKey)
+                  window.removeEventListener("resize", this.onResize)
+                },
+                setOpen(open) {
+                  this.open = open
+                  this.apply()
+                },
+                togglePinned() {
+                  this.pinned = !this.pinned
+                  this.open = false
+                  this.apply()
+                  this.save()
+                },
+                // Opened, the panel goes under its button (fixed: the top bar
+                // stays at the top of the screen).
+                apply() {
+                  const js = this.js()
+                  if (this.open) {
+                    const rect = this.button.getBoundingClientRect()
+                    const left = Math.max(8, Math.min(rect.left, window.innerWidth - this.el.offsetWidth - 8))
+                    js.setAttribute(this.el, "style", `top: ${rect.bottom + 8}px; left: ${left}px`)
+                    js.setAttribute(this.drawer, "data-tree-open", "")
+                  } else {
+                    js.removeAttribute(this.el, "style")
+                    js.removeAttribute(this.drawer, "data-tree-open")
+                  }
+                  if (this.pinned) js.setAttribute(this.drawer, "data-tree-pinned", "")
+                  else js.removeAttribute(this.drawer, "data-tree-pinned")
+                  js.setAttribute(this.button, "aria-expanded", String(this.open))
+                },
+                load() {
+                  try {
+                    return localStorage.getItem(KEY) === "pinned"
+                  } catch {
+                    return false
+                  }
+                },
+                save() {
+                  try {
+                    if (this.pinned) localStorage.setItem(KEY, "pinned")
+                    else localStorage.removeItem(KEY)
+                  } catch {}
+                }
+              }
+            </script>
+          </aside>
         </div>
 
         <div class="drawer-side z-20">
@@ -275,137 +453,110 @@ defmodule PadocsWeb.DocumentLive do
                 />
               </label>
             </div>
-            <%!-- The tree of the open document, from its highest parent, the
-                 others being found by the search. They are dragged onto one another to move them
-                 (see the DocumentTree hook) --%>
-            <div id="documents-tree" phx-hook=".DocumentTree" class="group/tree">
-              <ul id="documents" class="menu w-full p-0">
-                <.document_items
-                  documents={tree_root(@document, @ancestors, @documents)}
-                  children={children(@documents)}
-                  active_id={@document && @document.id}
-                  expanded={@expanded}
-                  user_id={@current_user.id}
-                  active_empty?={@body_empty?}
-                  deleting={@deleting}
-                />
-              </ul>
-              <div
-                id="documents-root-drop"
-                data-drop-target="root"
-                class="mt-1 hidden items-center justify-center gap-1.5 border-2 border-dashed border-base-content/40 px-3 py-2 text-xs text-base-content/70 transition-colors group-data-[dragging=root]/tree:flex data-[drop-over]:border-base-content data-[drop-over]:bg-base-200 data-[drop-over]:text-base-content"
-              >
-                <.icon name="hero-arrow-up-left-micro" class="size-4" /> {gettext("Move to the root")}
+            <%!-- The documents of the scope picked above them: those the user
+                 opened last (the last first), their own, those shared with
+                 them (the last updated first), or their trash (the last
+                 deleted first), where they are restored --%>
+            <nav
+              id="sidebar-list"
+              aria-labelledby="sidebar-scope-button"
+              class="min-h-0 min-w-0 flex-1"
+            >
+              <div class="relative mb-2" phx-click-away={JS.hide(to: "#sidebar-scopes")}>
+                <button
+                  id="sidebar-scope-button"
+                  type="button"
+                  aria-haspopup="true"
+                  aria-controls="sidebar-scopes"
+                  phx-click={JS.toggle(to: "#sidebar-scopes")}
+                  class="flex cursor-pointer items-center gap-1 px-1 text-xs uppercase text-base-content/70 transition-colors hover:text-base-content"
+                >
+                  {scope_label(@sidebar_scope)}
+                  <.icon name="hero-chevron-down-micro" class="size-4" />
+                </button>
+                <ul
+                  id="sidebar-scopes"
+                  phx-window-keydown={JS.hide(to: "#sidebar-scopes")}
+                  phx-key="Escape"
+                  class="absolute top-full left-0 z-20 mt-1 hidden w-52 border-2 border-base-content bg-base-100 py-1 shadow-hard"
+                >
+                  <li :for={{name, {label, icon, _empty}} <- PadocsWeb.SearchModal.scopes()}>
+                    <button
+                      id={"sidebar-scope-#{name}"}
+                      type="button"
+                      phx-click={
+                        JS.hide(to: "#sidebar-scopes")
+                        |> JS.push("pick_sidebar_scope", value: %{scope: name})
+                      }
+                      aria-current={to_string(name == @sidebar_scope)}
+                      class="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-base-200 aria-[current=true]:font-medium"
+                    >
+                      <.icon name={icon} class="size-4 shrink-0" /> {label}
+                      <.icon
+                        :if={name == @sidebar_scope}
+                        name="hero-check-micro"
+                        class="ml-auto size-4"
+                      />
+                    </button>
+                  </li>
+                </ul>
               </div>
-            </div>
-            <script :type={Phoenix.LiveView.ColocatedHook} name=".DocumentTree">
-              // Drags a document of the sidebar: into another, before or after
-              // another (the top, middle or bottom of its row), or onto the root's
-              // zone; then asks the server to move it there. The rows tell what
-              // they allow (see document_items/1). The attributes it sets go
-              // through this.js(), so that LiveView's patches keep them.
-              export default {
-                mounted() {
-                  this.el.addEventListener("dragstart", e => {
-                    const row = e.target.closest?.("[data-document-row][draggable=true]")
-                    if (!row) return
-                    this.dragged = row
-                    e.dataTransfer.effectAllowed = "move"
-                    e.dataTransfer.setData("text/plain", row.dataset.documentId)
-                    const toRoot = this.canMove() && "canRoot" in row.dataset && row.dataset.parentId
-                    this.js().setAttribute(this.el, "data-dragging", toRoot ? "root" : "")
-                    this.js().setAttribute(row, "data-dragged", "")
-                  })
-                  this.el.addEventListener("dragover", e => {
-                    const target = this.target(e)
-                    this.over(target)
-                    if (!target) return
-                    e.preventDefault()
-                    e.dataTransfer.dropEffect = "move"
-                  })
-                  this.el.addEventListener("dragleave", e => {
-                    if (!this.el.contains(e.relatedTarget)) this.over(null)
-                  })
-                  this.el.addEventListener("drop", e => {
-                    const target = this.target(e)
-                    if (!target) return
-                    e.preventDefault()
-                    const id = this.dragged.dataset.documentId
-                    if (target.place === "root")
-                      this.pushEvent("move_document", {id, parent_id: null})
-                    else if (target.place === "into")
-                      this.pushEvent("move_document", {id, parent_id: target.el.dataset.documentId})
-                    else
-                      this.pushEvent("place_document", {
-                        id,
-                        sibling_id: target.el.dataset.documentId,
-                        place: target.place
-                      })
-                    this.end()
-                  })
-                  this.el.addEventListener("dragend", () => this.end())
-                },
-                // Its owner can move it under another parent; whoever can write its
-                // parent can order it there.
-                canMove() {
-                  return "canMove" in this.dragged.dataset
-                },
-                // Where the dragged document may go, under the pointer, as `{el,
-                // place}`: before or after a document whose parent its user can
-                // write (to order it among its siblings, or move it there); into a
-                // document they can write; or the root. Never itself nor one of its
-                // descendants.
-                target(e) {
-                  if (!this.dragged) return null
-                  const zone = e.target.closest?.('[data-drop-target="root"]')
-                  if (zone)
-                    return this.el.dataset.dragging === "root" ? {el: zone, place: "root"} : null
-                  const row = e.target.closest?.("[data-document-row]")
-                  if (!row || this.dragged.closest("li").contains(row)) return null
-
-                  const sameParent = row.dataset.parentId === this.dragged.dataset.parentId
-                  const inOrder =
-                    "inOrder" in row.dataset &&
-                    (sameParent ? "inOrder" in this.dragged.dataset : this.canMove())
-                  const into =
-                    row.dataset.dropTarget === "document" &&
-                    this.canMove() &&
-                    row.dataset.documentId !== this.dragged.dataset.parentId
-
-                  const rect = row.getBoundingClientRect()
-                  const y = (e.clientY - rect.top) / rect.height
-                  const edge = into ? 0.25 : 0.5
-                  if (inOrder && y < edge) return {el: row, place: "before"}
-                  if (inOrder && y > 1 - edge) return {el: row, place: "after"}
-                  return into ? {el: row, place: "into"} : null
-                },
-                // Highlights `target`; a folded document held under the pointer, to
-                // drop into, unfolds, to drop among its sub-documents.
-                over(target) {
-                  const same =
-                    target && this.current && target.el === this.current.el && target.place === this.current.place
-                  if (same || (!target && !this.current)) return
-                  if (this.current) this.js().removeAttribute(this.current.el, "data-drop-over")
-                  clearTimeout(this.unfold)
-                  this.current = target
-                  if (!target) return
-                  this.js().setAttribute(target.el, "data-drop-over", target.place)
-                  if (target.place === "into" && "folded" in target.el.dataset) {
-                    const id = target.el.dataset.documentId
-                    this.unfold = setTimeout(() => this.pushEvent("toggle_document", {id}), 700)
-                  }
-                },
-                end() {
-                  this.over(null)
-                  if (this.dragged) this.js().removeAttribute(this.dragged, "data-dragged")
-                  this.dragged = null
-                  this.js().removeAttribute(this.el, "data-dragging")
-                },
-                destroyed() {
-                  clearTimeout(this.unfold)
-                }
-              }
-            </script>
+              <ul id="sidebar-documents" class="menu w-full p-0">
+                <li class="hidden px-1 py-1 text-xs text-base-content/60 only:block">
+                  {scope_empty_text(@sidebar_scope)}
+                </li>
+                <li
+                  :for={document <- sidebar_documents(assigns)}
+                  id={"sidebar-#{document.id}"}
+                  class="w-full min-w-0"
+                >
+                  <.link
+                    :if={@sidebar_scope != :trash}
+                    patch={~p"/documents/#{document.id}"}
+                    class={[
+                      "group flex w-full min-w-0 items-center gap-2 py-1 pl-1",
+                      @document && @document.id == document.id && "menu-active"
+                    ]}
+                  >
+                    <.icon name="hero-document-text" class="size-4 shrink-0" />
+                    <span class="min-w-0 flex-1 truncate group-hover:whitespace-normal group-hover:[overflow-wrap:anywhere] group-focus-visible:whitespace-normal group-focus-visible:[overflow-wrap:anywhere]">
+                      {document.title || gettext("Untitled")}
+                    </span>
+                  </.link>
+                  <div
+                    :if={@sidebar_scope == :trash}
+                    class="group flex w-full min-w-0 items-center gap-2 py-1 pr-1 pl-1 text-base-content/70 hover:bg-transparent"
+                  >
+                    <.icon name="hero-document-text" class="size-4 shrink-0" />
+                    <span class="min-w-0 flex-1 truncate group-hover:whitespace-normal group-hover:[overflow-wrap:anywhere]">
+                      {document.title || gettext("Untitled")}
+                    </span>
+                    <button
+                      id={"sidebar-restore-#{document.id}"}
+                      type="button"
+                      phx-click="restore_document"
+                      phx-value-id={document.id}
+                      title={gettext("Restore")}
+                      aria-label={
+                        gettext("Restore “%{title}”", title: document.title || gettext("Untitled"))
+                      }
+                      class="flex size-5 shrink-0 cursor-pointer items-center justify-center opacity-60 hover:opacity-100"
+                    >
+                      <.icon name="hero-arrow-uturn-left-micro" class="size-4" />
+                    </button>
+                  </div>
+                </li>
+              </ul>
+              <%!-- Deleting for good is done in the search's trash --%>
+              <.link
+                :if={@sidebar_scope == :trash and @document}
+                id="sidebar-open-trash"
+                patch={~p"/documents/#{@document.id}?search=trash"}
+                class="mt-2 block px-1 text-xs text-base-content/70 decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
+              >
+                {gettext("Manage the trash")}
+              </.link>
+            </nav>
             <script :type={Phoenix.LiveView.ColocatedHook} name=".Sidebar">
               // Folds the menu (its buttons, or Ctrl+\) and resizes it (its
               // handle, dragged or moved with the arrows), on large screens. The
@@ -587,6 +738,150 @@ defmodule PadocsWeb.DocumentLive do
     """
   end
 
+  attr :document, :any, required: true
+  attr :ancestors, :list, required: true
+  attr :documents, :map, required: true, doc: "the documents listed, by id"
+  attr :expanded, :any, required: true
+  attr :user_id, :string, required: true
+  attr :active_empty?, :boolean, required: true
+  attr :deleting, :any, required: true
+
+  # The tree of the open document, from its highest parent, the others being
+  # found by the search. They are dragged onto one another to move them (see
+  # the DocumentTree hook).
+  defp document_tree(assigns) do
+    ~H"""
+    <div id="documents-tree" phx-hook=".DocumentTree" class="group/tree">
+      <ul id="documents" class="menu w-full p-0">
+        <.document_items
+          documents={tree_root(@document, @ancestors, @documents)}
+          children={children(@documents)}
+          active_id={@document && @document.id}
+          expanded={@expanded}
+          user_id={@user_id}
+          active_empty?={@active_empty?}
+          deleting={@deleting}
+        />
+      </ul>
+      <div
+        id="documents-root-drop"
+        data-drop-target="root"
+        class="mt-1 hidden items-center justify-center gap-1.5 border-2 border-dashed border-base-content/40 px-3 py-2 text-xs text-base-content/70 transition-colors group-data-[dragging=root]/tree:flex data-[drop-over]:border-base-content data-[drop-over]:bg-base-200 data-[drop-over]:text-base-content"
+      >
+        <.icon name="hero-arrow-up-left-micro" class="size-4" /> {gettext("Move to the root")}
+      </div>
+    </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".DocumentTree">
+      // Drags a document of the sidebar: into another, before or after
+      // another (the top, middle or bottom of its row), or onto the root's
+      // zone; then asks the server to move it there. The rows tell what
+      // they allow (see document_items/1). The attributes it sets go
+      // through this.js(), so that LiveView's patches keep them.
+      export default {
+        mounted() {
+          this.el.addEventListener("dragstart", e => {
+            const row = e.target.closest?.("[data-document-row][draggable=true]")
+            if (!row) return
+            this.dragged = row
+            e.dataTransfer.effectAllowed = "move"
+            e.dataTransfer.setData("text/plain", row.dataset.documentId)
+            const toRoot = this.canMove() && "canRoot" in row.dataset && row.dataset.parentId
+            this.js().setAttribute(this.el, "data-dragging", toRoot ? "root" : "")
+            this.js().setAttribute(row, "data-dragged", "")
+          })
+          this.el.addEventListener("dragover", e => {
+            const target = this.target(e)
+            this.over(target)
+            if (!target) return
+            e.preventDefault()
+            e.dataTransfer.dropEffect = "move"
+          })
+          this.el.addEventListener("dragleave", e => {
+            if (!this.el.contains(e.relatedTarget)) this.over(null)
+          })
+          this.el.addEventListener("drop", e => {
+            const target = this.target(e)
+            if (!target) return
+            e.preventDefault()
+            const id = this.dragged.dataset.documentId
+            if (target.place === "root")
+              this.pushEvent("move_document", {id, parent_id: null})
+            else if (target.place === "into")
+              this.pushEvent("move_document", {id, parent_id: target.el.dataset.documentId})
+            else
+              this.pushEvent("place_document", {
+                id,
+                sibling_id: target.el.dataset.documentId,
+                place: target.place
+              })
+            this.end()
+          })
+          this.el.addEventListener("dragend", () => this.end())
+        },
+        // Its owner can move it under another parent; whoever can write its
+        // parent can order it there.
+        canMove() {
+          return "canMove" in this.dragged.dataset
+        },
+        // Where the dragged document may go, under the pointer, as `{el,
+        // place}`: before or after a document whose parent its user can
+        // write (to order it among its siblings, or move it there); into a
+        // document they can write; or the root. Never itself nor one of its
+        // descendants.
+        target(e) {
+          if (!this.dragged) return null
+          const zone = e.target.closest?.('[data-drop-target="root"]')
+          if (zone)
+            return this.el.dataset.dragging === "root" ? {el: zone, place: "root"} : null
+          const row = e.target.closest?.("[data-document-row]")
+          if (!row || this.dragged.closest("li").contains(row)) return null
+
+          const sameParent = row.dataset.parentId === this.dragged.dataset.parentId
+          const inOrder =
+            "inOrder" in row.dataset &&
+            (sameParent ? "inOrder" in this.dragged.dataset : this.canMove())
+          const into =
+            row.dataset.dropTarget === "document" &&
+            this.canMove() &&
+            row.dataset.documentId !== this.dragged.dataset.parentId
+
+          const rect = row.getBoundingClientRect()
+          const y = (e.clientY - rect.top) / rect.height
+          const edge = into ? 0.25 : 0.5
+          if (inOrder && y < edge) return {el: row, place: "before"}
+          if (inOrder && y > 1 - edge) return {el: row, place: "after"}
+          return into ? {el: row, place: "into"} : null
+        },
+        // Highlights `target`; a folded document held under the pointer, to
+        // drop into, unfolds, to drop among its sub-documents.
+        over(target) {
+          const same =
+            target && this.current && target.el === this.current.el && target.place === this.current.place
+          if (same || (!target && !this.current)) return
+          if (this.current) this.js().removeAttribute(this.current.el, "data-drop-over")
+          clearTimeout(this.unfold)
+          this.current = target
+          if (!target) return
+          this.js().setAttribute(target.el, "data-drop-over", target.place)
+          if (target.place === "into" && "folded" in target.el.dataset) {
+            const id = target.el.dataset.documentId
+            this.unfold = setTimeout(() => this.pushEvent("toggle_document", {id}), 700)
+          }
+        },
+        end() {
+          this.over(null)
+          if (this.dragged) this.js().removeAttribute(this.dragged, "data-dragged")
+          this.dragged = null
+          this.js().removeAttribute(this.el, "data-dragging")
+        },
+        destroyed() {
+          clearTimeout(this.unfold)
+        }
+      }
+    </script>
+    """
+  end
+
   attr :documents, :list, required: true
   attr :children, :map, required: true, doc: "the sub-documents of each document's id"
   attr :active_id, :string, required: true
@@ -654,7 +949,10 @@ defmodule PadocsWeb.DocumentLive do
           class="flex min-w-0 flex-1 items-center gap-2"
         >
           <.icon name="hero-document-text" class="size-4 shrink-0" />
-          <span class="truncate">{document.title || gettext("Untitled")}</span>
+          <%!-- The whole title while pointed at or focused --%>
+          <span class="truncate group-hover:whitespace-normal group-hover:[overflow-wrap:anywhere] group-has-focus-visible:whitespace-normal group-has-focus-visible:[overflow-wrap:anywhere]">
+            {document.title || gettext("Untitled")}
+          </span>
         </.link>
         <.deletion_mark
           :if={MapSet.member?(@deleting, document.id)}
@@ -751,6 +1049,34 @@ defmodule PadocsWeb.DocumentLive do
     </span>
     """
   end
+
+  # The documents of the sidebar's scope: the recent ones still listed (the
+  # others were deleted or are no longer readable), the user's own or those
+  # shared with them, the last updated first, or their trash.
+  defp sidebar_documents(%{sidebar_scope: :recent, recent_ids: ids, documents: documents}),
+    do: for(id <- ids, document = documents[id], do: document)
+
+  defp sidebar_documents(%{sidebar_scope: :trash, trash: trash}), do: trash
+
+  defp sidebar_documents(%{sidebar_scope: scope, documents: documents, current_user: user}) do
+    own? = scope == :own
+
+    documents
+    |> Map.values()
+    |> Enum.filter(&(&1.owner_id == user.id == own?))
+    |> Enum.sort_by(& &1.updated_at, {:desc, DateTime})
+  end
+
+  defp scope_label(scope), do: PadocsWeb.SearchModal.scopes() |> Keyword.fetch!(scope) |> elem(0)
+
+  defp scope_empty_text(scope),
+    do: PadocsWeb.SearchModal.scopes() |> Keyword.fetch!(scope) |> elem(2)
+
+  # The trash, read again when the sidebar lists it.
+  defp reload_trash(%{assigns: %{sidebar_scope: :trash}} = socket),
+    do: assign(socket, trash: Document.list_trash(socket.assigns.current_user))
+
+  defp reload_trash(socket), do: assign(socket, trash: [])
 
   defp tree_root(nil, _ancestors, _documents), do: []
 
@@ -1108,7 +1434,7 @@ defmodule PadocsWeb.DocumentLive do
     <div
       id="version-banner"
       role="status"
-      class="sticky top-0 z-20 mx-2 mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-base-content bg-base-200 px-3 py-2 text-sm shadow-hard lg:mx-[54px]"
+      class="sticky top-14 z-20 mx-2 lg:top-16 mb-2 flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-base-content bg-base-200 px-3 py-2 text-sm shadow-hard lg:mx-[54px]"
     >
       <.icon name="hero-clock" class="size-4 shrink-0" />
       <span class="min-w-0 flex-1 basis-56">
@@ -1586,6 +1912,15 @@ defmodule PadocsWeb.DocumentLive do
        # The sidebar's documents, by id: a map rather than a stream, to show
        # them as trees (see document_items/1), and the documents unfolded.
        documents: Map.new(documents, &{&1.id, &1}),
+       # the ids of the documents opened last, the last first (see recent/2)
+       # what the sidebar lists (see sidebar_documents/1), and the trash,
+       # read when listed
+       sidebar_scope: :recent,
+       trash: [],
+       recent_ids:
+         socket.assigns.current_user
+         |> Document.list_recent_documents(@recent)
+         |> Enum.map(& &1.id),
        expanded: MapSet.new(),
        ancestors: [],
        # whether the open document's body is empty (told by its editor), and
@@ -1668,6 +2003,8 @@ defmodule PadocsWeb.DocumentLive do
         |> MapSet.union(MapSet.new(ancestors, & &1.id))
         |> MapSet.put(document.id),
       document: document,
+      recent_ids:
+        Enum.take([document.id | List.delete(socket.assigns.recent_ids, document.id)], @recent),
       can_edit?: Policy.can?(document.role, :write),
       can_share?: Policy.can?(document.role, :share),
       sharing?: false,
@@ -1806,6 +2143,7 @@ defmodule PadocsWeb.DocumentLive do
       socket
       |> update(:documents, &Map.delete(&1, document_id))
       |> update(:deleting, &MapSet.delete(&1, document_id))
+      |> reload_trash()
 
     if socket.assigns.document.id == document_id do
       socket =
@@ -1827,6 +2165,7 @@ defmodule PadocsWeb.DocumentLive do
     {:noreply,
      socket
      |> assign(documents: Map.new(documents, &{&1.id, &1}))
+     |> reload_trash()
      |> put_flash(:info, message)}
   end
 
@@ -2077,7 +2416,30 @@ defmodule PadocsWeb.DocumentLive do
         do: push_patch(socket, to: ~p"/documents/#{socket.assigns.document.id}", replace: true),
         else: socket
 
-    {:noreply, close_search(socket)}
+    # the trash, maybe emptied there
+    {:noreply, socket |> close_search() |> reload_trash()}
+  end
+
+  def handle_event("pick_sidebar_scope", %{"scope" => scope}, socket) do
+    case Enum.find(Keyword.keys(PadocsWeb.SearchModal.scopes()), &(Atom.to_string(&1) == scope)) do
+      nil -> {:noreply, socket}
+      scope -> {:noreply, socket |> assign(sidebar_scope: scope) |> reload_trash()}
+    end
+  end
+
+  # From the sidebar's trash
+  def handle_event("restore_document", %{"id" => id}, socket) do
+    case Document.restore_document(id, socket.assigns.current_user) do
+      {:ok, document} ->
+        handle_info(
+          {:document_restored,
+           gettext("“%{title}” restored", title: document.title || gettext("Untitled"))},
+          socket
+        )
+
+      {:error, _} ->
+        {:noreply, reload_trash(socket)}
+    end
   end
 
   # A Word or OpenDocument file, made from the editor by the DocumentEditor

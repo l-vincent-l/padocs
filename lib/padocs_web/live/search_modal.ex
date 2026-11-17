@@ -379,9 +379,12 @@ defmodule PadocsWeb.SearchModal do
     """
   end
 
-  # The scopes: their label, icon, and the text of their empty list, in the
-  # user's language (see PadocsWeb.Locale)
-  defp scopes do
+  @doc """
+  The scopes: their label, icon, and the text of their empty list, in the
+  user's language (see PadocsWeb.Locale). The sidebar of DocumentLive lists
+  them too.
+  """
+  def scopes do
     [
       recent: {gettext("Recent"), "hero-clock", gettext("No document opened recently")},
       own: {gettext("My documents"), "hero-user", gettext("You have no document yet")},
