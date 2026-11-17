@@ -23,6 +23,8 @@ Every variable, with its default: [Configuration](../configuration.md).
 - [Docker](docker.md): on any machine, behind a reverse proxy with HTTPS.
 - [Podman](podman.md): the same image, rootless, as a systemd service
   (Quadlet).
+- [Coolify](coolify.md): on a server of yours, from
+  `docker-compose.coolify.yaml`, with HTTPS by Let's Encrypt.
 - [Fly.io](fly-io.md): one machine suspended when idle, SQLite on a volume
   streamed to Tigris by Litestream. The reference deployment.
 - [Bunny](bunny.md): a Magic Container with Bunny Database (libSQL).
