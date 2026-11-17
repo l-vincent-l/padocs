@@ -1,0 +1,15 @@
+{
+  "name": "padocs",
+  "description": "Collaborative documents, in one Phoenix application.",
+  "healthchecks": {
+    "web": [
+      {
+        "type": "readiness",
+        "name": "padocs health",
+        "path": "/health",
+        "port": 4000,
+        "attempts": 10
+      }
+    ]
+  }
+}
