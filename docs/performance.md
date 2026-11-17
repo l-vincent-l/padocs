@@ -5,12 +5,49 @@ Results of the load tests of `loadtest/` (how to run them: its
 512 MB, as the Fly.io machine. What remains to do is in the
 [TODO](../TODO.md#performance).
 
-## First measures
+## Current performance
+
+The latest measure of each test, `--find-limit` with `--hold 30s`. A VU
+(virtual user) is one simulated user, with its own connection, who opens a
+document to write or read in it, or searches. A VU that writes types a word
+every 0.5 to 1.5 s, one update per word (the editor sends one per keystroke).
+"Held" is the last step under the thresholds of the scenario.
+
+| Test | Measured | Held | Broke at | What broke |
+|---|---|---|---|---|
+| One document, every VU writing | 2026-11-10 | 100 VUs, propagation p95 11 ms | 200 | propagation p95 5.0 s |
+| One document, 10 writers, the others reading | 2026-11-10 | 600 VUs, propagation p95 28 ms | 800 | joining p95 1.7 s |
+| Documents of 5 writers, SQLite | 2026-11-10 | 1,500 VUs (300 documents), propagation p95 10 ms | 1,750 | out of memory (512 MB), the container killed |
+| Documents of 5 writers, libSQL (Hrana) | 2026-11-10 | 1,000 VUs (200 documents), propagation p95 2 ms, the most tried | | |
+| Search, 200 documents of 1,600 words | 2026-11-13 | 40 VUs, first search p95 0.8 s, next ones 0.5 s | 60 | first search p95 3.3 s, next ones 2.7 s, CPU 100% |
+
+What limits each one now:
+
+- **One document**: the document's `Yex.DocServer.Worker` broadcasts each
+  edit to everyone else, one message per reader: with everyone writing, the
+  messages grow as the square of the VUs.
+- **Readers of a busy document**: joining slows down first; each join and
+  leave sends a presence diff to everyone in the document.
+- **Several documents**: on SQLite, memory rather than the database; the
+  updates of all the documents are written by `Padocs.Document.UpdateWriter`
+  in one `INSERT` a second. libSQL ran in a container next to the
+  application, without the network latency of Bunny Database.
+- **Search**: the CPU, of which the snippets take most (about 20 of the 34 ms
+  of a search).
+
+The details are in the history below.
+
+## History
+
+The measures as they were taken, kept to follow how each change moved the
+limits. The numbers of a section may since have been beaten by a later one:
+the current ones are in the table above.
+
+### First measures
 
 2026-11-09, 1 CPU, 512 MB, `--find-limit` with `--hold 30s`. A VU that
-writes types a word every 0.5 to 1.5 s, one update per word (the editor
-sends one per keystroke). "Held" is the last step under the thresholds of
-the scenario.
+writes types a word every 0.5 to 1.5 s, one update per word (the editor sends one per keystroke). "Held"
+is the last step under the thresholds of the scenario.
 
 | Test | Held | Broke at | What broke |
 |---|---|---|---|
@@ -40,7 +77,7 @@ Search: each opening of the search modal builds the user's own index of all
 the documents they can read (0.5 s of CPU here, about 7 MB), and each search
 cuts the snippets of its results.
 
-## With the Yjs log and the history
+### With the Yjs log and the history
 
 2026-11-10, same machine and steps. Each document being edited now appends
 its edits every second (one `INSERT`), saves its excerpt every 10 s, and is
@@ -73,7 +110,7 @@ when another connection wrote meanwhile, which killed the DocServer: they
 are now single conditional statements, and a failed write is logged and
 tried again at the next flush.
 
-## With one writer for all the documents
+### With one writer for all the documents
 
 2026-11-10, same machine and steps. The DocServers hand their updates over
 to `Padocs.Document.UpdateWriter`, without waiting, which appends those of
@@ -93,7 +130,7 @@ What the DocServers still wait for: the excerpt every 10 s and the
 compaction every 60 updates (a few `Slow excerpt` and `Slow compact`
 warnings, 200 ms to 1 s, on SQLite at 1,500 VUs).
 
-## With one search index for all the documents
+### With one search index for all the documents
 
 2026-11-13, same machine and steps. `Padocs.Document.SearchIndex` holds one
 index of all the documents, built at start, and indexes again those whose
