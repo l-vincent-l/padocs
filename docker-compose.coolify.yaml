@@ -1,0 +1,24 @@
+# Deployment on Coolify (see docs/deployment/coolify.md): a resource from this
+# repository with the "Docker Compose" build pack, this file as its compose
+# file. Coolify reads the SERVICE_* variables: SERVICE_URL_PADOCS_4000 gives the
+# service a domain routed to port 4000, SERVICE_FQDN_PADOCS is that domain's
+# host name, and SERVICE_BASE64_64_PHOENIX a random 64-character string,
+# generated once and kept. The other variables of docs/configuration.md can be
+# added in Coolify.
+services:
+  padocs:
+    build:
+      context: .
+      target: final
+    environment:
+      - SERVICE_URL_PADOCS_4000
+      - PHX_HOST=${SERVICE_FQDN_PADOCS}
+      - SECRET_KEY_BASE=${SERVICE_BASE64_64_PHOENIX}
+      - DATABASE_PATH=/data/padocs.db
+    volumes:
+      - padocs-data:/data
+    # Time for the documents being edited to save their last edits
+    stop_grace_period: 30s
+
+volumes:
+  padocs-data:

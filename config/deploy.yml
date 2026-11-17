@@ -1,0 +1,42 @@
+# Kamal deployment (see docs/deployment/kamal.md): `kamal setup` the first
+# time, then `kamal deploy`. Kamal builds the image from the committed files,
+# pushes it to a registry it runs itself (localhost:5555, through SSH: no
+# Docker Hub account) and starts it behind kamal-proxy, which gets the HTTPS
+# certificate from Let's Encrypt.
+#
+# Replace the server's address and the host name below; SECRET_KEY_BASE comes
+# from .kamal/secrets.
+service: padocs
+image: padocs
+
+servers:
+  web:
+    - 192.0.2.10
+
+proxy:
+  host: docs.example.org
+  ssl: true
+  app_port: 4000
+  healthcheck:
+    path: /health
+
+registry:
+  server: localhost:5555
+
+builder:
+  arch: amd64
+  target: final
+
+env:
+  clear:
+    PHX_HOST: docs.example.org
+    DATABASE_PATH: /data/padocs.db
+    # The container's host name (<server>-<id>) holds dots, which a short
+    # Erlang node name cannot: `bin/padocs remote` and `rpc` need this one.
+    RELEASE_NODE: padocs@localhost
+  secret:
+    - SECRET_KEY_BASE
+
+# The SQLite database and the images, on a Docker volume of the server
+volumes:
+  - padocs-data:/data

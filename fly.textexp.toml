@@ -1,0 +1,40 @@
+# The reference deployment, https://textexp.fly.dev, which kept the names it had
+# before Padocs was renamed: deploy it with `fly deploy -c fly.textexp.toml`.
+# For a deployment of your own, start from fly.toml.
+#
+# Fly.io deployment: one machine, suspended when no one is connected (its memory
+# is saved, no stop signal is sent) and resumed on the next request. A deploy or
+# a host migration drops the saved memory: the machine then boots from scratch.
+# The database is a SQLite file on the volume, replicated to Tigris by
+# Litestream (see litestream.yml and bin/fly_start).
+app = "textexp"
+primary_region = "cdg"
+# The stop signal goes to Litestream, which forwards it to the release; enough
+# time for the DocServers to flush and for Litestream's last sync.
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  build-target = "fly"
+
+[env]
+  PHX_HOST = "textexp.fly.dev"
+  PORT = "4000"
+  DATABASE_PATH = "/data/textexp.db"
+  # The replica in the bucket, under its former name
+  LITESTREAM_REPLICA_PATH = "textexp.db"
+
+[mounts]
+  source = "textexp_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

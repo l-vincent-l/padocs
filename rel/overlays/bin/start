@@ -1,0 +1,27 @@
+#!/bin/sh
+# Entry point of the default image (the `final` target of the Dockerfile): runs
+# the migrations, then the server, as nobody.
+#
+# Started as root, it first gives the folder of the SQLite database to nobody:
+# some hosts mount their volume as root (Render, Railway), where nobody could
+# not write. Started as another user (a host that forces one), it runs as that
+# user, without the chown.
+set -eu
+
+run="/app/bin/migrate && exec /app/bin/server"
+
+if [ "$(id -u)" = 0 ]; then
+  if [ -n "${DATABASE_PATH:-}" ]; then
+    data_dir="$(dirname -- "$DATABASE_PATH")"
+    mkdir -p -- "$data_dir"
+    chown nobody:nogroup "$data_dir"
+    # The database and its -wal and -shm files, when restored or copied as root
+    for file in "$DATABASE_PATH" "$DATABASE_PATH-wal" "$DATABASE_PATH-shm"; do
+      if [ -e "$file" ]; then chown nobody:nogroup "$file"; fi
+    done
+  fi
+
+  exec setpriv --reuid=nobody --regid=nogroup --clear-groups -- /bin/sh -c "$run"
+fi
+
+exec /bin/sh -c "$run"

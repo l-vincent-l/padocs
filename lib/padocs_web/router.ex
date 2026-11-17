@@ -57,6 +57,11 @@ defmodule PadocsWeb.Router do
     get "/documents/:id/export/:format", ExportController, :show
   end
 
+  # The health check of the hosts (see HealthController): no session, no HTML.
+  scope "/", PadocsWeb do
+    get "/health", HealthController, :show
+  end
+
   scope "/", PadocsWeb do
     pipe_through :files
 

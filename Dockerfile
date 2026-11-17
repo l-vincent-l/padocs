@@ -108,6 +108,13 @@ ENV LC_ALL=en_US.UTF-8
 WORKDIR "/app"
 RUN chown nobody /app
 
+# The usual mount point of the database and the images, owned by nobody: a new
+# named volume mounted there takes this owner (Docker, Podman, Coolify), so the
+# release can write to it without a chown first.
+RUN mkdir /data && chown nobody:nogroup /data
+
+EXPOSE 4000
+
 # set runner ENV
 ENV MIX_ENV="prod"
 
@@ -129,6 +136,10 @@ FROM runtime AS fly
 
 COPY --from=docker.io/litestream/litestream:0.5.17-scratch /usr/local/bin/litestream /usr/local/bin/litestream
 COPY litestream.yml /etc/litestream.yml
+# The replica's path in the bucket (litestream.yml). In the image rather than in
+# bin/fly_start, so that a litestream command run by hand (fly ssh console)
+# finds the same replica.
+ENV LITESTREAM_REPLICA_PATH=padocs.db
 
 CMD ["/app/bin/fly_start"]
 
@@ -136,12 +147,12 @@ CMD ["/app/bin/fly_start"]
 # DATABASE_ADAPTER=hrana, a libSQL server (Bunny Database).
 FROM runtime AS final
 
-USER nobody
-
 # If using an environment that doesn't automatically reap zombie processes, it is
 # advised to add an init process such as tini via `apt-get install`
 # above and adding an entrypoint. See https://github.com/krallin/tini for details
 # ENTRYPOINT ["/tini", "--"]
 
-# run pending migrations, then start the server
-CMD ["/bin/sh", "-c", "/app/bin/migrate && exec /app/bin/server"]
+# The migrations, then the server, as nobody: bin/start starts as root to give
+# the database's folder to nobody first, for the hosts that mount their volume
+# as root (Render, Railway).
+CMD ["/app/bin/start"]
