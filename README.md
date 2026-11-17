@@ -87,10 +87,12 @@ See the [local setup guide](docs/local-setup.md) for the details.
 
 - [Local setup](docs/local-setup.md): prerequisites, first run, tests, sign-in
   with GitHub or GitLab, a libSQL database.
-- [Deployment](docs/deployment.md): with Docker, on Fly.io with Litestream, on
-  Bunny; the environment variables, the storage of images, emails.
+- [Deployment](docs/deployment/README.md): with Docker or Podman, on Fly.io
+  with Litestream, on Bunny; the storage of images, emails.
+- [Configuration](docs/configuration.md): the environment variables.
 - [How it works](docs/how-it-works.md): public links, exports.
-- [Performance](docs/performance.md): load tests and their results.
+- [Performance](docs/performance.md): the current results of the load
+  tests, and their history.
 - [To do](TODO.md): what comes next.
 
 ## License

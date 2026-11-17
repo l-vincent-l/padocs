@@ -96,14 +96,14 @@ build, so some things differ from `mix phx.server`:
 
 - **No live reload**: a change to the code takes a new `docker build`.
 - **Emails are written to the container's output**, not to a mailbox (see
-  [Emails](deployment.md#emails)). Their links start with `https://localhost/`,
+  [Emails](deployment/README.md#emails)). Their links start with `https://localhost/`,
   the address the application believes it has: open them as
   `http://localhost:4000/...` instead.
 - **A new `SECRET_KEY_BASE` at each start signs everyone out.** To stay
   signed in across restarts, generate it once and pass the same value.
 
 The data stays in the `padocs-data` volume; `docker volume rm padocs-data`
-starts over. To deploy this image for real, see [Deployment](deployment.md).
+starts over. To deploy this image for real, see [Deployment](deployment/README.md).
 
 ## Emails
 
