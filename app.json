@@ -4,7 +4,7 @@
   "healthchecks": {
     "web": [
       {
-        "type": "readiness",
+        "type": "startup",
         "name": "padocs health",
         "path": "/health",
         "port": 4000,
