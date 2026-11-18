@@ -32,29 +32,52 @@ DocServer and SQLite.
 
 Tried and documented in `docs/deployment/`: Docker, Podman, Coolify, Kamal,
 Dokku, Render, Fly.io, Bunny. Padocs needs one container running all the
-time, a real persistent disk for SQLite with a single instance writing, and
-WebSockets. The offers (prices, regions, volumes) change often: check them
-when writing each page, and only document what was tried.
+time, a single instance writing, and WebSockets. A host is worth it when it
+has a persistent disk (Padocs is then self-sufficient, S3 only for
+Litestream's backup), or else an S3 easy to get alongside, for the images
+and for the database (Litestream restoring it at start) or libSQL: not two
+more providers to assemble. The offers (prices, regions, volumes) change
+often: check them when writing each page, and only document what was tried.
+
+**Without a disk, Litestream at start.** The container's local disk is
+erased on each restart, but SQLite works fine on it while it lives: the
+`fly` image already restores the database from S3 when the disk is empty
+(`litestream restore -if-db-not-exists`), then streams every write to S3
+(`litestream replicate -exec`). With the host's own S3, the database's
+backup and the images stay with one provider, without libSQL. Safe only
+with:
+
+- **one instance at a time, deploys included**: two instances overlapping
+  would each restore a copy, write apart and replicate to the same place,
+  losing writes, maybe corrupting the replica (unlike Bunny, whose
+  overlapping instances share one database). At most one instance, and a
+  deploy stopping the old one before starting the new; if the host
+  overlaps them, a lock in S3 taken at start by a conditional write
+  (`If-None-Match`), the new instance waiting for the old one to release
+  it (the same idea as the conditional writes of "Several nodes");
+- **a clean stop**, a few seconds after the stop signal for Litestream to
+  send its last writes; on a crash, about the last second is lost (the Yjs
+  editors resend theirs, not the tags, shares or moves);
+- **a restore at each start**, quick for a small database, at each wake-up
+  for a host sleeping while nobody is connected.
 
 - **Railway.** Docker and volumes, a European region, billed by use: the
   closest to Render. Its volume is mounted as root too, which `bin/start`
   already handles.
 - **Koyeb.** Docker, sleeping while nobody is connected, Paris and
   Frankfurt. Its volumes are recent and limited: check them first.
-- **Clever Cloud** (French). Docker, but its persistent storage is a network
-  file system, to avoid for SQLite: libSQL (see the Bunny page), or
-  Litestream restoring the database at start, with the risk of two instances
-  writing at once during a deploy.
-- **Scaleway Serverless Containers** (French). Sleeping, but no disk:
-  libSQL only, as on Bunny.
-- **Scalingo** (French). Its file system is ephemeral, without volumes (its
-  own SQLite guide says so): libSQL only, as on Bunny. WebSockets are
-  supported. It deploys with buildpacks (the Elixir one would need Rust for
-  the NIFs, and Node for the editor): check whether it can build our
-  `Dockerfile` instead. Its SecNumCloud region (`osc-secnum-fr1`) would suit
-  French public bodies, the users of La Suite's Docs.
-- **Northflank.** Docker and volumes, but a heavy platform for one
-  application.
+- **Clever Cloud** (French), the best candidate without a disk. Its
+  persistent storage (FS Buckets) is a network file system, to avoid for
+  SQLite (locks and WAL): the `fly` image with Litestream at start, to its
+  S3 (Cellar), which keeps the images too. Check first how it deploys:
+  overlapping or not.
+- **Scaleway Serverless Containers** (French). No volume: the `fly` image
+  with Litestream at start, to Scaleway's Object Storage, which keeps the
+  images too; at most one instance. Check how it deploys. Sleeping while
+  nobody is connected means a restore at each wake-up. Rather than a second
+  container running libSQL (no disk either, so restored at start too, never
+  sleeping, and each query over the network), Bunny Database if libSQL is
+  needed.
 - **A YunoHost package** (`padocs_ynh`): not a page but a package of its
   own, installing a precompiled release (a release per architecture, built
   by a workflow), with YunoHost's sign-in, backups and upgrades.
@@ -75,7 +98,12 @@ when writing each page, and only document what was tried.
 Not planned: Google Cloud Run (no disk, WebSockets cut after 60 minutes at
 most), Heroku and Gigalixir (ephemeral disk, libSQL only), Vercel, Netlify
 and Cloudflare Workers (short functions, not an application running all the
-time).
+time), Northflank (Docker and volumes, but a heavy platform for one
+application). Scalingo (French) neither: no disk, no S3, no libSQL, so two
+more providers, and it builds with buildpacks (the Elixir one would need
+Rust for the NIFs, and Node for the editor). Its SecNumCloud region
+(`osc-secnum-fr1`) could make it worth it for French public bodies, the
+users of La Suite's Docs, if one asks.
 
 ## Hosting and several nodes
 
