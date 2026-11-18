@@ -192,8 +192,19 @@ these build on.
   ending in the wrong place nor made by accident ("#1", "#fff"). Every
   export (Word, ODT, Markdown, Typst, PDF) and the import must handle it.
   On each save, the server reads the tags of each block (`YexBlockNote`,
-  keeping the block ids) and stores them in a table (tag, document, block),
-  next to the tags of the document itself, the same tags.
+  keeping the block ids) and stores them in a table (tag, document, block).
+
+  A tag in the text is not added to the document's tags (under the title):
+  those say what the whole document is about, a tag in a block what that
+  block is about. Copying them would make removing ambiguous (from the text
+  only, or added by hand too?), lengthen the list under the title, and mix
+  the two parts of the tag's page. They are the same tags (one "budget",
+  whether under the title or in the text), stored apart: the search's tag
+  filter finds both, the documents carrying it first, then those with it in
+  a block, the block as snippet; the tag's page shows them apart. Maybe,
+  under the title, a discreet "In the text: budget, client", leading to the
+  blocks, without those already among the document's tags. Logseq does the
+  same: a page's `tags::` and the `#tag` of its blocks stay distinct.
 - **A page per tag, first the list.** The documents carrying the tag, then
   the blocks carrying it, each with its sub-blocks (read only) and a link to
   its document; only those the user can read. Reached from a tag anywhere
