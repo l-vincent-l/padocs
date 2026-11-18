@@ -93,6 +93,8 @@ See the [local setup guide](docs/local-setup.md) for the details.
   Kamal or Dokku, on Render, on Fly.io with Litestream, on Bunny; the
   storage of images, emails.
 - [Configuration](docs/configuration.md): the environment variables.
+- [Concepts](docs/concepts.md): roles and sharing, moving, tags, empty and
+  deleted documents, history, offline, finding documents.
 - [How it works](docs/how-it-works.md): public links, exports.
 - [Performance](docs/performance.md): the current results of the load
   tests, and their history.
