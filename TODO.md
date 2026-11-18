@@ -2,15 +2,15 @@
 
 ## Sub-documents
 
-- **Hierarchy in the search.** The sidebar only shows the open document and
-  its sub-documents, so documents are mostly found through the search, whose
-  results are flat: show the titles of the parents under each, as in the move
-  panel.
+- **Hierarchy in the lists.** The search results and the sidebar's lists
+  (my documents, shared with me, recent) are flat: show the titles of the
+  parents under each, as in the move panel.
 - **Live sidebar for other users.** When another user adds or moves a
   sub-document of the open document, or a user gains or loses access to
-  documents (a member changed on an ancestor, a document moved), the sidebar
-  only changes on reload: only the open document reacts. Broadcast on a
-  per-user topic that their documents changed.
+  documents (a member changed on an ancestor, a document moved), the
+  sidebar's lists and the tree of sub-documents only change on reload: only
+  the open document reacts. Broadcast on a per-user topic that their
+  documents changed.
 - **Performance.** Rights come from a recursive CTE, plus one query per user
   concerned on a move or a member change. Measure on large trees.
 
@@ -30,11 +30,6 @@ DocServer and SQLite.
 
 ## Hosting and several nodes
 
-- **Continuous backup with Litestream.** The reference hosting is one node,
-  SQLite and [Litestream](https://litestream.io) streaming the database to
-  S3: lose about a second on a crash, restore elsewhere (the Yjs clients
-  resend their edits on reconnecting). Document it in the README, or offer it
-  in the Docker image.
 - **Several nodes sharing a database.** The `fusion-snapshots` branch (not
   pushed, see its README) keeps `:syn` and makes the saves conditional, merging
   the saved snapshot on a conflict: no edit lost when a partition heals.
@@ -142,9 +137,9 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
 
 ## Import
 
-- **Open what is imported.** An imported file becomes a document, but the
-  sidebar only shows the open one: open it (the last one, for several files),
-  or list them in the flash.
+- **Open what is imported.** An imported file becomes a document, listed in
+  "My documents" but neither opened nor among the recent ones: open it (the
+  last one, for several files), or list them in the flash.
 
 ## Tags and blocks (from Logseq)
 
@@ -207,8 +202,9 @@ these build on.
 
 ## Interface
 
-- **One border style.** The search modal has thin, rounded borders; the rest
-  of the app (share and move modals, the "⋯" menu, flashes, buttons) keeps
-  thick borders and offset shadows.
+- **Remember the sidebar's list.** The list picked (recent, my documents,
+  shared with me, trash) goes back to the recent documents on reload, or
+  when the open document goes to the trash: keep it in the browser, as the
+  folding of the menu.
 - **Tags under the title on mobile.** Many tags take several lines: show the
   first ones, then "+N", as in the search results.
