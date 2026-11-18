@@ -177,7 +177,7 @@ defmodule PadocsWeb.SearchModal do
         <div
           :if={@tag_suggestions != []}
           id="search-tags"
-          class="mt-2 flex max-h-24 flex-wrap items-center gap-1.5 overflow-y-auto"
+          class="mt-2 flex max-h-24 shrink-0 flex-wrap items-center gap-1.5 overflow-y-auto"
         >
           <span class="text-xs text-base-content/70">{gettext("Tags:")}</span>
           <button
@@ -232,7 +232,7 @@ defmodule PadocsWeb.SearchModal do
         <div
           :if={browsing?(assigns)}
           id="search-scopes"
-          class="mt-3 flex flex-wrap items-center gap-1.5"
+          class="mt-3 flex shrink-0 flex-wrap items-center gap-1.5"
         >
           <button
             :for={{name, {label, icon, _empty}} <- scopes()}
