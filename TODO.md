@@ -146,6 +146,65 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   sidebar only shows the open one: open it (the last one, for several files),
   or list them in the flash.
 
+## Tags and blocks (from Logseq)
+
+Ideas from [Logseq](https://logseq.com), where tags and links point to
+blocks, not only to pages. BlockNote has nested blocks (Tab indents a block
+under the previous one: its `children`, read by `YexBlockNote.to_blocks/1`),
+and each block has a stable id (the `id` of its `blockContainer`), which
+these build on.
+
+- **Tags in the content.** `/` → "Tag" opens a small field at the cursor, as
+  the link's, offering the user's tags (`Document.search_tags/2`) as they
+  type. The name is typed there, not in the text, so it may hold spaces:
+  Enter inserts the tag chosen, or creates it ("Create “…”" first when it
+  does not exist), Escape or a click elsewhere cancels and leaves nothing.
+  `#` opens the same field, as a shortcut (Escape leaves the `#` typed).
+  The tag is then a custom inline content, atomic: a chip like the title's
+  tags, deleted at once by Backspace, opening the tag's page when clicked.
+  Built as the "mentions" example of BlockNote's documentation: an inline
+  content of our own and a suggestion menu opened on a character. No parsing of `#tag` in typed text, so no tag
+  ending in the wrong place nor made by accident ("#1", "#fff"). Every
+  export (Word, ODT, Markdown, Typst, PDF) and the import must handle it.
+  On each save, the server reads the tags of each block (`YexBlockNote`,
+  keeping the block ids) and stores them in a table (tag, document, block),
+  next to the tags of the document itself, the same tags.
+- **A page per tag, first the list.** The documents carrying the tag, then
+  the blocks carrying it, each with its sub-blocks (read only) and a link to
+  its document; only those the user can read. Reached from a tag anywhere
+  (the title's tags, the search, a tag in the text).
+- **Then the tag's small document**, at the top of its page, to describe the
+  tag: a document attached to the tag, edited like the others. To decide
+  first: who owns it and who can edit it, the tags being shared by everyone
+  who sees the documents carrying them.
+- **A page of the mentions of a person**, as the tag's list: the documents
+  and the blocks mentioning them (see Mentions below), only those the reader
+  can read; "my mentions" from the sidebar.
+- **Deep links to blocks.** Copy a block's link (its menu, beside the drag
+  handle): `/documents/<id>#<block id>` opens the document scrolled to the
+  block, highlighted. Then a page of the block, editing it and its
+  sub-blocks only. The hard part: BlockNote and y-prosemirror bind an editor
+  to a whole `Y.XmlFragment`, not to one block of it. Try an editor whose
+  changes are applied to the block's subtree in the document's Y.Doc, both
+  ways, or a full editor hiding the other blocks; first, the tag page and
+  the block page could show the blocks read only, with a link to edit them
+  in their document.
+- **References.** Logseq's `((block))` embeds a block in another, edited in
+  either place; `[[page]]` links a document, and the linked page lists the
+  references to it (backlinks). After the block pages, if they hold.
+
+## Mentions
+
+- **Mention a person.** `/` → "Mention", or `@`, opens the same kind of
+  field as the tags (see Tags and blocks), offering the people who can read
+  the document. The mention is an atomic inline content too, showing the
+  person's name, with the same parts as the tags (BlockNote's "mentions"
+  example). Every export and the import must handle it. On each save, the
+  server stores the mentions in a table (user, document, block), for the
+  page of the mentions of a person.
+- **Notify the person mentioned**, later: in Padocs, or by email (the emails
+  of Padocs, see docs/deployment), once per mention, not on every save.
+
 ## Interface
 
 - **One border style.** The search modal has thin, rounded borders; the rest
