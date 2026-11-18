@@ -28,6 +28,55 @@ DocServer and SQLite.
   piece, when) and the undo of one user's changes need Yjs 14: wait until
   yrs (y_ex) and BlockNote support it.
 
+## Hosts to try and document
+
+Tried and documented in `docs/deployment/`: Docker, Podman, Coolify, Kamal,
+Dokku, Render, Fly.io, Bunny. Padocs needs one container running all the
+time, a real persistent disk for SQLite with a single instance writing, and
+WebSockets. The offers (prices, regions, volumes) change often: check them
+when writing each page, and only document what was tried.
+
+- **Railway.** Docker and volumes, a European region, billed by use: the
+  closest to Render. Its volume is mounted as root too, which `bin/start`
+  already handles.
+- **Koyeb.** Docker, sleeping while nobody is connected, Paris and
+  Frankfurt. Its volumes are recent and limited: check them first.
+- **Clever Cloud** (French). Docker, but its persistent storage is a network
+  file system, to avoid for SQLite: libSQL (see the Bunny page), or
+  Litestream restoring the database at start, with the risk of two instances
+  writing at once during a deploy.
+- **Scaleway Serverless Containers** (French). Sleeping, but no disk:
+  libSQL only, as on Bunny.
+- **Scalingo** (French). Its file system is ephemeral, without volumes (its
+  own SQLite guide says so): libSQL only, as on Bunny. WebSockets are
+  supported. It deploys with buildpacks (the Elixir one would need Rust for
+  the NIFs, and Node for the editor): check whether it can build our
+  `Dockerfile` instead. Its SecNumCloud region (`osc-secnum-fr1`) would suit
+  French public bodies, the users of La Suite's Docs.
+- **Northflank.** Docker and volumes, but a heavy platform for one
+  application.
+- **A YunoHost package** (`padocs_ynh`): not a page but a package of its
+  own, installing a precompiled release (a release per architecture, built
+  by a workflow), with YunoHost's sign-in, backups and upgrades.
+- **Let's Encrypt on Dokku**: the plugin was not tried (it needs a public
+  domain); HTTPS was tried with a self-signed certificate.
+- **A bare machine**, from a virtual machine just created: a cloud-init file
+  installing Podman, the Quadlet of `docs/deployment/podman.md` and Caddy
+  for HTTPS, given when creating the machine, nothing to type on it. The
+  same file serves any host taking cloud-init, which opens the big clouds:
+  AWS (EC2, or Lightsail, simpler; the database on an EBS volume, Litestream
+  to S3), Google Cloud (Compute Engine, a persistent disk, Litestream to
+  Cloud Storage), Azure, and the VPS of Hetzner, Scaleway, OVH or
+  Infomaniak. Then a page per cloud only for what differs (creating the
+  machine, the disk, the firewall), tried on one first. Without Docker
+  nor Podman, a release and a systemd unit would do too, but take a release
+  built for the machine's system: later, with the YunoHost package's.
+
+Not planned: Google Cloud Run (no disk, WebSockets cut after 60 minutes at
+most), Heroku and Gigalixir (ephemeral disk, libSQL only), Vercel, Netlify
+and Cloudflare Workers (short functions, not an application running all the
+time).
+
 ## Hosting and several nodes
 
 - **Several nodes sharing a database.** The `fusion-snapshots` branch (not
