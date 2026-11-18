@@ -30,80 +30,26 @@ DocServer and SQLite.
 
 ## Hosts to try and document
 
-Tried and documented in `docs/deployment/`: Docker, Podman, Coolify, Kamal,
-Dokku, Render, Fly.io, Bunny. Padocs needs one container running all the
-time, a single instance writing, and WebSockets. A host is worth it when it
-has a persistent disk (Padocs is then self-sufficient, S3 only for
-Litestream's backup), or else an S3 easy to get alongside, for the images
-and for the database (Litestream restoring it at start) or libSQL: not two
-more providers to assemble. The offers (prices, regions, volumes) change
-often: check them when writing each page, and only document what was tried.
+Each has a page in `docs/deployment/`, marked not tried, with what we know:
+try it, then make it a guide (or drop it, in `not-considered.md`). What a
+host must give: "Choosing a host" in `docs/deployment/README.md`. The offers
+change often: check them when trying.
 
-**Without a disk, Litestream at start.** The container's local disk is
-erased on each restart, but SQLite works fine on it while it lives: the
-`fly` image already restores the database from S3 when the disk is empty
-(`litestream restore -if-db-not-exists`), then streams every write to S3
-(`litestream replicate -exec`). With the host's own S3, the database's
-backup and the images stay with one provider, without libSQL. Safe only
-with:
-
-- **one instance at a time, deploys included**: two instances overlapping
-  would each restore a copy, write apart and replicate to the same place,
-  losing writes, maybe corrupting the replica (unlike Bunny, whose
-  overlapping instances share one database). At most one instance, and a
-  deploy stopping the old one before starting the new; if the host
-  overlaps them, a lock in S3 taken at start by a conditional write
-  (`If-None-Match`), the new instance waiting for the old one to release
-  it (the same idea as the conditional writes of "Several nodes");
-- **a clean stop**, a few seconds after the stop signal for Litestream to
-  send its last writes; on a crash, about the last second is lost (the Yjs
-  editors resend theirs, not the tags, shares or moves);
-- **a restore at each start**, quick for a small database, at each wake-up
-  for a host sleeping while nobody is connected.
-
-- **Railway.** Docker and volumes, a European region, billed by use: the
-  closest to Render. Its volume is mounted as root too, which `bin/start`
-  already handles.
-- **Koyeb.** Docker, sleeping while nobody is connected, Paris and
-  Frankfurt. Its volumes are recent and limited: check them first.
-- **Clever Cloud** (French), the best candidate without a disk. Its
-  persistent storage (FS Buckets) is a network file system, to avoid for
-  SQLite (locks and WAL): the `fly` image with Litestream at start, to its
-  S3 (Cellar), which keeps the images too. Check first how it deploys:
-  overlapping or not.
-- **Scaleway Serverless Containers** (French). No volume: the `fly` image
-  with Litestream at start, to Scaleway's Object Storage, which keeps the
-  images too; at most one instance. Check how it deploys. Sleeping while
-  nobody is connected means a restore at each wake-up. Rather than a second
-  container running libSQL (no disk either, so restored at start too, never
-  sleeping, and each query over the network), Bunny Database if libSQL is
-  needed.
-- **A YunoHost package** (`padocs_ynh`): not a page but a package of its
-  own, installing a precompiled release (a release per architecture, built
-  by a workflow), with YunoHost's sign-in, backups and upgrades.
+- **Railway** (`railway.md`): how it deploys with a volume.
+- **Koyeb** (`koyeb.md`): what its volumes allow, first.
+- **Clever Cloud** (`clever-cloud.md`): the `fly` image with Litestream at
+  start, to Cellar; first, whether its deploys overlap.
+- **Scaleway Serverless Containers** (`scaleway.md`): the same, to its
+  Object Storage; whether its deploys overlap, the restore at wake-up.
+- **Litestream at start** (`litestream.md`, "Without a persistent disk"):
+  if a host overlaps its deploys, a lock in the bucket taken at start by a
+  conditional write, as for "Several nodes" below.
+- **A bare machine** (`bare-machine.md`): the cloud-init file (Podman, the
+  Quadlet, Caddy), tried on one cloud first.
+- **A YunoHost package** (`yunohost.md`): `padocs_ynh`, with a release per
+  architecture built by a workflow.
 - **Let's Encrypt on Dokku**: the plugin was not tried (it needs a public
   domain); HTTPS was tried with a self-signed certificate.
-- **A bare machine**, from a virtual machine just created: a cloud-init file
-  installing Podman, the Quadlet of `docs/deployment/podman.md` and Caddy
-  for HTTPS, given when creating the machine, nothing to type on it. The
-  same file serves any host taking cloud-init, which opens the big clouds:
-  AWS (EC2, or Lightsail, simpler; the database on an EBS volume, Litestream
-  to S3), Google Cloud (Compute Engine, a persistent disk, Litestream to
-  Cloud Storage), Azure, and the VPS of Hetzner, Scaleway, OVH or
-  Infomaniak. Then a page per cloud only for what differs (creating the
-  machine, the disk, the firewall), tried on one first. Without Docker
-  nor Podman, a release and a systemd unit would do too, but take a release
-  built for the machine's system: later, with the YunoHost package's.
-
-Not planned: Google Cloud Run (no disk, WebSockets cut after 60 minutes at
-most), Heroku and Gigalixir (ephemeral disk, libSQL only), Vercel, Netlify
-and Cloudflare Workers (short functions, not an application running all the
-time), Northflank (Docker and volumes, but a heavy platform for one
-application). Scalingo (French) neither: no disk, no S3, no libSQL, so two
-more providers, and it builds with buildpacks (the Elixir one would need
-Rust for the NIFs, and Node for the editor). Its SecNumCloud region
-(`osc-secnum-fr1`) could make it worth it for French public bodies, the
-users of La Suite's Docs, if one asks.
 
 ## Hosting and several nodes
 

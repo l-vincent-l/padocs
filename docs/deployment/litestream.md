@@ -155,6 +155,32 @@ This was tried with Podman and a local S3 (SeaweedFS): a restore to a point
 in time, put back, then written to. On Fly.io, where the volume can only be
 reached from a machine, it has not been tried yet.
 
+## Without a persistent disk
+
+> **Not tried yet**, for [Clever Cloud](clever-cloud.md) and
+> [Scaleway](scaleway.md).
+
+On a host without a persistent disk, the container's local disk is erased on
+each restart, but SQLite works fine on it while it lives. The `fly` image
+already restores the database from the bucket when the disk is empty
+(`litestream restore -if-db-not-exists`), then streams every write to it
+(`litestream replicate -exec`): with the host's own S3, the database and the
+images stay with one provider, without libSQL. It is safe only with:
+
+- **one instance at a time, deploys included.** Two instances overlapping
+  would each restore a copy, write apart and replicate to the same place:
+  writes lost, the replica maybe corrupted. Unlike [Bunny](bunny.md), where
+  overlapping instances share one database and only the live editing
+  suffers. At most one instance, and a deploy stopping the old one before
+  starting the new; if the host overlaps them, a lock in the bucket taken at
+  start by a conditional write (`If-None-Match`), the new instance waiting
+  for the old one to release it.
+- **a clean stop**: a few seconds after the stop signal, for Litestream to
+  send its last writes. On a crash, about the last second is lost: the
+  editors resend their edits, not the tags, the shares or the moves.
+- **a restore at each start**: quick for a small database, and at each
+  wake-up on a host sleeping while nobody is connected.
+
 ## What it does not cover
 
 - **The images of the documents**, unless they are in a bucket themselves.
