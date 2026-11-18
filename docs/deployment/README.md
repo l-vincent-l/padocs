@@ -37,6 +37,41 @@ Every variable, with its default: [Configuration](../configuration.md).
 And for the backups of a SQLite database, on any of them:
 [Litestream](litestream.md).
 
+Not tried yet, the pages gather what we know before trying them:
+
+- [Railway](railway.md): a container with a volume, the closest to Render.
+- [Koyeb](koyeb.md): a container with a volume, sleeping when idle.
+- [Clever Cloud](clever-cloud.md) and
+  [Scaleway Serverless Containers](scaleway.md): no persistent disk, the
+  database restored from their S3 at start by Litestream.
+- [A bare machine](bare-machine.md), at AWS, Google Cloud or a VPS: a
+  cloud-init file installing Podman and Caddy.
+- [YunoHost](yunohost.md): a package to write.
+
+## Choosing a host
+
+Padocs runs as **one instance**, all the time: each open document has its
+server in that instance, which the people editing it join over WebSockets.
+A host suits it when it gives:
+
+- **a container running all the time**, not functions started for each
+  request;
+- **WebSockets**, kept open as long as the document is;
+- **one instance writing**, deploys included: two instances would each have
+  their own server for a document (see [Bunny](bunny.md#one-instance)), and
+  two SQLite files would diverge;
+- **a persistent disk**, for the SQLite file and the images: Padocs is then
+  self-sufficient, an S3 only serving the backups ([Litestream](litestream.md)).
+
+Without a disk, a host is still worth it with an **S3 easy to get
+alongside**: for the images, and for the database, restored from S3 at each
+start by Litestream (see [Without a persistent
+disk](litestream.md#without-a-persistent-disk), not tried yet), or a libSQL
+database such as Bunny Database. Not two more providers to assemble.
+
+Those set aside, and why: [Hosts not considered](not-considered.md). Those
+still to try: the [to do](../../TODO.md#hosts-to-try-and-document).
+
 ## Emails
 
 Padocs sends emails to confirm an address, to sign in by a link and to reset

@@ -28,6 +28,29 @@ DocServer and SQLite.
   piece, when) and the undo of one user's changes need Yjs 14: wait until
   yrs (y_ex) and BlockNote support it.
 
+## Hosts to try and document
+
+Each has a page in `docs/deployment/`, marked not tried, with what we know:
+try it, then make it a guide (or drop it, in `not-considered.md`). What a
+host must give: "Choosing a host" in `docs/deployment/README.md`. The offers
+change often: check them when trying.
+
+- **Railway** (`railway.md`): how it deploys with a volume.
+- **Koyeb** (`koyeb.md`): what its volumes allow, first.
+- **Clever Cloud** (`clever-cloud.md`): the `fly` image with Litestream at
+  start, to Cellar; first, whether its deploys overlap.
+- **Scaleway Serverless Containers** (`scaleway.md`): the same, to its
+  Object Storage; whether its deploys overlap, the restore at wake-up.
+- **Litestream at start** (`litestream.md`, "Without a persistent disk"):
+  if a host overlaps its deploys, a lock in the bucket taken at start by a
+  conditional write, as for "Several nodes" below.
+- **A bare machine** (`bare-machine.md`): the cloud-init file (Podman, the
+  Quadlet, Caddy), tried on one cloud first.
+- **A YunoHost package** (`yunohost.md`): `padocs_ynh`, with a release per
+  architecture built by a workflow.
+- **Let's Encrypt on Dokku**: the plugin was not tried (it needs a public
+  domain); HTTPS was tried with a self-signed certificate.
+
 ## Hosting and several nodes
 
 - **Several nodes sharing a database.** The `fusion-snapshots` branch (not
