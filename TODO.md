@@ -134,12 +134,42 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   them by loading the font files ourselves.
 - **Accessible PDF.** The `typst` package only offers PDF/A standards, not
   PDF/UA-1, which Typst 0.15 supports.
+- **Export all of a user's documents.** From the preferences: a zip of the
+  documents they own, as folders following the tree, each document in
+  Markdown with its images. Each file starts with a YAML front matter
+  (`title`, `tags`, `id`, `created`, `updated`), the convention of
+  Obsidian, Hugo or Jekyll: the archive is usable elsewhere, a file keeps
+  its tags when moved alone, and tags may hold spaces (quoted). No separate
+  tags file, read by no other tool. A manifest (JSON) gives what the front
+  matter does not: the parents by id, the order of the sub-documents, the
+  path of each Yjs state; importing a Padocs archive, it prevails. Tags in
+  the content (see Tags and blocks) are written `#tag`, or `#[[two words]]`
+  as Logseq, not in the front matter, which holds the document's own. Maybe
+  the Yjs state of each document too, to import it again without loss
+  (Markdown loses some blocks and styles). Built in a background task, the user getting a link
+  (or an email) when it is ready: an account may hold thousands of
+  documents. Those shared with them stay out, or as an option.
+- **Export a whole instance.** Hesitating. The documents are not encrypted:
+  whoever runs the server can already read them all, in the database, so an
+  export adds no access. Rather than a page (there is no administrator role
+  in the application), a release command (`bin/padocs eval`, or a Mix task)
+  writing one archive per user, in the format above, to move to another
+  Padocs, or away. For a mere backup, the database (Litestream, a copy of
+  the SQLite file) and the files' storage are enough.
 
 ## Import
 
 - **Open what is imported.** An imported file becomes a document, listed in
   "My documents" but neither opened nor among the recent ones: open it (the
   last one, for several files), or list them in the flash.
+- **Import an archive.** A zip: the archive of a user's export (its
+  manifest gives back the tree, the order, the tags, the Yjs state when
+  there), or any folder of Markdown, HTML, text and Word files, as exported
+  by Logseq, Obsidian or Notion (a folder becomes a parent document, a file
+  a document, the images linked are uploaded, the tags read from the front
+  matter). On the server rather than in
+  the browser, in a background task, with limits (size, number of files,
+  paths inside the archive), and a report of what was not imported.
 
 ## Tags and blocks (from Logseq)
 
@@ -162,8 +192,19 @@ these build on.
   ending in the wrong place nor made by accident ("#1", "#fff"). Every
   export (Word, ODT, Markdown, Typst, PDF) and the import must handle it.
   On each save, the server reads the tags of each block (`YexBlockNote`,
-  keeping the block ids) and stores them in a table (tag, document, block),
-  next to the tags of the document itself, the same tags.
+  keeping the block ids) and stores them in a table (tag, document, block).
+
+  A tag in the text is not added to the document's tags (under the title):
+  those say what the whole document is about, a tag in a block what that
+  block is about. Copying them would make removing ambiguous (from the text
+  only, or added by hand too?), lengthen the list under the title, and mix
+  the two parts of the tag's page. They are the same tags (one "budget",
+  whether under the title or in the text), stored apart: the search's tag
+  filter finds both, the documents carrying it first, then those with it in
+  a block, the block as snippet; the tag's page shows them apart. Maybe,
+  under the title, a discreet "In the text: budget, client", leading to the
+  blocks, without those already among the document's tags. Logseq does the
+  same: a page's `tags::` and the `#tag` of its blocks stay distinct.
 - **A page per tag, first the list.** The documents carrying the tag, then
   the blocks carrying it, each with its sub-blocks (read only) and a link to
   its document; only those the user can read. Reached from a tag anywhere
