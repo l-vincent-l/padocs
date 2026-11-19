@@ -314,11 +314,6 @@ msgstr "Si cette adresse a un compte, vous recevrez bientôt un lien de réiniti
 msgid "If this address is valid, you will receive a sign-in link shortly."
 msgstr "Si cette adresse est valide, vous recevrez bientôt un lien de connexion."
 
-#: lib/padocs_web/live/document_live.ex
-#, elixir-autogen, elixir-format
-msgid "Import files (Markdown, HTML, text or Word)"
-msgstr "Importer des fichiers (Markdown, HTML, texte ou Word)"
-
 #: lib/padocs_web/controllers/auth_controller.ex
 #, elixir-autogen, elixir-format
 msgid "Incorrect email or password"
@@ -1182,3 +1177,22 @@ msgstr "Chemin du document"
 #, elixir-autogen, elixir-format
 msgid "Show the tree on the page"
 msgstr "Montrer l'arborescence sur la page"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "%{count} file left out"
+msgid_plural "%{count} files left out"
+msgstr[0] "%{count} fichier laissé de côté"
+msgstr[1] "%{count} fichiers laissés de côté"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import files (Markdown, HTML, text, Word or a zip of them)"
+msgstr "Importer des fichiers (Markdown, HTML, texte, Word ou un zip de ces fichiers)"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "“%{name}”: %{count} document imported"
+msgid_plural "“%{name}”: %{count} documents imported"
+msgstr[0] "« %{name} » : %{count} document importé"
+msgstr[1] "« %{name} » : %{count} documents importés"

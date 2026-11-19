@@ -1,11 +1,15 @@
 // Hook of the file input of a document's menu: each chosen file (Markdown, HTML,
 // plain text or Word) is converted to a document by BlockNote, in the browser, and its
 // Yjs state sent to the server, which creates the document. One imported file
-// is opened. The BlockNote bundle is only loaded on the first import.
-const MAX_BYTES = 2_000_000
+// is opened. A zip is imported as a tree of documents (see archive_import.js).
+// The BlockNote bundle is only loaded on the first import.
+import {toBase64} from "./base64"
+import {importArchive} from "./archive_import"
+
+export const MAX_BYTES = 2_000_000
 // A Word file is a zip, holding its images, uploaded apart (each up to the
 // server's limit, see Padocs.Files).
-const MAX_DOCX_BYTES = 10_000_000
+export const MAX_DOCX_BYTES = 10_000_000
 
 export const DocumentImport = {
   mounted() {
@@ -25,8 +29,12 @@ export const DocumentImport = {
       const {toYjsState} = await import("./blocknote/convert")
 
       for (const file of files) {
-        const reply = await this.importFile(file, toYjsState)
-        if (reply.id) ids.push(reply.id)
+        if (/\.zip$/i.test(file.name)) {
+          await importArchive(this, file, toYjsState)
+        } else {
+          const reply = await this.importFile(file, toYjsState)
+          if (reply.id) ids.push(reply.id)
+        }
       }
     } finally {
       this.js().removeAttribute(card, "aria-busy")
@@ -70,12 +78,3 @@ function importFormat(name) {
   return "markdown"
 }
 
-// btoa takes a string of bytes, built in chunks: spreading a large array at
-// once would overflow the call stack.
-function toBase64(bytes) {
-  let binary = ""
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  }
-  return btoa(binary)
-}

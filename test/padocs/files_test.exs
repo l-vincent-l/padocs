@@ -127,6 +127,20 @@ defmodule Padocs.FilesTest do
 
       assert Files.list_ids([document.id]) == [file.id]
     end
+
+    test "an import that failed deletes them, not those of others or of a document",
+         %{owner: owner, document: document} do
+      {:ok, file} = Files.upload(owner, nil, @png)
+      stranger = register_user()
+      {:ok, theirs} = Files.upload(stranger, nil, @png)
+      {:ok, attached} = Files.upload(owner, document.id, @png)
+
+      :ok = Files.discard(owner, [file.id, theirs.id, attached.id, "not-an-id", 42])
+
+      assert {:error, :not_found} = Files.get_readable(file.id, owner)
+      assert {:ok, _} = Files.get_readable(theirs.id, stranger)
+      assert {:ok, _} = Files.get_readable(attached.id, owner)
+    end
   end
 
   test "deleting a document for good deletes its files and those of its sub-documents", %{

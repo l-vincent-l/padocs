@@ -5,13 +5,17 @@ defmodule PadocsWeb.DocumentLive do
 
   alias Padocs.Accounts
   alias Padocs.Document
-  alias Padocs.Document.{Policy, YPersistence}
+  alias Padocs.Files
+  alias Padocs.Document.{Archive, Policy, YPersistence}
   alias PadocsWeb.Presence
 
   on_mount {PadocsWeb.LiveUserAuth, :live_user_required}
 
   # How many documents the menu lists among those opened last
   @recent 15
+
+  # The entries of an archive read at most, beyond its documents and images
+  @max_archive_entries 20_000
 
   def render(assigns) do
     ~H"""
@@ -359,17 +363,19 @@ defmodule PadocsWeb.DocumentLive do
               <label
                 id="import-document"
                 data-import
-                title={gettext("Import files (Markdown, HTML, text or Word)")}
+                title={gettext("Import files (Markdown, HTML, text, Word or a zip of them)")}
                 class="group btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-base-content aria-busy:pointer-events-none"
               >
                 <.icon name="hero-arrow-up-tray" class="size-4 group-aria-busy:hidden" />
                 <span class="loading loading-spinner loading-xs hidden group-aria-busy:inline-block"></span>
-                <span class="sr-only">{gettext("Import files (Markdown, HTML, text or Word)")}</span>
+                <span class="sr-only">{gettext(
+                  "Import files (Markdown, HTML, text, Word or a zip of them)"
+                )}</span>
                 <input
                   id="import-files"
                   type="file"
                   multiple
-                  accept=".md,.markdown,.txt,.html,.htm,.docx,text/markdown,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".md,.markdown,.txt,.html,.htm,.docx,.zip,application/zip,text/markdown,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   phx-hook="DocumentImport"
                   class="sr-only"
                 />
@@ -2412,8 +2418,82 @@ defmodule PadocsWeb.DocumentLive do
        |> put_flash(:info, imported_message(title, params["missing_images"]))}
     else
       _ ->
+        # its images, uploaded beforehand, are of no use
+        Files.discard(socket.assigns.current_user, List.wrap(params["file_ids"]))
+
         {:reply, %{},
          put_flash(socket, :error, gettext("“%{name}” could not be imported", name: name))}
+    end
+  end
+
+  # An archive read by the DocumentImport hook: the plan of its import (see
+  # Padocs.Document.Archive), from the paths of its entries.
+  def handle_event("import_archive_plan", %{"name" => name, "paths" => paths}, socket)
+      when is_binary(name) and is_list(paths) do
+    plan =
+      paths |> Enum.filter(&is_binary/1) |> Enum.take(@max_archive_entries) |> Archive.plan(name)
+
+    {:reply,
+     %{
+       documents: plan.documents,
+       attachments: plan.attachments,
+       skipped:
+         for(
+           %{path: path, reason: reason} <- plan.skipped,
+           do: %{path: path, reason: to_string(reason)}
+         )
+     }, socket}
+  end
+
+  # A document of the plan, converted by the hook, or a folder without
+  # content. Its front matter may give its title and tags.
+  def handle_event("import_archive_document", %{"title" => title} = params, socket)
+      when is_binary(title) do
+    meta = Archive.front_matter(params["front_matter"])
+
+    with {:ok, snapshot} <- archive_state(params["state"]),
+         {:ok, document} <-
+           Document.import_document(
+             socket.assigns.current_user,
+             meta.title || String.trim(title),
+             snapshot,
+             List.wrap(params["file_ids"]),
+             parent_id: params["parent_id"],
+             tags: meta.tags
+           ) do
+      {:reply, %{id: document.id}, list_new_document(socket, %{document | role: :owner})}
+    else
+      _ ->
+        Files.discard(socket.assigns.current_user, List.wrap(params["file_ids"]))
+        {:reply, %{}, socket}
+    end
+  end
+
+  # The archive imported: what was, and the root opened.
+  def handle_event("import_archive_done", %{"name" => name} = params, socket) do
+    imported = integer(params["imported"])
+    left_out = integer(params["left_out"])
+
+    message =
+      [
+        ngettext(
+          "“%{name}”: %{count} document imported",
+          "“%{name}”: %{count} documents imported",
+          imported,
+          name: name
+        ),
+        left_out > 0 &&
+          ngettext("%{count} file left out", "%{count} files left out", left_out)
+      ]
+      |> Enum.filter(& &1)
+      |> Enum.join(", ")
+
+    socket = put_flash(socket, if(imported > 0, do: :info, else: :error), message)
+
+    case params["root_id"] &&
+           Document.get_document(params["root_id"], socket.assigns.current_user) do
+      {:ok, root} -> {:noreply, push_patch(socket, to: ~p"/documents/#{root.id}")}
+      _ -> {:noreply, socket}
     end
   end
 
@@ -2862,6 +2942,14 @@ defmodule PadocsWeb.DocumentLive do
   end
 
   # A new document, shown in the sidebar.
+  # The state of a document of an archive, or an empty one for a folder.
+  defp archive_state(nil), do: {:ok, Yex.encode_state_as_update!(Yex.Doc.new())}
+  defp archive_state(state) when is_binary(state), do: Base.decode64(state)
+  defp archive_state(_state), do: :error
+
+  defp integer(value) when is_integer(value) and value >= 0, do: value
+  defp integer(_value), do: 0
+
   defp list_new_document(socket, document),
     do: update(socket, :documents, &Map.put(&1, document.id, document))
 

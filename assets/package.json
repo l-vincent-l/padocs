@@ -12,6 +12,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "buffer": "^6.0.3",
+    "fflate": "^0.8.3",
     "friendly-username-generator": "^2.0.4",
     "mammoth": "^1.13.0",
     "phoenix": "^1.8.15",

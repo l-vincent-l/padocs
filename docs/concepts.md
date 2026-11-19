@@ -134,3 +134,42 @@ is wrong:
 - **The search** (the magnifier, at the top of the sidebar) looks through the
   titles, the text and the tags of the documents the user can read, with the
   same filters as the sidebar's lists.
+
+## Importing
+
+The import button, beside "New document", takes Markdown, HTML, text and
+Word files, each one a document, and zip archives, each one a tree of
+documents. The files are converted in the browser by BlockNote, the editor's
+own parser: an imported document reads as if typed in the editor, and the
+server needs no converter of its own. The tab must stay open until the
+import ends.
+
+An archive, such as the export of an Obsidian vault, a Notion workspace or
+a Logseq graph, or any zipped folder:
+
+- **One root.** Everything goes under one document: the folder alone at the
+  top of the archive, or else a document named after the archive. Putting
+  it in the trash removes the whole import at once.
+- **Folders and files.** A folder holding documents becomes a parent
+  document, each Markdown, HTML, text or Word file a document under it. A
+  file and a folder of the same name side by side (`Page.md` and `Page/`,
+  as Notion exports) make one document: the file's content, the folder's
+  documents under it. The id Notion adds to names is dropped from titles.
+  Sub-documents come by title.
+- **Front matter.** The `title` and `tags` (or `tag`) of a file's YAML front
+  matter, as Obsidian, Hugo or Jekyll write it, give the document's title
+  and tags; the rest of the front matter is dropped. Only those two keys
+  are read, as an inline list (`[a, "b c"]`), a dashed one, or separated
+  by commas.
+- **Images.** Those a Markdown or HTML file links to (`![](img/a.png)`,
+  `![[a.png]]`, `<img src>`) are uploaded, when found in the archive, by
+  their path relative to the file or else by their name. Each is uploaded
+  once per document using it. The images of Word files are uploaded as for
+  a Word file alone.
+- **Left out.** Hidden and system files (`.obsidian/`, `.DS_Store`,
+  `__MACOSX/`) silently; other formats, unsafe paths (`..`, absolute),
+  files too large (2 MB, 10 MB for Word), and everything past 1,000
+  documents are counted in the message closing the import, and listed in
+  the browser's console. The archive takes at most 200 MB.
+- **Links between files** (`[[Page]]`, `[text](other.md)`) are kept as
+  written, not yet turned into links to the imported documents.

@@ -151,6 +151,24 @@ defmodule Padocs.Files do
     :ok
   end
 
+  @doc """
+  Deletes the files of `ids` that `user` uploaded for an import that failed,
+  rows and bytes: those still without document; the others are left alone.
+  """
+  def discard(user, ids) when is_list(ids) do
+    ids = for id <- ids, {:ok, id} <- [Ecto.UUID.cast(id)], do: id
+
+    {_count, deleted} =
+      Repo.delete_all(
+        from(f in StoredFile,
+          where: f.id in ^ids and f.owner_id == ^user.id and is_nil(f.document_id),
+          select: f.id
+        )
+      )
+
+    delete_stored(deleted)
+  end
+
   @doc "The ids of the files of the documents of `document_ids`."
   def list_ids(document_ids) do
     Repo.all(from f in StoredFile, where: f.document_id in ^document_ids, select: f.id)
