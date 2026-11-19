@@ -121,10 +121,16 @@ is wrong:
 - **The sidebar** lists, as picked above it: the documents the user opened
   last (the last first, 15 at most), their own, those shared with them (the
   last updated first), or their trash.
-- **The sub-documents** of the open document, from its highest parent, open
-  from the button at the top left of the document, or show on the page as a
-  column beside the sidebar ("Show on the page"); that choice, the sidebar's
-  width and its folding (`Ctrl+\`) are kept in the browser.
+- **The breadcrumb**, at the top of the document, gives the path to it,
+  from its highest parent. Each › after a document lists that document's
+  sub-documents, with "New sub-document" for those who can write it; after
+  the open document, "…" lists its own sub-documents, or "+" creates the
+  first one. A long path scrolls sideways.
+- **The tree** of the open document, from its highest parent, shows on the
+  page as a column beside the sidebar ("Show the tree on the page", in the
+  breadcrumb's menus), the breadcrumb then hiding: it is the place to drag
+  documents to move or reorder them. That choice, the sidebar's width and
+  its folding (`Ctrl+\`) are kept in the browser.
 - **The search** (the magnifier, at the top of the sidebar) looks through the
   titles, the text and the tags of the documents the user can read, with the
   same filters as the sidebar's lists.

@@ -41,44 +41,35 @@ defmodule PadocsWeb.DocumentLive do
           )
         ]}>
           <div class="flex min-w-0 flex-1 flex-col">
-            <%!-- The menu's open button (small screens only), the button of
-               the sub-documents, and the document's actions on the right,
-               above the title. It stays at the top of
-               the screen, on a blur that fades out downwards: the document
-               scrolled under it shows blurred there. --%>
-            <div class="sticky top-0 z-10 flex h-14 items-center justify-between px-2 pt-2 lg:h-16 lg:px-[54px] lg:pt-4">
+            <%!-- The menu's open button (small screens only), the breadcrumb
+               of the open document, and its actions on the right, above the
+               title. It stays at the top of the screen, on a blur that fades
+               out downwards: the document scrolled under it shows blurred
+               there. --%>
+            <div class="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 px-2 pt-2 lg:h-16 lg:px-[54px] lg:pt-4">
               <div
                 aria-hidden="true"
                 class="pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 bg-base-100/70 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
               >
               </div>
               <%!-- On large screens, close to the menu's edge --%>
-              <div class="flex items-center gap-1 lg:-ml-[46px]">
+              <div class="flex min-w-0 flex-1 items-center gap-1 lg:-ml-[46px]">
                 <label
                   id="sidebar-open"
                   for="sidebar-drawer"
                   aria-label={gettext("Open the menu")}
-                  class="btn btn-square btn-ghost drawer-button lg:hidden"
+                  class="btn btn-square btn-ghost drawer-button shrink-0 lg:hidden"
                 >
                   <.icon name="hero-bars-3" class="size-5" />
                 </label>
-                <%!-- Opens the sub-documents, unless they are shown on the page
-                     (see the SubDocuments hook); while the history is open,
-                     which hides them there, too --%>
-                <button
-                  id="tree-toggle"
-                  type="button"
-                  aria-controls="tree-panel"
-                  aria-expanded="false"
-                  aria-label={gettext("Sub-documents")}
-                  title={gettext("Sub-documents")}
-                  class={[
-                    "btn btn-square btn-ghost btn-sm aria-expanded:bg-base-200",
-                    !@history_open? && "group-data-[tree-pinned]/drawer:hidden"
-                  ]}
-                >
-                  <.icon name="hero-rectangle-stack" class="size-5" />
-                </button>
+                <.breadcrumb
+                  :if={@document}
+                  document={@document}
+                  ancestors={@ancestors}
+                  documents={@documents}
+                  can_edit?={@can_edit?}
+                  history_open?={@history_open?}
+                />
               </div>
               <.document_actions :if={@document} document={@document} can_share?={@can_share?} />
             </div>
@@ -86,23 +77,6 @@ defmodule PadocsWeb.DocumentLive do
             <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
             <div class="flex flex-1 flex-col">
               <div class="document-header mr-auto ml-(--reading-margin) w-full max-w-(--reading-width) px-[54px] pt-1">
-                <nav
-                  :if={@ancestors != []}
-                  id="breadcrumb"
-                  aria-label={gettext("Parent documents")}
-                  class="mb-1 flex flex-wrap items-center gap-1 text-xs text-base-content/70"
-                >
-                  <%= for ancestor <- @ancestors do %>
-                    <.link
-                      id={"breadcrumb-#{ancestor.id}"}
-                      patch={~p"/documents/#{ancestor.id}"}
-                      class="max-w-48 truncate decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
-                    >
-                      {ancestor.title || gettext("Untitled")}
-                    </.link>
-                    <.icon name="hero-chevron-right-micro" class="size-3 shrink-0" />
-                  <% end %>
-                </nav>
                 <.form
                   for={@title_form}
                   id="title-form"
@@ -263,25 +237,20 @@ defmodule PadocsWeb.DocumentLive do
             </div>
           </div>
 
-          <%!-- The tree of the open document, from its highest parent: under
-               the button of the top bar, opened by it; or, shown on the page,
-               a column beside the menu (on top of the page on small screens),
-               hidden while the history is open. See the SubDocuments hook. --%>
+          <%!-- The tree of the open document, from its highest parent,
+               shown on the page from the breadcrumb's menus: a column beside
+               the menu (on top of the page on small screens), hidden while
+               the history is open. See the SubDocuments hook. --%>
           <aside
             id="tree-panel"
             phx-hook=".SubDocuments"
             aria-labelledby="tree-title"
             class={[
-              "fixed z-30 hidden max-h-[min(32rem,calc(100dvh-5rem))] w-72 max-w-[calc(100vw-1rem)] flex-col overflow-y-auto",
-              "border-2 border-base-content bg-base-100 p-3 shadow-hard group-data-[tree-open]/drawer:flex",
+              "hidden flex-col border-b border-base-content/20 px-4 py-4",
               !@history_open? &&
                 [
-                  "group-data-[tree-pinned]/drawer:static group-data-[tree-pinned]/drawer:order-first group-data-[tree-pinned]/drawer:flex",
-                  "group-data-[tree-pinned]/drawer:w-full group-data-[tree-pinned]/drawer:max-w-none group-data-[tree-pinned]/drawer:max-h-none",
-                  "group-data-[tree-pinned]/drawer:z-auto group-data-[tree-pinned]/drawer:shadow-none group-data-[tree-pinned]/drawer:px-4 group-data-[tree-pinned]/drawer:py-4",
-                  "group-data-[tree-pinned]/drawer:border-0 group-data-[tree-pinned]/drawer:border-b group-data-[tree-pinned]/drawer:border-base-content/20",
-                  "lg:group-data-[tree-pinned]/drawer:sticky lg:group-data-[tree-pinned]/drawer:top-0 lg:group-data-[tree-pinned]/drawer:h-dvh",
-                  "lg:group-data-[tree-pinned]/drawer:w-64 lg:group-data-[tree-pinned]/drawer:shrink-0 lg:group-data-[tree-pinned]/drawer:border-b-0 lg:group-data-[tree-pinned]/drawer:pt-6"
+                  "group-data-[tree-pinned]/drawer:order-first group-data-[tree-pinned]/drawer:flex",
+                  "lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:overflow-y-auto lg:border-b-0 lg:pt-6"
                 ]
             ]}
           >
@@ -298,89 +267,42 @@ defmodule PadocsWeb.DocumentLive do
               deleting={@deleting}
             />
             <button
-              id="tree-pin"
-              type="button"
-              data-tree-pin
-              class="mt-3 flex items-center gap-1.5 self-start px-1 text-xs text-base-content/70 hover:text-base-content hover:underline group-data-[tree-pinned]/drawer:hidden"
-            >
-              <.icon name="hero-arrow-left-end-on-rectangle-micro" class="size-4" />
-              {gettext("Show on the page")}
-            </button>
-            <button
               id="tree-unpin"
               type="button"
               data-tree-pin
-              class="mt-3 hidden items-center gap-1.5 self-start px-1 text-xs text-base-content/70 hover:text-base-content hover:underline group-data-[tree-pinned]/drawer:flex"
+              class="mt-3 flex items-center gap-1.5 self-start px-1 text-xs text-base-content/70 hover:text-base-content hover:underline"
             >
               <.icon name="hero-arrow-right-start-on-rectangle-micro" class="size-4" />
               {gettext("Remove from the page")}
             </button>
             <script :type={Phoenix.LiveView.ColocatedHook} name=".SubDocuments">
-              // The sub-documents: opened under their button of the top bar,
-              // closed by it, Escape, a click elsewhere or opening a document;
-              // or shown on the page, as a column (on top of the page on small
-              // screens), the choice
-              // being kept in this browser. The state is in attributes of
-              // #app-drawer, set through this.js() so that LiveView's patches
-              // keep them.
+              // Shows the tree of sub-documents on the page, or not, from the
+              // [data-tree-pin] buttons (the breadcrumb's menus, the column's
+              // own), the choice being kept in this browser. The state is an
+              // attribute of #app-drawer, set through this.js() so that
+              // LiveView's patches keep it.
               const KEY = "padocs:sub-documents"
 
               export default {
                 mounted() {
                   this.drawer = document.getElementById("app-drawer")
-                  this.button = document.getElementById("tree-toggle")
-                  this.open = false
                   this.pinned = this.load()
                   this.apply()
-
                   this.onClick = e => {
-                    if (this.button.contains(e.target)) return this.setOpen(!this.open)
-                    if (e.target.closest("[data-tree-pin]")) return this.togglePinned()
-                    if (!this.open) return
-                    if (!this.el.contains(e.target) || e.target.closest("a")) this.setOpen(false)
+                    if (!e.target.closest("[data-tree-pin]")) return
+                    e.target.closest("[popover]")?.hidePopover()
+                    this.pinned = !this.pinned
+                    this.apply()
+                    this.save()
                   }
-                  this.onKey = e => {
-                    if (e.key === "Escape" && this.open) {
-                      this.setOpen(false)
-                      this.button.focus()
-                    }
-                  }
-                  this.onResize = () => this.setOpen(false)
                   document.addEventListener("click", this.onClick)
-                  window.addEventListener("keydown", this.onKey)
-                  window.addEventListener("resize", this.onResize)
                 },
                 destroyed() {
                   document.removeEventListener("click", this.onClick)
-                  window.removeEventListener("keydown", this.onKey)
-                  window.removeEventListener("resize", this.onResize)
                 },
-                setOpen(open) {
-                  this.open = open
-                  this.apply()
-                },
-                togglePinned() {
-                  this.pinned = !this.pinned
-                  this.open = false
-                  this.apply()
-                  this.save()
-                },
-                // Opened, the panel goes under its button (fixed: the top bar
-                // stays at the top of the screen).
                 apply() {
-                  const js = this.js()
-                  if (this.open) {
-                    const rect = this.button.getBoundingClientRect()
-                    const left = Math.max(8, Math.min(rect.left, window.innerWidth - this.el.offsetWidth - 8))
-                    js.setAttribute(this.el, "style", `top: ${rect.bottom + 8}px; left: ${left}px`)
-                    js.setAttribute(this.drawer, "data-tree-open", "")
-                  } else {
-                    js.removeAttribute(this.el, "style")
-                    js.removeAttribute(this.drawer, "data-tree-open")
-                  }
-                  if (this.pinned) js.setAttribute(this.drawer, "data-tree-pinned", "")
-                  else js.removeAttribute(this.drawer, "data-tree-pinned")
-                  js.setAttribute(this.button, "aria-expanded", String(this.open))
+                  if (this.pinned) this.js().setAttribute(this.drawer, "data-tree-pinned", "")
+                  else this.js().removeAttribute(this.drawer, "data-tree-pinned")
                 },
                 load() {
                   try {
@@ -735,6 +657,208 @@ defmodule PadocsWeb.DocumentLive do
         </div>
       </div>
     </Layouts.app>
+    """
+  end
+
+  attr :document, :any, required: true
+  attr :ancestors, :list, required: true, doc: "the parents of the document, the highest first"
+  attr :documents, :map, required: true, doc: "the documents listed, by id"
+  attr :can_edit?, :boolean, required: true
+  attr :history_open?, :boolean, required: true
+
+  # The path to the open document, in the top bar, while its tree is not
+  # shown on the page. The first document is a link; each next one, with the
+  # › before it, is one zone opening the list of its parent's sub-documents
+  # (itself marked), with, for an editor, a button creating one. After the open document: "› …"
+  # for its own sub-documents, or "› +" creating the first one. The menus are
+  # popovers, out of the path, which scrolls sideways when too long; the
+  # Breadcrumb hook puts each under its button.
+  defp breadcrumb(assigns) do
+    children = children(assigns.documents)
+    path = assigns.ancestors ++ [assigns.document]
+
+    assigns =
+      assign(assigns,
+        children: children,
+        path: path,
+        menus:
+          path
+          |> Enum.with_index()
+          |> Enum.map(fn {crumb, index} ->
+            %{
+              crumb: crumb,
+              next_id: Enum.at(path, index + 1) && Enum.at(path, index + 1).id,
+              documents: Map.get(children, crumb.id, []),
+              can_add?:
+                if(crumb.id == assigns.document.id,
+                  do: assigns.can_edit?,
+                  else: Policy.can?(Map.get(assigns.documents, crumb.id, crumb).role, :write)
+                )
+            }
+          end)
+          |> Enum.filter(&(&1.documents != [] or &1.next_id != nil))
+      )
+
+    ~H"""
+    <nav
+      id="breadcrumb"
+      phx-hook=".Breadcrumb"
+      aria-label={gettext("Path to the document")}
+      class={[
+        "flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-xs text-base-content/70 [scrollbar-width:none]",
+        "data-[scrolled]:[mask-image:linear-gradient(to_right,transparent,black_1.5rem)]",
+        !@history_open? && "group-data-[tree-pinned]/drawer:invisible"
+      ]}
+    >
+      <%!-- The first document: a link. Each next one, with the › before
+           it: one zone opening the list of the documents of its level, its
+           parent's sub-documents, itself marked in it. --%>
+      <%= for {crumb, parent} <- Enum.zip(@path, [nil | @path]) do %>
+        <.link
+          :if={is_nil(parent) and crumb.id != @document.id}
+          id={"breadcrumb-#{crumb.id}"}
+          patch={~p"/documents/#{crumb.id}"}
+          class="max-w-40 shrink-0 truncate px-1 py-1 decoration-dotted underline-offset-2 hover:text-base-content hover:underline"
+        >
+          {crumb.title || gettext("Untitled")}
+        </.link>
+        <span
+          :if={is_nil(parent) and crumb.id == @document.id}
+          id="breadcrumb-current"
+          aria-current="page"
+          class="max-w-48 shrink-0 truncate px-1 py-1 font-medium text-base-content"
+        >
+          {crumb.title || gettext("Untitled")}
+        </span>
+        <button
+          :if={parent}
+          id={if(crumb.id == @document.id, do: "breadcrumb-current", else: "breadcrumb-#{crumb.id}")}
+          type="button"
+          popovertarget={"breadcrumb-menu-#{parent.id}"}
+          aria-current={crumb.id == @document.id && "page"}
+          aria-label={
+            gettext("Sub-documents of “%{title}”", title: parent.title || gettext("Untitled"))
+          }
+          class={[
+            "flex h-7 min-w-0 shrink-0 cursor-pointer items-center gap-0.5 pr-1.5 hover:bg-base-200 hover:text-base-content",
+            crumb.id == @document.id && "font-medium text-base-content"
+          ]}
+        >
+          <.icon name="hero-chevron-right-micro" class="size-4 shrink-0" />
+          <span class={["truncate", if(crumb.id == @document.id, do: "max-w-48", else: "max-w-40")]}>
+            {crumb.title || gettext("Untitled")}
+          </span>
+        </button>
+      <% end %>
+      <button
+        :if={Map.has_key?(@children, @document.id)}
+        id="breadcrumb-sub-documents"
+        type="button"
+        popovertarget={"breadcrumb-menu-#{@document.id}"}
+        aria-label={gettext("Sub-documents")}
+        title={gettext("Sub-documents")}
+        class="flex h-6 shrink-0 cursor-pointer items-center justify-center px-1.5 tracking-widest hover:bg-base-200 hover:text-base-content"
+      >
+        <.icon name="hero-chevron-right-micro" class="size-4" />…
+      </button>
+      <button
+        :if={!Map.has_key?(@children, @document.id) and @can_edit?}
+        id="breadcrumb-new"
+        type="button"
+        phx-click="new_sub_document"
+        phx-value-id={@document.id}
+        aria-label={gettext("New sub-document")}
+        title={gettext("New sub-document")}
+        class="flex h-6 shrink-0 cursor-pointer items-center justify-center px-1.5 hover:bg-base-200 hover:text-base-content"
+      >
+        <.icon name="hero-chevron-right-micro" class="size-4" />
+        <.icon name="hero-plus-micro" class="size-4" />
+      </button>
+    </nav>
+    <div
+      :for={menu <- @menus}
+      id={"breadcrumb-menu-#{menu.crumb.id}"}
+      popover
+      class="fixed inset-auto m-0 w-64 max-w-[calc(100vw-1rem)] border-2 border-base-content bg-base-100 py-1 text-sm text-base-content shadow-hard"
+    >
+      <ul class="max-h-80 overflow-y-auto">
+        <li :for={document <- menu.documents}>
+          <.link
+            id={"breadcrumb-menu-#{menu.crumb.id}-#{document.id}"}
+            patch={~p"/documents/#{document.id}"}
+            aria-current={to_string(document.id == menu.next_id)}
+            class="flex min-w-0 items-center gap-2 px-3 py-1.5 hover:bg-base-200 aria-[current=true]:font-medium"
+          >
+            <.icon name="hero-document-text" class="size-4 shrink-0" />
+            <span class="truncate">{document.title || gettext("Untitled")}</span>
+          </.link>
+        </li>
+      </ul>
+      <div class="mt-1 border-t-2 border-dotted border-base-content/30 pt-1 text-xs text-base-content/70">
+        <button
+          :if={menu.can_add?}
+          id={"breadcrumb-menu-#{menu.crumb.id}-new"}
+          type="button"
+          phx-click="new_sub_document"
+          phx-value-id={menu.crumb.id}
+          class="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left hover:bg-base-200 hover:text-base-content"
+        >
+          <.icon name="hero-plus-micro" class="size-4" /> {gettext("New sub-document")}
+        </button>
+        <button
+          id={"breadcrumb-menu-#{menu.crumb.id}-pin"}
+          type="button"
+          data-tree-pin
+          class="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left hover:bg-base-200 hover:text-base-content"
+        >
+          <.icon name="hero-arrow-left-end-on-rectangle-micro" class="size-4" />
+          {gettext("Show the tree on the page")}
+        </button>
+      </div>
+    </div>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".Breadcrumb">
+      // Keeps the end of the path in view, fading its start out once
+      // scrolled (data-scrolled), and puts each menu of the path
+      // (a popover, see breadcrumb/1) under the button opening it, within
+      // the screen; a document chosen or created closes it. Attributes set
+      // through this.js(), so that LiveView's patches keep them.
+      export default {
+        mounted() {
+          this.toEnd()
+          this.onToggle = e => {
+            if (e.newState !== "open" || !e.target.id?.startsWith("breadcrumb-menu-")) return
+            const button = document.querySelector(`[popovertarget="${e.target.id}"]`)
+            if (!button) return
+            const rect = button.getBoundingClientRect()
+            const width = e.target.offsetWidth || 256
+            const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
+            this.js().setAttribute(e.target, "style", `top: ${rect.bottom + 4}px; left: ${left}px`)
+          }
+          this.onClick = e => {
+            const menu = e.target.closest('[popover][id^="breadcrumb-menu-"]')
+            if (menu && e.target.closest("a, [phx-click]")) menu.hidePopover()
+          }
+          document.addEventListener("beforetoggle", this.onToggle, true)
+          document.addEventListener("click", this.onClick)
+          this.el.addEventListener("scroll", () => this.markScrolled(), {passive: true})
+        },
+        updated() {
+          this.toEnd()
+        },
+        destroyed() {
+          document.removeEventListener("beforetoggle", this.onToggle, true)
+          document.removeEventListener("click", this.onClick)
+        },
+        toEnd() {
+          this.el.scrollLeft = this.el.scrollWidth
+          this.markScrolled()
+        },
+        markScrolled() {
+          if (this.el.scrollLeft > 0) this.js().setAttribute(this.el, "data-scrolled", "")
+          else this.js().removeAttribute(this.el, "data-scrolled")
+        }
+      }
+    </script>
     """
   end
 

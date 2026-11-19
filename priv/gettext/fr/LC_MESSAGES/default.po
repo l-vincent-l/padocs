@@ -476,11 +476,6 @@ msgstr "Ouvrir le menu"
 msgid "Owner"
 msgstr "Propriétaire"
 
-#: lib/padocs_web/live/document_live.ex
-#, elixir-autogen, elixir-format
-msgid "Parent documents"
-msgstr "Documents parents"
-
 #: lib/padocs_web/controllers/auth_html.ex
 #, elixir-autogen, elixir-format
 msgid "Password"
@@ -1175,10 +1170,15 @@ msgstr "Retirer de la page"
 
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
-msgid "Show on the page"
-msgstr "Montrer sur la page"
+msgid "Manage the trash"
+msgstr "Gérer la corbeille"
 
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
-msgid "Manage the trash"
-msgstr "Gérer la corbeille"
+msgid "Path to the document"
+msgstr "Chemin du document"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Show the tree on the page"
+msgstr "Montrer l'arborescence sur la page"
