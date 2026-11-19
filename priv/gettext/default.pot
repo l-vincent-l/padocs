@@ -476,11 +476,6 @@ msgstr ""
 msgid "Owner"
 msgstr ""
 
-#: lib/padocs_web/live/document_live.ex
-#, elixir-autogen, elixir-format
-msgid "Parent documents"
-msgstr ""
-
 #: lib/padocs_web/controllers/auth_html.ex
 #, elixir-autogen, elixir-format
 msgid "Password"
@@ -1175,10 +1170,15 @@ msgstr ""
 
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
-msgid "Show on the page"
+msgid "Manage the trash"
 msgstr ""
 
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
-msgid "Manage the trash"
+msgid "Path to the document"
+msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Show the tree on the page"
 msgstr ""

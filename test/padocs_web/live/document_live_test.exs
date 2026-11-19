@@ -530,16 +530,14 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert has_element?(view, ~s(#app-drawer > #sidebar-resize[role="separator"]))
     end
 
-    test "has a button opening the sub-documents, which can be shown on the page",
-         %{conn: conn} do
+    test "the tree can be shown on the page, from the breadcrumb's menus", %{conn: conn} do
       owner = register_user()
       document = Fixtures.create_document!(owner)
       {:ok, view, _html} = live(log_in(conn, owner), ~p"/documents/#{document.id}")
 
-      assert has_element?(view, ~s(#tree-toggle[aria-controls="tree-panel"]))
       assert has_element?(view, "#tree-panel[phx-hook] #documents-#{document.id}")
-      assert has_element?(view, "#tree-panel #tree-pin[data-tree-pin]")
       assert has_element?(view, "#tree-panel #tree-unpin[data-tree-pin]")
+      assert has_element?(view, "#breadcrumb[phx-hook] #breadcrumb-current")
     end
   end
 
@@ -567,6 +565,70 @@ defmodule PadocsWeb.DocumentLiveTest do
              )
 
       assert has_element?(view, "#breadcrumb-#{parent.id}", "Projet")
+    end
+
+    test "the breadcrumb's menus list the sub-documents, and create one",
+         %{conn: conn, owner: owner, parent: parent} do
+      {:ok, child} = Document.create_sub_document(parent.id, owner)
+      {:ok, sibling} = Document.create_sub_document(parent.id, owner)
+      {:ok, view, _html} = live(conn, ~p"/documents/#{child.id}")
+
+      # no menu before the first document of the path
+      assert has_element?(view, "#breadcrumb > #breadcrumb-#{parent.id}:first-child")
+      menu = "#breadcrumb-menu-#{parent.id}[popover]"
+      # the open document, with the › before it, opens the list of its level
+      assert has_element?(
+               view,
+               ~s(#breadcrumb-current[aria-current="page"][popovertarget="breadcrumb-menu-#{parent.id}"])
+             )
+
+      assert has_element?(view, ~s(#{menu} a[aria-current="true"][href="/documents/#{child.id}"]))
+
+      assert has_element?(
+               view,
+               ~s(#{menu} a[aria-current="false"][href="/documents/#{sibling.id}"])
+             )
+
+      assert has_element?(view, "#{menu} [data-tree-pin]")
+
+      # the open document has no sub-document: "+" creates the first one
+      refute has_element?(view, "#breadcrumb-sub-documents")
+      view |> element("#breadcrumb-new") |> render_click()
+
+      [grandchild] =
+        Padocs.SqliteRepo.all(from d in Document.Document, where: d.parent_id == ^child.id)
+
+      assert_patch(view, ~p"/documents/#{grandchild.id}")
+
+      # back to it: "…" lists it, and creates another from its menu
+      render_patch(view, ~p"/documents/#{child.id}")
+      refute has_element?(view, "#breadcrumb-new")
+
+      assert has_element?(
+               view,
+               ~s(#breadcrumb-sub-documents[popovertarget="breadcrumb-menu-#{child.id}"])
+             )
+
+      assert has_element?(
+               view,
+               "#breadcrumb-menu-#{child.id} a[href='/documents/#{grandchild.id}']"
+             )
+
+      view |> element("#breadcrumb-menu-#{child.id}-new") |> render_click()
+
+      assert Padocs.SqliteRepo.aggregate(
+               from(d in Document.Document, where: d.parent_id == ^child.id),
+               :count
+             ) == 2
+    end
+
+    test "a viewer is offered no sub-document to create from the breadcrumb", %{parent: parent} do
+      viewer = register_user()
+      owner = Padocs.SqliteRepo.get!(Padocs.Accounts.User, parent.owner_id)
+      Fixtures.share!(owner, parent, viewer, :viewer)
+      {:ok, view, _html} = live(log_in(build_conn(), viewer), ~p"/documents/#{parent.id}")
+
+      refute has_element?(view, "#breadcrumb-new")
     end
 
     test "an empty document shows it will be deleted, then goes when left",
@@ -797,7 +859,7 @@ defmodule PadocsWeb.DocumentLiveTest do
       view |> element("#move-button") |> render_click()
       view |> element("#move-to-root") |> render_click()
 
-      refute has_element?(view, "#breadcrumb")
+      refute has_element?(view, "#breadcrumb-#{parent.id}")
       refute has_element?(view, "#documents-#{parent.id} #documents-#{child.id}")
     end
 
