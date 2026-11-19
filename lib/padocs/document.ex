@@ -131,6 +131,23 @@ defmodule Padocs.Document do
     |> with_roles()
   end
 
+  @doc """
+  When `user` last opened each document they opened: `%{id => opened_at}`
+  (see `opened/2`).
+  """
+  def opened_times(user) do
+    from(v in Visit, where: v.user_id == ^user.id, select: {v.document_id, v.opened_at})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "The documents `user` can read, last updated first."
+  def list_readable_documents(user) do
+    readable_by(user)
+    |> order_by(desc: :updated_at)
+    |> with_roles()
+  end
+
   @doc "The documents `user` owns, last updated first."
   def list_own_documents(user) do
     readable_by(user)
@@ -404,8 +421,8 @@ defmodule Padocs.Document do
   end
 
   @doc """
-  Remembers that `user` opened `document`, for `last_opened/1` and
-  `list_recent_documents/2`.
+  Remembers that `user` opened `document`, for `last_opened/1`,
+  `list_recent_documents/2` and `opened_times/1`.
   """
   def opened(user, %Document{id: id}) do
     Repo.update_all(from(u in User, where: u.id == ^user.id), set: [last_document_id: id])

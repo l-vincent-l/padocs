@@ -4,10 +4,12 @@ defmodule PadocsWeb.SearchModal do
   menu (see `Padocs.Document.Search`). Each search runs in a task, so that
   the modal stays responsive meanwhile.
 
-  Under the empty field, the user's recent documents, and buttons picking a
-  scope: their recent documents, their own, those shared with them, or their
-  trash. Picked, it shows in the field like a tag, and lists its documents;
-  a query, or a tag, then searches among them. In the trash, a document is
+  Under the empty field, the documents the user can read, the last opened
+  first. On the right of the tags, two menus: one sorting the results (see
+  `sorts/0`), the other filtering them by scope: the user's own documents,
+  those shared with them, or their trash. A scope picked shows in the field
+  like a tag, and lists its documents; a query, or a tag, then searches among
+  them. In the trash, a document is
   restored or deleted for good; restoring one sends `{:document_restored,
   message}` to the LiveView, whose sidebar may show it again, and which shows
   `message`.
@@ -28,7 +30,10 @@ defmodule PadocsWeb.SearchModal do
   alias Padocs.Document
   alias Padocs.Document.Search
 
-  @scope_names [:recent, :own, :shared, :trash]
+  # The filters: the scopes of the sidebar but the recent documents, which
+  # the sort replaces
+  @scope_names [:own, :shared, :trash]
+  @sort_names [:relevance, :opened, :updated, :title]
 
   def mount(socket) do
     {:ok,
@@ -50,6 +55,8 @@ defmodule PadocsWeb.SearchModal do
        # trash has, when it is the scope
        scope: nil,
        trash_count: 0,
+       # The order of the results (see sorts/0)
+       sort: :relevance,
        initialized?: false
      )
      |> stream(:results, [])}
@@ -86,7 +93,7 @@ defmodule PadocsWeb.SearchModal do
         role="dialog"
         aria-modal="true"
         aria-labelledby="search-title"
-        class="modal-box flex max-h-[85dvh] w-11/12 max-w-4xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
+        class="modal-box flex max-h-[85dvh] overflow-visible w-11/12 max-w-4xl flex-col border-2 border-base-content bg-base-100 p-4 shadow-hard sm:max-h-[80dvh] sm:p-6"
       >
         <div class="flex items-start justify-between gap-4">
           <h2 id="search-title" class="text-sm uppercase">{gettext("Search")}</h2>
@@ -171,81 +178,127 @@ defmodule PadocsWeb.SearchModal do
             ></span>
           </label>
         </.form>
-        <%!-- Picking a tag empties the field (see the SearchNav hook). On small
-             screens, only the first two, unless all of them were asked for: the
-             others show with "…" --%>
-        <div
-          :if={@tag_suggestions != []}
-          id="search-tags"
-          class="mt-2 flex max-h-24 shrink-0 flex-wrap items-center gap-1.5 overflow-y-auto"
-        >
-          <span class="text-xs text-base-content/70">{gettext("Tags:")}</span>
-          <button
-            :for={{tag, index} <- Enum.with_index(@tag_suggestions)}
-            id={"search-tag-#{tag.id}"}
-            type="button"
-            phx-click={
-              JS.push("pick_tag", value: %{id: tag.id}, target: @myself)
-              |> JS.focus(to: "#search-modal-query")
-            }
-            data-extra-tag={index >= @mobile_tags and !@all_tags?}
-            class={[
-              "flex cursor-pointer",
-              (index >= @mobile_tags and !@all_tags?) && "max-sm:hidden"
-            ]}
+        <%!-- The tags offered, and on their right, the sort and the filter
+             menus. Picking a tag empties the field (see the SearchNav hook). On
+             small screens, only the first two, unless all of them were asked
+             for: the others show with "…" --%>
+        <div id="search-toolbar" class="mt-2 flex shrink-0 items-start gap-2">
+          <div
+            :if={@tag_suggestions != []}
+            id="search-tags"
+            class="flex max-h-24 min-w-0 flex-1 flex-wrap items-center gap-1.5 overflow-y-auto"
           >
-            <.tag_badge
-              tag={tag}
-              class="transition-[filter] hover:brightness-95 dark:hover:brightness-125"
-            />
-          </button>
-          <button
-            :if={@more_tags?}
-            id="search-more-tags"
-            type="button"
-            phx-click={
-              JS.push("show_all_tags", target: @myself) |> JS.focus(to: "#search-modal-query")
-            }
-            title={gettext("All the tags")}
-            aria-label={gettext("Show all the tags")}
-            class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content"
-          >
-            …
-          </button>
-          <%!-- Small screens: shows the tags hidden there --%>
-          <button
-            :if={!@more_tags? and !@all_tags? and length(@tag_suggestions) > @mobile_tags}
-            id="search-more-tags-mobile"
-            type="button"
-            phx-click={
-              JS.remove_class("max-sm:hidden", to: "#search-tags [data-extra-tag]")
-              |> JS.hide()
-            }
-            title={gettext("All the tags")}
-            aria-label={gettext("Show all the tags")}
-            class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content sm:hidden"
-          >
-            …
-          </button>
-        </div>
-        <%!-- The scopes, under the empty field, before one is picked --%>
-        <div
-          :if={browsing?(assigns)}
-          id="search-scopes"
-          class="mt-3 flex shrink-0 flex-wrap items-center gap-1.5"
-        >
-          <button
-            :for={{name, {label, icon, _empty}} <- scopes()}
-            id={"search-scope-#{name}"}
-            type="button"
-            phx-click={
-              JS.push("pick_scope", value: %{scope: name}, target: @myself)
-              |> JS.focus(to: "#search-modal-query")
-            }
-            class="flex cursor-pointer items-center gap-1.5 border border-base-content/40 px-2.5 py-1 text-xs text-base-content/80 transition-colors hover:border-base-content hover:bg-base-200 hover:text-base-content"
-          >
-            <.icon name={icon} class="size-3.5" /> {label}
-          </button>
+            <span class="text-xs text-base-content/70">{gettext("Tags:")}</span>
+            <button
+              :for={{tag, index} <- Enum.with_index(@tag_suggestions)}
+              id={"search-tag-#{tag.id}"}
+              type="button"
+              phx-click={
+                JS.push("pick_tag", value: %{id: tag.id}, target: @myself)
+                |> JS.focus(to: "#search-modal-query")
+              }
+              data-extra-tag={index >= @mobile_tags and !@all_tags?}
+              class={[
+                "flex cursor-pointer",
+                (index >= @mobile_tags and !@all_tags?) && "max-sm:hidden"
+              ]}
+            >
+              <.tag_badge
+                tag={tag}
+                class="transition-[filter] hover:brightness-95 dark:hover:brightness-125"
+              />
+            </button>
+            <button
+              :if={@more_tags?}
+              id="search-more-tags"
+              type="button"
+              phx-click={
+                JS.push("show_all_tags", target: @myself) |> JS.focus(to: "#search-modal-query")
+              }
+              title={gettext("All the tags")}
+              aria-label={gettext("Show all the tags")}
+              class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content"
+            >
+              …
+            </button>
+            <%!-- Small screens: shows the tags hidden there --%>
+            <button
+              :if={!@more_tags? and !@all_tags? and length(@tag_suggestions) > @mobile_tags}
+              id="search-more-tags-mobile"
+              type="button"
+              phx-click={
+                JS.remove_class("max-sm:hidden", to: "#search-tags [data-extra-tag]")
+                |> JS.hide()
+              }
+              title={gettext("All the tags")}
+              aria-label={gettext("Show all the tags")}
+              class="cursor-pointer px-1 text-xs tracking-widest text-base-content/50 transition-colors hover:text-base-content sm:hidden"
+            >
+              …
+            </button>
+          </div>
+          <div class="ml-auto flex shrink-0 items-center gap-1">
+            <.search_menu
+              id="search-sort"
+              icon="hero-arrows-up-down"
+              label={gettext("Sort")}
+              title={gettext("Sort: %{sort}", sort: sort_label(@sort))}
+              active?={@sort != :relevance}
+              other="search-filter"
+            >
+              <li :for={{name, label} <- sorts()}>
+                <.search_menu_item
+                  id={"search-sort-#{name}"}
+                  menu="search-sort"
+                  checked?={name == @sort}
+                  event="pick_sort"
+                  value={%{sort: name}}
+                  target={@myself}
+                >
+                  {label}
+                </.search_menu_item>
+              </li>
+            </.search_menu>
+            <.search_menu
+              id="search-filter"
+              icon="hero-funnel"
+              label={gettext("Filter")}
+              title={
+                if(@scope,
+                  do: gettext("Filter: %{filter}", filter: scope_label(@scope)),
+                  else: gettext("Filter")
+                )
+              }
+              active?={@scope != nil}
+              other="search-sort"
+            >
+              <li>
+                <.search_menu_item
+                  id="search-scope-all"
+                  menu="search-filter"
+                  icon="hero-document-duplicate"
+                  checked?={is_nil(@scope)}
+                  event="clear_scope"
+                  target={@myself}
+                >
+                  {gettext("All the documents")}
+                </.search_menu_item>
+              </li>
+              <li :for={{name, {label, icon, _empty}} <- filters()}>
+                <.search_menu_item
+                  id={"search-scope-#{name}"}
+                  menu="search-filter"
+                  icon={icon}
+                  checked?={name == @scope}
+                  event="pick_scope"
+                  value={%{scope: name}}
+                  target={@myself}
+                >
+                  {label}
+                </.search_menu_item>
+              </li>
+            </.search_menu>
+          </div>
         </div>
         <div
           :if={@scope == :trash and @trash_count > 0}
@@ -282,7 +335,7 @@ defmodule PadocsWeb.SearchModal do
               <% @searched? -> %>
                 {gettext("No result")}
               <% true -> %>
-                {scope_empty_text(@scope || :recent)}
+                {empty_text(@scope)}
             <% end %>
           </li>
           <%= for {id, document} <- @streams.results do %>
@@ -307,8 +360,24 @@ defmodule PadocsWeb.SearchModal do
             </li>
           <% end %>
         </ul>
-        <p class="mt-3 hidden text-xs text-base-content/70 sm:block">
-          {gettext("↑ ↓ to choose · Enter to open · Esc to close")}
+        <%!-- The keys, drawn as keys: not to be taken for the sort's arrows --%>
+        <p
+          id="search-keys"
+          class="mt-3 hidden items-center gap-4 text-xs text-base-content/70 sm:flex"
+        >
+          <span class="flex items-center gap-1">
+            <.keycap label={gettext("Up")}>↑</.keycap>
+            <.keycap label={gettext("Down")}>↓</.keycap>
+            {gettext("to choose")}
+          </span>
+          <span class="flex items-center gap-1">
+            <.keycap>{gettext("Enter")}</.keycap>
+             {gettext("to open")}
+          </span>
+          <span class="flex items-center gap-1">
+            <.keycap>{gettext("Esc")}</.keycap>
+             {gettext("to close")}
+          </span>
         </p>
       </section>
       <button
@@ -319,6 +388,100 @@ defmodule PadocsWeb.SearchModal do
         tabindex="-1"
       ></button>
     </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :icon, :string, required: true
+  attr :label, :string, required: true
+  attr :title, :string, required: true
+  attr :active?, :boolean, default: false
+  attr :other, :string, required: true, doc: "the id of the other menu, closed on opening"
+  slot :inner_block, required: true
+
+  # A small square button opening a menu under it, on its right edge; marked
+  # when its choice differs from the default.
+  defp search_menu(assigns) do
+    ~H"""
+    <div class="relative" phx-click-away={JS.hide(to: "##{@id}-menu")}>
+      <button
+        id={"#{@id}-button"}
+        type="button"
+        aria-haspopup="menu"
+        aria-controls={"#{@id}-menu"}
+        aria-label={@title}
+        title={@title}
+        phx-click={JS.hide(to: "##{@other}-menu") |> JS.toggle(to: "##{@id}-menu")}
+        class={[
+          "relative flex size-7 cursor-pointer items-center justify-center border transition-colors",
+          "hover:border-base-content hover:bg-base-200 hover:text-base-content",
+          if(@active?,
+            do: "border-base-content bg-base-200 text-base-content",
+            else: "border-base-content/30 text-base-content/60"
+          )
+        ]}
+      >
+        <.icon name={@icon} class="size-4" />
+        <span
+          :if={@active?}
+          class="absolute -top-1 -right-1 size-2 border border-base-100 bg-primary"
+        ></span>
+      </button>
+      <div
+        id={"#{@id}-menu"}
+        role="menu"
+        aria-label={@label}
+        class="absolute top-full right-0 z-20 mt-1 hidden w-56 border-2 border-base-content bg-base-100 py-1 shadow-hard"
+      >
+        <p class="px-3 pt-1 pb-1.5 text-[0.6875rem] uppercase text-base-content/60">{@label}</p>
+        <ul>{render_slot(@inner_block)}</ul>
+      </div>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :menu, :string, required: true
+  attr :icon, :string, default: nil
+  attr :checked?, :boolean, required: true
+  attr :event, :string, required: true
+  attr :value, :map, default: %{}
+  attr :target, :any, required: true
+  slot :inner_block, required: true
+
+  defp search_menu_item(assigns) do
+    ~H"""
+    <button
+      id={@id}
+      type="button"
+      role="menuitemradio"
+      aria-checked={to_string(@checked?)}
+      phx-click={
+        JS.hide(to: "##{@menu}-menu")
+        |> JS.push(@event, value: @value, target: @target)
+        |> JS.focus(to: "#search-modal-query")
+      }
+      class="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-base-200 aria-[checked=true]:font-medium"
+    >
+      <.icon :if={@icon} name={@icon} class="size-4 shrink-0" />
+      {render_slot(@inner_block)}
+      <.icon :if={@checked?} name="hero-check-micro" class="ml-auto size-4" />
+    </button>
+    """
+  end
+
+  attr :label, :string, default: nil, doc: "the key's name, for a symbol"
+  slot :inner_block, required: true
+
+  # A key of the keyboard, raised by its thicker lower edge.
+  defp keycap(assigns) do
+    ~H"""
+    <kbd
+      aria-label={@label}
+      class="inline-flex h-5 min-w-5 items-center justify-center border border-b-2 border-base-content/40 bg-base-200 px-1 font-sans text-[0.625rem] leading-none text-base-content/80"
+    >
+      {render_slot(@inner_block)}
+    </kbd>
     """
   end
 
@@ -393,13 +556,26 @@ defmodule PadocsWeb.SearchModal do
     ]
   end
 
+  # The scopes the funnel's menu filters by.
+  defp filters, do: Keyword.take(scopes(), @scope_names)
+
+  # The orders of the results. By relevance, those of a query come best match
+  # first; the others, like the last opened.
+  defp sorts do
+    [
+      relevance: gettext("Relevance"),
+      opened: gettext("Last opened"),
+      updated: gettext("Last modified"),
+      title: gettext("Title")
+    ]
+  end
+
   defp scope_label(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(0)
   defp scope_icon(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(1)
-  defp scope_empty_text(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(2)
+  defp sort_label(sort), do: Keyword.fetch!(sorts(), sort)
 
-  # Neither scope, tag nor query: the scopes are offered.
-  defp browsing?(%{scope: scope, tag: tag, form: form}),
-    do: is_nil(scope) and is_nil(tag) and String.trim(form[:query].value || "") == ""
+  defp empty_text(nil), do: gettext("No document yet")
+  defp empty_text(scope), do: scopes() |> Keyword.fetch!(scope) |> elem(2)
 
   # The field emptied, like for a tag.
   def handle_event("pick_scope", %{"scope" => scope}, socket) do
@@ -413,6 +589,13 @@ defmodule PadocsWeb.SearchModal do
          |> assign(scope: scope)
          |> push_event("search:clear", %{})
          |> search("")}
+    end
+  end
+
+  def handle_event("pick_sort", %{"sort" => sort}, socket) do
+    case Enum.find(@sort_names, &(Atom.to_string(&1) == sort)) do
+      nil -> {:noreply, socket}
+      sort -> {:noreply, socket |> assign(sort: sort) |> search_again()}
     end
   end
 
@@ -514,7 +697,7 @@ defmodule PadocsWeb.SearchModal do
 
   defp search(socket, query) do
     socket = assign(socket, form: to_form(%{"query" => query}, as: "search"))
-    %{user: user, tag: tag, scope: scope} = socket.assigns
+    %{user: user, tag: tag, scope: scope, sort: sort} = socket.assigns
 
     case {String.trim(query), tag, scope} do
       # In the trash, which the index does not hold: by title
@@ -527,18 +710,20 @@ defmodule PadocsWeb.SearchModal do
             &((is_nil(tag) or Enum.any?(&1.tags, fn t -> t.id == tag.id end)) and
                 title_matches?(&1, query))
           )
+          # by relevance, the last deleted first
+          |> sort(user, sort, true)
 
         socket
         |> assign(loading?: false, trash_count: length(Document.list_trash(user)))
         |> put_top_tags()
         |> show_results({:ok, documents}, query != "" or tag != nil)
 
-      # The recent documents, or those of the scope
+      # The documents of the scope, or all of them
       {"", nil, scope} ->
         socket
         |> assign(loading?: false)
         |> put_top_tags()
-        |> show_results({:ok, scope_documents(user, scope || :recent)}, false)
+        |> show_results({:ok, user |> scope_documents(scope) |> sort(user, sort, false)}, false)
 
       # Every document carrying the tag, in the scope
       {"", tag, scope} ->
@@ -546,7 +731,7 @@ defmodule PadocsWeb.SearchModal do
 
         socket
         |> assign(loading?: false, tag_suggestions: [], more_tags?: false)
-        |> show_results({:ok, in_scope(documents, user, scope)})
+        |> show_results({:ok, documents |> in_scope(user, scope) |> sort(user, sort, false)})
 
       {query, tag, scope} ->
         tag_id = tag && tag.id
@@ -558,12 +743,13 @@ defmodule PadocsWeb.SearchModal do
           more_tags?: false
         )
         |> start_async(:search, fn ->
-          {query, {:ok, query |> Search.search(user, tag_id) |> in_scope(user, scope)}}
+          documents = query |> Search.search(user, tag_id) |> in_scope(user, scope)
+          {query, {:ok, sort(documents, user, sort, true)}}
         end)
     end
   end
 
-  defp scope_documents(user, :recent), do: Document.list_recent_documents(user)
+  defp scope_documents(user, nil), do: Document.list_readable_documents(user)
   defp scope_documents(user, :own), do: Document.list_own_documents(user)
   defp scope_documents(user, :shared), do: Document.list_shared_documents(user)
 
@@ -572,10 +758,29 @@ defmodule PadocsWeb.SearchModal do
   defp in_scope(documents, user, :own), do: Enum.filter(documents, &(&1.owner_id == user.id))
   defp in_scope(documents, user, :shared), do: Enum.reject(documents, &(&1.owner_id == user.id))
 
-  defp in_scope(documents, user, :recent) do
-    recent = MapSet.new(Document.list_recent_documents(user), & &1.id)
-    Enum.filter(documents, &MapSet.member?(recent, &1.id))
+  # `documents` in the order `sort`; `ranked?`: they already are by
+  # relevance, the best match (or, in the trash, the last deleted) first.
+  # The documents never opened come after the others, in their order.
+  defp sort(documents, _user, :relevance, true), do: documents
+  defp sort(documents, user, :relevance, false), do: sort(documents, user, :opened, true)
+
+  defp sort(documents, user, :opened, _ranked?) do
+    times = Document.opened_times(user)
+    {opened, never} = Enum.split_with(documents, &Map.has_key?(times, &1.id))
+    Enum.sort_by(opened, &times[&1.id], {:desc, DateTime}) ++ never
   end
+
+  defp sort(documents, _user, :updated, _ranked?),
+    do: Enum.sort_by(documents, & &1.updated_at, {:desc, DateTime})
+
+  # Whatever their case and accents, the untitled ones last
+  defp sort(documents, _user, :title, _ranked?),
+    do: Enum.sort_by(documents, &{is_nil(&1.title), title_key(&1.title)})
+
+  defp title_key(nil), do: ""
+
+  defp title_key(title),
+    do: title |> String.normalize(:nfd) |> String.replace(~r/\p{Mn}/u, "") |> String.downcase()
 
   defp title_matches?(_document, ""), do: true
 

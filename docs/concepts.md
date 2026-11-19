@@ -132,5 +132,8 @@ is wrong:
   documents to move or reorder them. That choice, the sidebar's width and
   its folding (`Ctrl+\`) are kept in the browser.
 - **The search** (the magnifier, at the top of the sidebar) looks through the
-  titles, the text and the tags of the documents the user can read, with the
-  same filters as the sidebar's lists.
+  titles, the text and the tags of the documents the user can read. On the
+  right of the tags, two small buttons: ⇅ sorts the results (relevance, the
+  best match first, or for the empty field the last opened; last opened;
+  last modified; title), the funnel filters them (my documents, shared with
+  me, trash).

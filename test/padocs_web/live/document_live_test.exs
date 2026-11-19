@@ -1079,8 +1079,8 @@ defmodule PadocsWeb.DocumentLiveTest do
       view |> element("#search-clear-tag") |> render_click()
 
       refute has_element?(view, "#search-active-tag")
-      # the empty field offers the scopes again
-      assert has_element?(view, "#search-scopes")
+      # the empty field offers the tags again
+      assert has_element?(view, "#search-tags")
     end
 
     test "a tag of a result becomes the filter, in place of the previous one",
@@ -1232,23 +1232,38 @@ defmodule PadocsWeb.DocumentLiveTest do
       view
     end
 
-    test "the empty field lists the recent documents, the last opened first",
+    test "the empty field lists the documents, the last opened first, in the sort picked",
          %{conn: conn, user: user, open: open} do
-      older = Fixtures.create_document!(user, %{title: "Plus ancien"})
-      never = Fixtures.create_document!(user, %{title: "Jamais ouvert"})
+      zebra = Fixtures.create_document!(user, %{title: "Zèbre"})
+      older = Fixtures.create_document!(user, %{title: "Abricot"})
+      summer = Fixtures.create_document!(user, %{title: "Été"})
       Document.opened(user, older)
 
       view = open_search(conn, open)
 
-      assert has_element?(view, "#search-scopes")
+      assert has_element?(view, "#search-sort-button")
+      assert has_element?(view, "#search-filter-button")
       refute has_element?(view, "#search-active-scope")
-      assert has_element?(view, "#search-results a[href='/documents/#{open.id}']")
-      assert has_element?(view, "#search-results a[href='/documents/#{older.id}']")
-      refute has_element?(view, "#search-results a[href='/documents/#{never.id}']")
+      assert has_element?(view, ~s(#search-sort-relevance[aria-checked="true"]))
+      # the open document, opened last, then the never opened ones
+      assert [open.id, older.id] == view |> result_ids() |> Enum.take(2)
 
-      # a query replaces the scopes
-      view |> form("#search-modal-form", search: %{query: "jamais"}) |> render_change()
-      refute has_element?(view, "#search-scopes")
+      view |> element("#search-sort-title") |> render_click()
+      assert has_element?(view, ~s(#search-sort-title[aria-checked="true"]))
+      # whatever the accents
+      assert [older.id, summer.id, zebra.id] ==
+               Enum.filter(result_ids(view), &(&1 in [older.id, summer.id, zebra.id]))
+    end
+
+    # The ids of the documents listed in the search, in their order.
+    defp result_ids(view) do
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#search-results li[role=option] a[href^='/documents/']")
+      |> LazyHTML.attribute("href")
+      |> Enum.map(&String.replace_prefix(&1, "/documents/", ""))
+      |> Enum.uniq()
     end
 
     test "own and shared documents", %{conn: conn, user: user, open: open} do
@@ -1263,7 +1278,7 @@ defmodule PadocsWeb.DocumentLiveTest do
       view |> element("#search-scope-own") |> render_click()
       # in the field, like a tag
       assert has_element?(view, "#search-active-scope", "Mes documents")
-      refute has_element?(view, "#search-scopes")
+      assert has_element?(view, ~s(#search-scope-own[aria-checked="true"]))
       # with their tags
       assert has_element?(
                view,
@@ -1275,7 +1290,7 @@ defmodule PadocsWeb.DocumentLiveTest do
       refute has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
 
       view |> element("#search-clear-scope") |> render_click()
-      assert has_element?(view, "#search-scopes")
+      assert has_element?(view, ~s(#search-scope-all[aria-checked="true"]))
       view |> element("#search-scope-shared") |> render_click()
       assert has_element?(view, "#search-results a[href='/documents/#{shared.id}']")
       refute has_element?(view, "#search-results a[href='/documents/#{open.id}']")

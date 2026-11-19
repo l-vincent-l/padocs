@@ -1037,11 +1037,6 @@ msgstr ""
 msgid "“%{title}” will take the accesses of its new parent."
 msgstr ""
 
-#: lib/padocs_web/live/search_modal.ex
-#, elixir-autogen, elixir-format
-msgid "↑ ↓ to choose · Enter to open · Esc to close"
-msgstr ""
-
 #: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Account"
@@ -1181,4 +1176,89 @@ msgstr ""
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
 msgid "Show the tree on the page"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format, fuzzy
+msgid "All the documents"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Filter"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Filter: %{filter}"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Last modified"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Last opened"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format, fuzzy
+msgid "No document yet"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Relevance"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Sort"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Sort: %{sort}"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Title"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Down"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Enter"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Esc"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Up"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "to choose"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "to close"
+msgstr ""
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "to open"
 msgstr ""

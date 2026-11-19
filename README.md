@@ -38,8 +38,8 @@ everything else in one [Phoenix](https://www.phoenixframework.org) application:
   reordered by drag and drop. Access is inherited from the parents.
 - **A sidebar** listing the recent documents, your own, those shared with you
   or the trash.
-- **Search**: full-text search with snippets, filters (recent, mine, shared
-  with me, trash) and tags.
+- **Search**: full-text search with snippets, tags, a sort (relevance, last
+  opened, last modified, title) and filters (mine, shared with me, trash).
 - **Sharing**: viewer and editor roles per document, and a public read-only
   link for people without an account.
 - **History**: every change kept, grouped by minute, then by hour, day and

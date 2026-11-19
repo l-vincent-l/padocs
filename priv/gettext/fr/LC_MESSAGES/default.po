@@ -1037,11 +1037,6 @@ msgstr "« %{title} » restauré"
 msgid "“%{title}” will take the accesses of its new parent."
 msgstr "« %{title} » prendra les accès de son nouveau parent."
 
-#: lib/padocs_web/live/search_modal.ex
-#, elixir-autogen, elixir-format
-msgid "↑ ↓ to choose · Enter to open · Esc to close"
-msgstr "↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer"
-
 #: lib/padocs_web/live/preferences_live.ex
 #, elixir-autogen, elixir-format
 msgid "Account"
@@ -1182,3 +1177,88 @@ msgstr "Chemin du document"
 #, elixir-autogen, elixir-format
 msgid "Show the tree on the page"
 msgstr "Montrer l'arborescence sur la page"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "All the documents"
+msgstr "Tous les documents"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Filter"
+msgstr "Filtrer"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Filter: %{filter}"
+msgstr "Filtre : %{filter}"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Last modified"
+msgstr "Dernière modification"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Last opened"
+msgstr "Dernière ouverture"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "No document yet"
+msgstr "Aucun document pour l’instant"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Relevance"
+msgstr "Pertinence"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Sort"
+msgstr "Trier"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Sort: %{sort}"
+msgstr "Tri : %{sort}"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Title"
+msgstr "Titre"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Down"
+msgstr "Bas"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Enter"
+msgstr "Entrée"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Esc"
+msgstr "Échap"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "Up"
+msgstr "Haut"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "to choose"
+msgstr "pour choisir"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "to close"
+msgstr "pour fermer"
+
+#: lib/padocs_web/live/search_modal.ex
+#, elixir-autogen, elixir-format
+msgid "to open"
+msgstr "pour ouvrir"
