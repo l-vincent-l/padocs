@@ -1,0 +1,90 @@
+name: Tests
+
+# The checks of `mix precommit`, without changing any file, and the build of
+# the assets: on every pull request (Dependabot's included) and every push to
+# main. A pull request whose checks fail says so before it is merged.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a pull request cancels the run of the previous one.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  MIX_ENV: test
+  # The same versions as the Dockerfile
+  ELIXIR_VERSION: "1.20.4"
+  OTP_VERSION: "29.0.6"
+  RUST_VERSION: "1.91.0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Elixir and OTP
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+          otp-version: ${{ env.OTP_VERSION }}
+
+      # tantivy_ex's NIF is built from source (see mix.exs)
+      - name: Set up Rust
+        run: |
+          rustup toolchain install "$RUST_VERSION" --profile minimal
+          rustup default "$RUST_VERSION"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: assets/package-lock.json
+
+      # deps and _build, the NIF included: a new key when mix.lock or a
+      # version changes, the previous cache as a start
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ env.RUST_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ env.RUST_VERSION }}-
+
+      - name: Install dependencies
+        run: |
+          mix deps.get
+          npm ci --prefix assets
+
+      - name: Compile, warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: No unused dependency in mix.lock
+        run: mix deps.unlock --check-unused
+
+      - name: Formatted
+        run: mix format --check-formatted
+
+      # A message added or changed must be extracted and translated
+      - name: Messages extracted
+        run: mix gettext.extract --check-up-to-date
+
+      - name: Tests
+        run: mix test
+
+      - name: Assets build
+        run: |
+          mix assets.setup
+          mix assets.build
