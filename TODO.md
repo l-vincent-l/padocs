@@ -50,17 +50,15 @@ change often: check them when trying.
   host's S3 for Litestream; and on Ubuntu 24.04 (Podman 4.9).
 - **A bare machine without containers.** First, **a release built by a
   workflow**: a `.tar.gz` for Debian 13, amd64 and arm64, published with
-  each version (a GitHub release). On the machine, neither Elixir, Rust nor
+  each version (a GitHub release). On the machine, neither Elixir nor
   Node: the archive unpacked in `/opt/padocs`, a systemd unit
   (`bin/migrate`, then `bin/server`, as a user of its own, a stop timeout
   for the last saves), Caddy in front. A cloud-init file too, as
   `cloud-init.yaml`; Litestream as a binary with its own unit. The same
   workflow serves the YunoHost package below.
 - **Then, as an annex, built on the machine**, from the sources: Erlang and
-  Elixir from `mise` (Debian's are too old: Elixir 1.18, OTP 27), Rust from
-  rustup (Debian's 1.85 is too old for Tantivy; only the fork of
-  `tantivy_ex` needs it, Yex and Typst come precompiled), Node and npm for
-  the assets, then `mix assets.deploy` and `mix release`. The versions
+  Elixir from `mise` (Debian's are too old: Elixir 1.18, OTP 27), Node and
+  npm for the assets (the NIFs of Tantivy, Yex and Typst come precompiled), then `mix assets.deploy` and `mix release`. The versions
   follow the `Dockerfile`'s. Its costs, to state: about 2 GB of memory and a
   quarter of an hour on 2 virtual CPUs to build, the compilers on the
   server, updates by hand (pull, build, restart) without going back to the

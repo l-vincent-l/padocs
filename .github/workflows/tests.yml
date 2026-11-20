@@ -22,7 +22,6 @@ env:
   # The same versions as the Dockerfile
   ELIXIR_VERSION: "1.20.4"
   OTP_VERSION: "29.0.6"
-  RUST_VERSION: "1.91.0"
 
 jobs:
   test:
@@ -38,12 +37,6 @@ jobs:
           elixir-version: ${{ env.ELIXIR_VERSION }}
           otp-version: ${{ env.OTP_VERSION }}
 
-      # tantivy_ex's NIF is built from source (see mix.exs)
-      - name: Set up Rust
-        run: |
-          rustup toolchain install "$RUST_VERSION" --profile minimal
-          rustup default "$RUST_VERSION"
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -51,17 +44,17 @@ jobs:
           cache: npm
           cache-dependency-path: assets/package-lock.json
 
-      # deps and _build, the NIF included: a new key when mix.lock or a
-      # version changes, the previous cache as a start
+      # deps and _build, the downloaded NIFs included: a new key when mix.lock
+      # or a version changes, the previous cache as a start
       - name: Cache deps and _build
         uses: actions/cache@v4
         with:
           path: |
             deps
             _build
-          key: mix-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ env.RUST_VERSION }}-${{ hashFiles('mix.lock') }}
+          key: mix-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
           restore-keys: |
-            mix-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ env.RUST_VERSION }}-
+            mix-${{ runner.os }}-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
 
       - name: Install dependencies
         run: |

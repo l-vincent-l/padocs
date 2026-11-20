@@ -50,10 +50,10 @@ resource's **Environment Variables**.
 ## Building on the server, or not
 
 With `docker-compose.coolify.yaml`, Coolify builds the image on the server:
-the Elixir dependencies and the Rust code of the search index and of Yjs.
-On 2 virtual CPUs, the first build took about a quarter of an hour; the
-next ones reuse Docker's cache and are much faster, as long as the
-dependencies do not change.
+its Elixir dependencies compiled there, the native libraries (the search
+index, Yjs, Typst) downloaded precompiled. Without Docker's cache, the
+build took 2 minutes on 8 CPUs; the next ones reuse the cache and are
+faster still, as long as the dependencies do not change.
 
 To skip the build, pull the image that GitHub builds on every push to main
 (`.github/workflows/sqlite-image.yml`) instead. No repository is needed then:

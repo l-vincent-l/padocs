@@ -26,17 +26,11 @@ ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 
 FROM ${BUILDER_IMAGE} AS builder
 
-# install build dependencies (Rust builds tantivy_ex's NIF, see mix.exs)
+# install build dependencies (the NIFs of tantivy_ex, Yex and Typst are
+# downloaded precompiled, see mix.exs)
 RUN apt-get update \
   && apt-get install -y --no-install-recommends build-essential git nodejs npm curl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
-
-# Rust from rustup: Debian's (1.85 in trixie) is older than what Tantivy 0.26
-# and its dependencies need (1.90)
-ARG RUST_VERSION=1.91.0
-ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo PATH=/usr/local/cargo/bin:$PATH
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-  | sh -s -- -y --profile minimal --default-toolchain ${RUST_VERSION} --no-modify-path
 
 # prepare build dir
 WORKDIR /app

@@ -16,8 +16,8 @@ repository.
 2. Render reads `render.yaml` and asks for `SECRET_KEY_BASE`: at least 64
    characters, from `mix phx.gen.secret` or `openssl rand -base64 48`. Keep
    it: a new one signs everyone out.
-3. **Apply**. The first build compiles the Elixir dependencies and the Rust
-   code of the search index and of Yjs: several minutes.
+3. **Apply**. The first build compiles the Elixir dependencies: a few
+   minutes.
 
 Padocs is then at `https://padocs.onrender.com`, or the name Render gave the
 service: without `PHX_HOST`, the host name is the one Render sets in

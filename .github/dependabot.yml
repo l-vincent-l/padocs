@@ -2,7 +2,7 @@
 # every Monday. The minor and patch versions are grouped into one pull request
 # per ecosystem; a major version gets its own, its changes being to read.
 #
-# Not covered: the versions of Elixir, OTP, Debian and Rust in the Dockerfile
+# Not covered: the versions of Elixir, OTP and Debian in the Dockerfile
 # (its FROM lines are built from ARGs, which Dependabot does not follow), and
 # the Litestream image in cloud-init.yaml.
 version: 2

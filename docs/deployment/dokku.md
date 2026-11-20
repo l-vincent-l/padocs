@@ -18,10 +18,10 @@ your SSH key, the one `git push` will use:
 cat ~/.ssh/id_ed25519.pub | ssh root@server dokku ssh-keys:add admin
 ```
 
-The image is built on the server, the Elixir dependencies and the Rust code
-of the search index and of Yjs: give it 2 GB of memory at least. On 2
-virtual CPUs, the first build takes about a quarter of an hour; the next
-ones reuse Docker's cache (16 s here).
+The image is built on the server, its Elixir dependencies compiled there;
+the native libraries (the search index, Yjs, Typst) are downloaded
+precompiled. Without Docker's cache, the build took 2 minutes on 8 CPUs; the
+next ones reuse the cache (16 s here).
 
 ## Create the application
 
