@@ -44,8 +44,10 @@ change often: check them when trying.
 - **Litestream at start** (`litestream.md`, "Without a persistent disk"):
   if a host overlaps its deploys, a lock in the bucket taken at start by a
   conditional write, as for "Several nodes" below.
-- **A bare machine** (`bare-machine.md`): the cloud-init file (Podman, the
-  Quadlet, Caddy), tried on one cloud first.
+- **A bare machine at a cloud** (`bare-machine.md`): `cloud-init.yaml` was
+  tried in a local virtual machine only (Debian 13, Caddy's own
+  certificates). Still to try at a cloud, with Let's Encrypt and the
+  host's S3 for Litestream; and on Ubuntu 24.04 (Podman 4.9).
 - **A YunoHost package** (`yunohost.md`): `padocs_ynh`, with a release per
   architecture built by a workflow.
 - **Let's Encrypt on Dokku**: the plugin was not tried (it needs a public
@@ -207,7 +209,9 @@ these build on.
   type. The name is typed there, not in the text, so it may hold spaces:
   Enter inserts the tag chosen, or creates it ("Create “…”" first when it
   does not exist), Escape or a click elsewhere cancels and leaves nothing.
-  `#` opens the same field, as a shortcut (Escape leaves the `#` typed).
+  Not `#` as a shortcut: BlockNote makes a heading of `# ` at the start of
+  a block, and a field taking what follows would break it. Maybe a key
+  shortcut instead, one free in BlockNote and in the browsers.
   The tag is then a custom inline content, atomic: a chip like the title's
   tags, deleted at once by Backspace, opening the tag's page when clicked.
   Built as the "mentions" example of BlockNote's documentation: an inline
@@ -264,6 +268,42 @@ these build on.
 - **Notify the person mentioned**, later: in Padocs, or by email (the emails
   of Padocs, see docs/deployment), once per mention, not on every save.
 
+## Administration
+
+Anyone may register today, and there is no administrator role in the
+application, only the LiveDashboard's credentials (`DASHBOARD_USER`). Every
+way to register counts in the items below, the password, the sign-in link
+and GitHub alike.
+
+- **An administrator role, first.** The items below need it. Defined by a
+  variable, `ADMIN_EMAILS` (addresses separated by commas), checked on each
+  request: an account is administrator while its address is in it **and
+  confirmed**, so that registering first with that address, without
+  receiving its emails, gives nothing. Not the first account registered: on
+  a new instance, it would go to whoever comes first. Removing an address
+  from the variable removes the role at the next restart. Maybe later a page
+  to name other administrators, kept in the database, the variable still
+  giving the first ones. The administrator gets an "Administration" entry in
+  the menu, and the LiveDashboard without its own credentials.
+- **Control the opening of registrations.** Open, by invitation only, or
+  closed, set by the administrator on a page of their own (kept in the
+  database, a default from a variable). Closed, the registration page says
+  so and the sign-in by link or by GitHub creates no account.
+- **Invitations.** The administrator (maybe any member, as an option)
+  invites an address: an email with a link, used once, expiring after some
+  days, registering even when registrations are closed. Listed on the page,
+  sent again or revoked. Maybe sharing a document with an address without
+  account becomes an invitation too.
+- **Approval of registrations.** Apart from the confirmation of the
+  address, already done (the email within 7 days): a new account waits for
+  the administrator's approval before using Padocs, a page listing those
+  waiting, an email to each when approved; the administrator told of each
+  new one.
+- **Allowed email domains.** Registrations only for the addresses of some
+  domains (`example.org`, maybe its subdomains), the others refused at once,
+  or put to the approval above. Checked at the registration, on an address
+  changed, and on the GitHub sign-in, on its verified address.
+
 ## Interface
 
 - **Remember the sidebar's list.** The list picked (recent, my documents,
@@ -272,3 +312,12 @@ these build on.
   folding of the menu.
 - **Tags under the title on mobile.** Many tags take several lines: show the
   first ones, then "+N", as in the search results.
+- **Table of contents of a document.** The headings of the open document, a
+  click scrolling to one, the one being read marked as the page scrolls. In
+  the right margin on a wide screen, a short line per heading (longer for a
+  higher level), unfolding into the titles when pointed at or focused, as
+  Notion does; on a narrow one, a button in the top bar opening it as a
+  panel. Only for the open document, read live from the editor (BlockNote's
+  blocks, updated as anyone edits), with nothing from the server; shown from
+  two or three headings. The links to a heading could then come from it
+  (copy the link of a heading).
