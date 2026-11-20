@@ -47,7 +47,7 @@ jobs:
       # deps and _build, the downloaded NIFs included: a new key when mix.lock
       # or a version changes, the previous cache as a start
       - name: Cache deps and _build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             deps
