@@ -7,13 +7,15 @@
 // uploaded and linked by their URL. Its links to other files of the archive
 // become links to their documents, whose ids the plan gives before any is
 // created. At the end, the server tells what was imported and opens the root.
-import {toBase64} from "./base64"
-import {MAX_BYTES, MAX_DOCX_BYTES} from "./document_import"
-import {uploadFile} from "./blocknote/upload"
+//
+// `hook` is the DocumentImport hook (its `push`), `toYjsState` BlockNote's
+// conversion (blocknote/convert.ts) and `uploadFile` the upload of an image
+// (blocknote/upload.ts), given by the hook: the tests (assets/test) run
+// this module in Node with their own.
+import {toBase64} from "./base64.js"
+import {MAX_ARCHIVE_BYTES, MAX_BYTES, MAX_DOCX_BYTES} from "./import_limits.js"
 
-const MAX_ARCHIVE_BYTES = 200_000_000
-
-export async function importArchive(hook, file, toYjsState) {
+export async function importArchive(hook, file, {toYjsState, uploadFile}) {
   if (file.size > MAX_ARCHIVE_BYTES) {
     return hook.push("import_failed", {name: file.name, reason: "too_large", max_bytes: MAX_ARCHIVE_BYTES})
   }
@@ -26,23 +28,23 @@ export async function importArchive(hook, file, toYjsState) {
     return hook.push("import_failed", {name: file.name, reason: "unreadable"})
   }
 
-  return importEntries(hook, file.name, entries, toYjsState)
+  return importEntries(hook, file.name, entries, {toYjsState, uploadFile})
 }
 
 // A folder chosen by an input with `webkitdirectory`: its files, by their
 // path from the folder (`Vault/notes/a.md`), read when used only, a folder
 // often holding much more than its documents.
-export async function importFolder(hook, files, toYjsState) {
+export async function importFolder(hook, files, {toYjsState, uploadFile}) {
   const entries = {}
   for (const file of files) entries[file.webkitRelativePath || file.name] = file
   const name = (files[0]?.webkitRelativePath || "").split("/")[0] || "Import"
-  return importEntries(hook, name, entries, toYjsState)
+  return importEntries(hook, name, entries, {toYjsState, uploadFile})
 }
 
 // `entries`, the files by path, each its bytes or a File.
-async function importEntries(hook, name, entries, toYjsState) {
+async function importEntries(hook, name, entries, {toYjsState, uploadFile}) {
   const plan = await hook.push("import_archive_plan", {name, paths: Object.keys(entries)})
-  const images = new Images(entries, plan.attachments || [])
+  const images = new Images(entries, plan.attachments || [], uploadFile)
   const links = new Links(plan.documents || [])
   // the keys of the documents created
   const created = new Set()
@@ -129,7 +131,7 @@ async function bytesOf(entry) {
 // The YAML between the `---` lines opening a file, or the properties opening
 // a Logseq page (`title:: …` lines, maybe in its first block, `- title:: …`),
 // read by the server, and the rest.
-function splitFrontMatter(text) {
+export function splitFrontMatter(text) {
   text = text.replace(/^﻿/, "")
   const yaml = text.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
   if (yaml) return {frontMatter: yaml[1], body: text.slice(yaml[0].length)}
@@ -143,8 +145,9 @@ function splitFrontMatter(text) {
 // The images of the archive, found by the path a document gives (relative to
 // it), else by their name, as Obsidian links them.
 class Images {
-  constructor(entries, paths) {
+  constructor(entries, paths, uploadFile) {
     this.entries = entries
+    this.uploadFile = uploadFile
     this.byPath = new Map()
     this.byName = new Map()
 
@@ -179,7 +182,7 @@ class Images {
 
       if (!uploaded.has(path)) {
         try {
-          const file = await uploadFile("/files", this.entries[path])
+          const file = await this.uploadFile("/files", this.entries[path])
           fileIds.push(file.id)
           uploaded.set(path, file.url)
         } catch (error) {

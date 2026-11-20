@@ -6,11 +6,8 @@
 // The BlockNote bundle is only loaded on the first import.
 import {toBase64} from "./base64"
 import {importArchive, importFolder} from "./archive_import"
-
-export const MAX_BYTES = 2_000_000
-// A Word file is a zip, holding its images, uploaded apart (each up to the
-// server's limit, see Padocs.Files).
-export const MAX_DOCX_BYTES = 10_000_000
+import {uploadFile} from "./blocknote/upload"
+import {MAX_BYTES, MAX_DOCX_BYTES} from "./import_limits"
 
 export const DocumentImport = {
   mounted() {
@@ -30,13 +27,13 @@ export const DocumentImport = {
       const {toYjsState} = await import("./blocknote/convert")
 
       if (this.el.hasAttribute("webkitdirectory")) {
-        await importFolder(this, files, toYjsState)
+        await importFolder(this, files, {toYjsState, uploadFile})
         return
       }
 
       for (const file of files) {
         if (/\.zip$/i.test(file.name)) {
-          await importArchive(this, file, toYjsState)
+          await importArchive(this, file, {toYjsState, uploadFile})
         } else {
           const reply = await this.importFile(file, toYjsState)
           if (reply.id) ids.push(reply.id)

@@ -2,6 +2,9 @@
   "name": "padocs-assets",
   "private": true,
   "license": "MIT",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
   "dependencies": {
     "@blocknote/core": "^0.57.0",
     "@blocknote/mantine": "^0.57.0",

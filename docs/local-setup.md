@@ -123,11 +123,17 @@ page the time of the database queries.
 ## Tests and checks
 
 ```sh
-mix test             # the tests, against base_tests.sqlite
-mix test --failed    # only those that failed last time
-mix precommit        # what to run before a commit: warnings as errors,
-                     # formatting, translations up to date, tests
+mix test                  # the tests, against base_tests.sqlite
+mix test --failed         # only those that failed last time
+npm test --prefix assets  # the JavaScript's, in Node (assets/test)
+mix precommit             # what to run before a commit: warnings as errors,
+                          # formatting, translations up to date, both tests
 ```
+
+The JavaScript's tests use Node's own runner (`node --test`), with no
+dependency: they cover what runs without a browser, such as the import of
+an archive (`assets/js/archive_import.js`), BlockNote's conversion and the
+uploads replaced by fakes. The editor itself is not tested.
 
 The interface is written in English in the code and translated in
 `priv/gettext/fr`. After adding or changing a text:
