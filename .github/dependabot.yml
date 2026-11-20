@@ -1,0 +1,39 @@
+# Dependabot: a pull request for each dependency with a new version, checked
+# every Monday. The minor and patch versions are grouped into one pull request
+# per ecosystem; a major version gets its own, its changes being to read.
+#
+# Not covered: the versions of Elixir, OTP, Debian and Rust in the Dockerfile
+# (its FROM lines are built from ARGs, which Dependabot does not follow), and
+# the Litestream image in cloud-init.yaml.
+version: 2
+
+updates:
+  - package-ecosystem: mix
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      mix:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /assets
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      # BlockNote's packages go together, at the same version
+      blocknote:
+        patterns: ["@blocknote/*"]
+      npm:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        update-types: [minor, patch]
