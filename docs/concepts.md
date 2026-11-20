@@ -137,10 +137,10 @@ is wrong:
 
 ## Importing
 
-The import button, beside "New document", takes Markdown, HTML, text and
+The menu beside "New document" imports files: Markdown, HTML, text and
 Word files, each one a document, and zip archives, each one a tree of
-documents; the folder button beside it takes a folder, imported as a zip of
-it would be. The files are converted in the browser by BlockNote, the editor's
+documents. It also imports a folder, as a zip of it would be: browsers pick
+either files or a folder, hence two entries. The files are converted in the browser by BlockNote, the editor's
 own parser: an imported document reads as if typed in the editor, and the
 server needs no converter of its own. The tab must stay open until the
 import ends.
