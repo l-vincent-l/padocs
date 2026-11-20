@@ -1040,27 +1040,44 @@ defmodule PadocsWeb.DocumentLiveTest do
       })
 
       assert_reply(view, %{documents: documents, attachments: attachments, skipped: skipped})
-      assert [%{title: "Coffre", parent: nil}, %{title: "A", path: "Coffre/A.md"}] = documents
+
+      # each with its id, for the links between them
+      assert [
+               %{key: 0, title: "Coffre", parent: nil, id: root_id},
+               %{key: 1, title: "A", path: "Coffre/A.md", parent: 0, id: id}
+             ] = documents
+
+      assert {:ok, _} = Ecto.UUID.cast(root_id)
+      assert root_id != id
       assert attachments == ["Coffre/img/x.png"]
       assert skipped == [%{path: "Coffre/b.xlsx", reason: "unsupported"}]
     end
 
-    test "creates each document under its parent, with its front matter", %{
-      user: user,
-      view: view
-    } do
+    # The plan of an archive of `paths`: the ids of its documents, by key.
+    defp plan_archive(view, paths) do
+      render_hook(view, "import_archive_plan", %{"name" => "Coffre.zip", "paths" => paths})
+      assert_reply(view, %{documents: documents})
+      Map.new(documents, &{&1.key, &1.id})
+    end
+
+    test "creates each document of the plan under its parent, with its id and its front matter",
+         %{user: user, view: view} do
+      ids = plan_archive(view, ["Coffre/recette-crepes.md"])
+
       # a folder: no content
-      render_hook(view, "import_archive_document", %{"title" => "Coffre", "parent_id" => nil})
+      render_hook(view, "import_archive_document", %{"key" => 0, "title" => "Coffre"})
       assert_reply(view, %{id: root_id})
+      assert root_id == ids[0]
 
       render_hook(view, "import_archive_document", %{
+        "key" => 1,
         "title" => "recette-crepes",
-        "parent_id" => root_id,
         "state" => import_state("Farine, œufs, lait"),
         "front_matter" => "title: Crêpes\ntags: [dessert, rapide]"
       })
 
       assert_reply(view, %{id: id})
+      assert id == ids[1]
 
       root = Document.get_document!(root_id)
       assert root.title == "Coffre"
@@ -1077,15 +1094,14 @@ defmodule PadocsWeb.DocumentLiveTest do
              ]
     end
 
-    test "creates nothing under a document the user cannot write, and drops its images",
+    test "creates nothing for a key not planned, and drops its images",
          %{user: user, view: view} do
-      other = register_user()
-      theirs = Fixtures.create_document!(other, %{title: "Le leur"})
+      plan_archive(view, ["Coffre/A.md"])
       {:ok, image} = Padocs.Files.upload(user, nil, <<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A, "x">>)
 
       render_hook(view, "import_archive_document", %{
+        "key" => 7,
         "title" => "Intrus",
-        "parent_id" => theirs.id,
         "state" => import_state("x"),
         "file_ids" => [image.id]
       })
@@ -1093,6 +1109,17 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert_reply(view, reply)
       refute Map.has_key?(reply, :id)
       assert {:error, :not_found} = Padocs.Files.get_readable(image.id, user)
+    end
+
+    test "creates a document of the plan once", %{view: view} do
+      plan_archive(view, ["Coffre/A.md"])
+
+      render_hook(view, "import_archive_document", %{"key" => 0, "title" => "Coffre"})
+      assert_reply(view, %{id: _})
+
+      render_hook(view, "import_archive_document", %{"key" => 0, "title" => "Coffre"})
+      assert_reply(view, reply)
+      refute Map.has_key?(reply, :id)
     end
 
     test "a file not imported drops its images", %{user: user, view: view} do

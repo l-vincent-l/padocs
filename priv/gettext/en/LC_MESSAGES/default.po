@@ -1196,3 +1196,8 @@ msgid "“%{name}”: %{count} document imported"
 msgid_plural "“%{name}”: %{count} documents imported"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import a folder"
+msgstr ""

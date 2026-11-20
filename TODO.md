@@ -146,15 +146,6 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
 
 ## Files
 
-- **Images of imports never done.** The images of a Word file or of an
-  archive's documents are uploaded before their document is created. An
-  import the server refuses deletes them (`Files.discard/2`), but one that
-  stops in the browser (a conversion failing, the tab closed) leaves them,
-  without document, readable by their owner only. Delete those older than an
-  hour, in a periodic job: they have no use past their import.
-- **No limit on the files without document.** `POST /files` takes as many
-  10 MB images as a signed-in user sends. Cap their number or size per user
-  (e.g. 200 MB not yet in a document), refusing more until imports end.
 - **Metadata of images.** The bytes are stored as uploaded, EXIF included
   (a photo's GPS position, the camera, the date), readable by every reader
   of the document, or by anyone with its public link. Strip it on upload:
@@ -224,19 +215,9 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
 - **Open what is imported.** An imported file becomes a document, listed in
   "My documents" but neither opened nor among the recent ones: open it (the
   last one, for several files), or list them in the flash.
-- **Links between imported files.** An archive's links between its files
-  (`[[Page]]`, `[[Page|text]]`, `[text](other.md)`, `[text](Other%20page.md)`)
-  stay as written: turn them into links to the documents created, once all
-  of them are. Needs a second pass, the target of a link possibly created
-  after it: the server knows each file's document, rewrites the links in
-  their Yjs states. Notion's links hold the ids of its names.
 - **Import a Padocs archive.** With the export of all of a user's documents
   (see Export), its manifest gives back the tree, the order, the tags, the
   Yjs state when there, in place of what the paths tell.
-- **Import a folder.** Choosing a folder (`webkitdirectory`) rather than a
-  zip of it, the entries read from the files chosen.
-- **Logseq's properties.** `title:: …` and `tags:: …` on the first lines of a
-  page, Logseq's own front matter, not read yet.
 - **Import on the server.** In a background task, the tab free to close: the
   server would need its own Markdown and HTML parser writing BlockNote's
   Yjs structure, and would not read Word files. Worth it for very large

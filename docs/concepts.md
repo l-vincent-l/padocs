@@ -139,13 +139,14 @@ is wrong:
 
 The import button, beside "New document", takes Markdown, HTML, text and
 Word files, each one a document, and zip archives, each one a tree of
-documents. The files are converted in the browser by BlockNote, the editor's
+documents; the folder button beside it takes a folder, imported as a zip of
+it would be. The files are converted in the browser by BlockNote, the editor's
 own parser: an imported document reads as if typed in the editor, and the
 server needs no converter of its own. The tab must stay open until the
 import ends.
 
-An archive, such as the export of an Obsidian vault, a Notion workspace or
-a Logseq graph, or any zipped folder:
+An archive or a folder, such as an Obsidian vault, the export of a Notion
+workspace, a Logseq graph, or any folder of documents:
 
 - **One root.** Everything goes under one document: the folder alone at the
   top of the archive, or else a document named after the archive. Putting
@@ -157,10 +158,11 @@ a Logseq graph, or any zipped folder:
   documents under it. The id Notion adds to names is dropped from titles.
   Sub-documents come by title.
 - **Front matter.** The `title` and `tags` (or `tag`) of a file's YAML front
-  matter, as Obsidian, Hugo or Jekyll write it, give the document's title
-  and tags; the rest of the front matter is dropped. Only those two keys
-  are read, as an inline list (`[a, "b c"]`), a dashed one, or separated
-  by commas.
+  matter, as Obsidian, Hugo or Jekyll write it, or of the properties opening
+  a Logseq page (`title:: …`, `tags:: …`), give the document's title and
+  tags; the rest is dropped. Only those two keys are read, as an inline
+  list (`[a, "b c"]`), a dashed one, separated by commas, or as Logseq's
+  links (`[[a]], [[b c]]`).
 - **Images.** Those a Markdown or HTML file links to (`![](img/a.png)`,
   `![[a.png]]`, `<img src>`) are uploaded, when found in the archive, by
   their path relative to the file or else by their name. Each is uploaded
@@ -171,5 +173,16 @@ a Logseq graph, or any zipped folder:
   files too large (2 MB, 10 MB for Word), and everything past 1,000
   documents are counted in the message closing the import, and listed in
   the browser's console. The archive takes at most 200 MB.
-- **Links between files** (`[[Page]]`, `[text](other.md)`) are kept as
-  written, not yet turned into links to the imported documents.
+- **Links between files** become links to their documents: `[[Page]]`,
+  `[[Page|text]]` and `[[Page#Heading]]` (Obsidian, Logseq), found by the
+  file's name or the document's title, whatever the case;
+  `[text](other.md)` and `<a href="other.html">` (Notion, any Markdown or
+  HTML), by their path relative to the file, else by the file's name.
+  Logseq's namespaces (`[[a/b]]`, the file `a___b.md`) are found too. The
+  heading of a link is dropped: it leads to the document's top. A link to a
+  file not in the archive stays as written. The links of Word files are
+  not read.
+- **Interrupted.** Images are uploaded just before their document is
+  created. Those of an import stopped before (the tab closed) are deleted
+  after an hour; until then they count in the 200 MB of images without
+  document a user may hold, past which an import's images are refused.

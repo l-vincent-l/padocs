@@ -380,6 +380,25 @@ defmodule PadocsWeb.DocumentLive do
                   class="sr-only"
                 />
               </label>
+              <%!-- A folder, as an Obsidian vault or a Logseq graph: imported
+                   as a zip of it --%>
+              <label
+                id="import-folder"
+                data-import
+                title={gettext("Import a folder")}
+                class="group btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-base-content aria-busy:pointer-events-none"
+              >
+                <.icon name="hero-folder-arrow-down" class="size-4 group-aria-busy:hidden" />
+                <span class="loading loading-spinner loading-xs hidden group-aria-busy:inline-block"></span>
+                <span class="sr-only">{gettext("Import a folder")}</span>
+                <input
+                  id="import-folder-files"
+                  type="file"
+                  webkitdirectory
+                  phx-hook="DocumentImport"
+                  class="sr-only"
+                />
+              </label>
             </div>
             <%!-- The documents of the scope picked above them: those the user
                  opened last (the last first), their own, those shared with
@@ -2056,7 +2075,10 @@ defmodule PadocsWeb.DocumentLive do
        # whether the open document's body is empty (told by its editor), and
        # the empty documents left, deleted a few seconds later (see YPersistence)
        body_empty?: false,
-       deleting: MapSet.new()
+       deleting: MapSet.new(),
+       # the archive being imported: the id and the parent's of each of its
+       # documents not created yet, by key (see "import_archive_plan")
+       archive_plan: %{}
      )
      |> stream(:viewers, [])
      |> stream(:members, [])
@@ -2427,38 +2449,53 @@ defmodule PadocsWeb.DocumentLive do
   end
 
   # An archive read by the DocumentImport hook: the plan of its import (see
-  # Padocs.Document.Archive), from the paths of its entries.
+  # Padocs.Document.Archive), from the paths of its entries. Each document
+  # gets its id now, for the links between them, written before they are
+  # created; the plan is kept, the hook then naming a document by its key.
   def handle_event("import_archive_plan", %{"name" => name, "paths" => paths}, socket)
       when is_binary(name) and is_list(paths) do
     plan =
       paths |> Enum.filter(&is_binary/1) |> Enum.take(@max_archive_entries) |> Archive.plan(name)
 
+    documents = for document <- plan.documents, do: Map.put(document, :id, Ecto.UUID.generate())
+    ids = Map.new(documents, &{&1.key, &1.id})
+
+    planned =
+      Map.new(documents, fn document ->
+        {document.key, %{id: document.id, parent_id: ids[document.parent]}}
+      end)
+
     {:reply,
      %{
-       documents: plan.documents,
+       documents: documents,
        attachments: plan.attachments,
        skipped:
          for(
            %{path: path, reason: reason} <- plan.skipped,
            do: %{path: path, reason: to_string(reason)}
          )
-     }, socket}
+     }, assign(socket, :archive_plan, planned)}
   end
 
-  # A document of the plan, converted by the hook, or a folder without
-  # content. Its front matter may give its title and tags.
-  def handle_event("import_archive_document", %{"title" => title} = params, socket)
+  # A document of the plan, by its key, converted by the hook, or a folder
+  # without content: created once, with the id and under the parent the plan
+  # gave. Its front matter may give its title and tags.
+  def handle_event("import_archive_document", %{"key" => key, "title" => title} = params, socket)
       when is_binary(title) do
     meta = Archive.front_matter(params["front_matter"])
+    {planned, plan} = Map.pop(socket.assigns.archive_plan, key)
+    socket = assign(socket, :archive_plan, plan)
 
-    with {:ok, snapshot} <- archive_state(params["state"]),
+    with %{id: id, parent_id: parent_id} <- planned,
+         {:ok, snapshot} <- archive_state(params["state"]),
          {:ok, document} <-
            Document.import_document(
              socket.assigns.current_user,
              meta.title || String.trim(title),
              snapshot,
              List.wrap(params["file_ids"]),
-             parent_id: params["parent_id"],
+             id: id,
+             parent_id: parent_id,
              tags: meta.tags
            ) do
       {:reply, %{id: document.id}, list_new_document(socket, %{document | role: :owner})}
@@ -2471,6 +2508,7 @@ defmodule PadocsWeb.DocumentLive do
 
   # The archive imported: what was, and the root opened.
   def handle_event("import_archive_done", %{"name" => name} = params, socket) do
+    socket = assign(socket, :archive_plan, %{})
     imported = integer(params["imported"])
     left_out = integer(params["left_out"])
 

@@ -700,12 +700,14 @@ defmodule Padocs.Document do
       :forbidden}`); at the root by default
     * `:tags` - the labels of its tags (see `add_tag/3`), those not valid
       left out
+    * `:id` - its id, chosen beforehand, as for the documents of an archive
+      whose links to each other are written before they are created
   """
   def import_document(user, title, snapshot, file_ids \\ [], opts \\ []) do
     doc = Yex.Doc.new()
 
     changeset =
-      %Document{owner_id: user.id}
+      %Document{id: opts[:id], owner_id: user.id}
       |> Changeset.cast(%{title: title}, [:title])
       |> Changeset.put_change(:snapshot, snapshot)
 

@@ -176,16 +176,22 @@ defmodule Padocs.Document.Archive do
 
   @doc """
   The title and the tags given by the YAML front matter of a file (the text
-  between its `---` lines), as Obsidian, Hugo or Jekyll write it:
-  `%{title: title | nil, tags: [tag]}`. The tags (`tags` or `tag`) are an
-  inline list (`[a, "b c"]`), a dashed one, or separated by commas; a `#`
-  before one is dropped. Not a YAML parser: only those keys are read, on
-  lines of their own.
+  between its `---` lines), as Obsidian, Hugo or Jekyll write it, or by the
+  properties opening a Logseq page (`title:: …`, `tags:: …`, on its first
+  lines): `%{title: title | nil, tags: [tag]}`. The tags (`tags` or `tag`)
+  are an inline list (`[a, "b c"]`), a dashed one, or separated by commas;
+  a `#` before one, or the `[[…]]` around it, is dropped. Not a YAML parser:
+  only those keys are read, on lines of their own.
   """
   def front_matter(nil), do: %{title: nil, tags: []}
 
   def front_matter(yaml) do
-    lines = String.split(yaml, ~r/\R/)
+    # Logseq's `key:: value`, maybe in the page's first block (`- key::`),
+    # read as YAML's `key: value`
+    lines =
+      yaml
+      |> String.split(~r/\R/)
+      |> Enum.map(&Regex.replace(~r/^\s*(?:-\s+)?([\w-]+)::(?=\s|$)/, &1, "\\1:"))
 
     %{
       title: lines |> value("title") |> scalar(),
@@ -219,6 +225,11 @@ defmodule Padocs.Document.Archive do
               |> Enum.take_while(&Regex.match?(~r/^\s+-\s*/, &1))
               |> Enum.map(&String.replace(&1, ~r/^\s+-\s*/, ""))
 
+            # Logseq's links to pages, `[[a b]], [[c]]` or `[[a b]] [[c]]`
+            String.starts_with?(value, "[[") ->
+              Regex.scan(~r/\[\[([^\]]+)\]\]|([^,\[\]\s][^,\[\]]*)/, value)
+              |> Enum.map(fn match -> match |> Enum.drop(1) |> Enum.join() end)
+
             String.starts_with?(value, "[") ->
               value |> String.trim_leading("[") |> String.trim_trailing("]") |> String.split(",")
 
@@ -228,8 +239,16 @@ defmodule Padocs.Document.Archive do
 
         items
         |> Enum.map(&scalar/1)
-        |> Enum.map(&(&1 && String.trim_leading(&1, "#")))
+        |> Enum.map(&(&1 && &1 |> String.trim_leading("#") |> unlink()))
         |> Enum.reject(&(&1 in [nil, ""]))
+    end
+  end
+
+  # `[[a]]`, Logseq's link to a page, as `a`.
+  defp unlink(tag) do
+    case Regex.run(~r/^\[\[(.*)\]\]$/, tag) do
+      [_, inner] -> String.trim(inner)
+      nil -> tag
     end
   end
 

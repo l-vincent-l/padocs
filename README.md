@@ -45,9 +45,10 @@ everything else in one [Phoenix](https://www.phoenixframework.org) application:
 - **History**: every change kept, grouped by minute, then by hour, day and
   week. Any version can be viewed and restored.
 - **Trash**: deleted documents come back with their sub-documents.
-- **Import and export**: import Markdown, HTML, text and Word files, or a zip
-  of them (an Obsidian vault, a Notion export…) as a tree of documents, with
-  their images and front matter tags. Export to
+- **Import and export**: import Markdown, HTML, text and Word files, or a
+  folder or a zip of them (an Obsidian vault, a Logseq graph, a Notion
+  export…) as a tree of documents, with their images, their tags and the
+  links between them. Export to
   PDF (made with [Typst](https://typst.app)), Word, OpenDocument, Markdown and
   Typst.
 - **Images**: pasted or dropped in the editor, stored locally, on S3 or on

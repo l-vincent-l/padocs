@@ -187,6 +187,17 @@ defmodule Padocs.Document.ArchiveTest do
       assert Archive.front_matter("tag: seul") == %{title: nil, tags: ["seul"]}
     end
 
+    test "reads Logseq's properties" do
+      assert Archive.front_matter("title:: Ma page\ntags:: [[deux mots]], recette, #[[sucré]]") ==
+               %{title: "Ma page", tags: ["deux mots", "recette", "sucré"]}
+
+      assert Archive.front_matter("tags:: [[un]] [[deux]]") == %{title: nil, tags: ["un", "deux"]}
+
+      # in the page's first block
+      assert Archive.front_matter("- title:: Bloc\n  tags:: a, b") ==
+               %{title: "Bloc", tags: ["a", "b"]}
+    end
+
     test "nothing usable" do
       assert Archive.front_matter("") == %{title: nil, tags: []}
       assert Archive.front_matter("title:\ntags: []") == %{title: nil, tags: []}

@@ -1,10 +1,11 @@
 // Hook of the file input of a document's menu: each chosen file (Markdown, HTML,
 // plain text or Word) is converted to a document by BlockNote, in the browser, and its
 // Yjs state sent to the server, which creates the document. One imported file
-// is opened. A zip is imported as a tree of documents (see archive_import.js).
+// is opened. A zip is imported as a tree of documents (see archive_import.js),
+// and so is a folder, chosen by an input with `webkitdirectory`.
 // The BlockNote bundle is only loaded on the first import.
 import {toBase64} from "./base64"
-import {importArchive} from "./archive_import"
+import {importArchive, importFolder} from "./archive_import"
 
 export const MAX_BYTES = 2_000_000
 // A Word file is a zip, holding its images, uploaded apart (each up to the
@@ -27,6 +28,11 @@ export const DocumentImport = {
 
     try {
       const {toYjsState} = await import("./blocknote/convert")
+
+      if (this.el.hasAttribute("webkitdirectory")) {
+        await importFolder(this, files, toYjsState)
+        return
+      }
 
       for (const file of files) {
         if (/\.zip$/i.test(file.name)) {

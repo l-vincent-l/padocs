@@ -1,10 +1,12 @@
-// The import of a zip, for the DocumentImport hook (document_import.js): the
-// archive is read in the browser, the server plans its tree of documents from
-// the paths of its entries (see Padocs.Document.Archive), then each document
-// is converted by BlockNote, parents first, and sent to the server, which
-// creates it under its parent. The images a Markdown or HTML file links to,
-// found in the archive, are uploaded and linked by their URL. At the end, the
-// server tells what was imported and opens the root.
+// The import of a zip, or of a folder, for the DocumentImport hook
+// (document_import.js): the archive is read in the browser, the server plans
+// its tree of documents from the paths of its entries (see
+// Padocs.Document.Archive), then each document is converted by BlockNote,
+// parents first, and sent to the server, which creates it under its parent.
+// The images a Markdown or HTML file links to, found in the archive, are
+// uploaded and linked by their URL. Its links to other files of the archive
+// become links to their documents, whose ids the plan gives before any is
+// created. At the end, the server tells what was imported and opens the root.
 import {toBase64} from "./base64"
 import {MAX_BYTES, MAX_DOCX_BYTES} from "./document_import"
 import {uploadFile} from "./blocknote/upload"
@@ -24,19 +26,33 @@ export async function importArchive(hook, file, toYjsState) {
     return hook.push("import_failed", {name: file.name, reason: "unreadable"})
   }
 
-  const plan = await hook.push("import_archive_plan", {name: file.name, paths: Object.keys(entries)})
+  return importEntries(hook, file.name, entries, toYjsState)
+}
+
+// A folder chosen by an input with `webkitdirectory`: its files, by their
+// path from the folder (`Vault/notes/a.md`), read when used only, a folder
+// often holding much more than its documents.
+export async function importFolder(hook, files, toYjsState) {
+  const entries = {}
+  for (const file of files) entries[file.webkitRelativePath || file.name] = file
+  const name = (files[0]?.webkitRelativePath || "").split("/")[0] || "Import"
+  return importEntries(hook, name, entries, toYjsState)
+}
+
+// `entries`, the files by path, each its bytes or a File.
+async function importEntries(hook, name, entries, toYjsState) {
+  const plan = await hook.push("import_archive_plan", {name, paths: Object.keys(entries)})
   const images = new Images(entries, plan.attachments || [])
-  // the id of each document created, by its key in the plan
-  const ids = new Map()
+  const links = new Links(plan.documents || [])
+  // the keys of the documents created
+  const created = new Set()
   let imported = 0
   let leftOut = (plan.skipped || []).length
   if (leftOut > 0) console.info("left out of the import:", plan.skipped)
 
   for (const node of plan.documents || []) {
-    const parentId = node.parent === null ? null : ids.get(node.parent)
-
     // under a document not created: left out with it
-    if (node.parent !== null && !parentId) {
+    if (node.parent !== null && !created.has(node.parent)) {
       if (node.path) leftOut++
       continue
     }
@@ -44,7 +60,7 @@ export async function importArchive(hook, file, toYjsState) {
     let content = {}
     if (node.path) {
       try {
-        content = await convert(node, entries[node.path], images, toYjsState)
+        content = await convert(node, entries[node.path], images, links, toYjsState)
       } catch (error) {
         console.error(`${node.path} left out of the import`, error)
         leftOut++
@@ -52,10 +68,10 @@ export async function importArchive(hook, file, toYjsState) {
       }
     }
 
-    const reply = await hook.push("import_archive_document", {title: node.title, parent_id: parentId, ...content})
+    const reply = await hook.push("import_archive_document", {key: node.key, title: node.title, ...content})
 
     if (reply.id) {
-      ids.set(node.key, reply.id)
+      created.add(node.key)
       imported++
     } else if (node.path) {
       leftOut++
@@ -64,8 +80,8 @@ export async function importArchive(hook, file, toYjsState) {
 
   const root = plan.documents?.[0]
   return hook.push("import_archive_done", {
-    name: file.name,
-    root_id: root ? ids.get(root.key) : null,
+    name,
+    root_id: root && created.has(root.key) ? root.id : null,
     imported,
     left_out: leftOut,
   })
@@ -85,9 +101,11 @@ async function readZip(file) {
 
 // The state of the document of `node`, its front matter and the files of its
 // images.
-async function convert(node, bytes, images, toYjsState) {
+async function convert(node, entry, images, links, toYjsState) {
   const maxBytes = node.format === "docx" ? MAX_DOCX_BYTES : MAX_BYTES
-  if (bytes.length > maxBytes) throw new Error(`too large (${bytes.length} bytes)`)
+  const size = entry.size ?? entry.length
+  if (size > maxBytes) throw new Error(`too large (${size} bytes)`)
+  const bytes = await bytesOf(entry)
 
   if (node.format === "docx") {
     const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
@@ -98,17 +116,28 @@ async function convert(node, bytes, images, toYjsState) {
   const text = new TextDecoder().decode(bytes)
   const {frontMatter, body} = node.format === "markdown" ? splitFrontMatter(text) : {frontMatter: null, body: text}
   const linked = await images.link(body, node.path, node.format)
-  const {state} = await toYjsState(linked.text, node.format)
+  const {state} = await toYjsState(links.rewrite(linked.text, node.path, node.format), node.format)
 
   return {state: toBase64(state), front_matter: frontMatter, file_ids: linked.fileIds}
 }
 
-// The YAML between the `---` lines opening a file, read by the server, and
-// the rest.
+// The bytes of an entry, read from its File for a folder.
+async function bytesOf(entry) {
+  return entry instanceof Blob ? new Uint8Array(await entry.arrayBuffer()) : entry
+}
+
+// The YAML between the `---` lines opening a file, or the properties opening
+// a Logseq page (`title:: …` lines, maybe in its first block, `- title:: …`),
+// read by the server, and the rest.
 function splitFrontMatter(text) {
-  const match = text.replace(/^﻿/, "").match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
-  if (!match) return {frontMatter: null, body: text}
-  return {frontMatter: match[1], body: text.replace(/^﻿/, "").slice(match[0].length)}
+  text = text.replace(/^﻿/, "")
+  const yaml = text.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
+  if (yaml) return {frontMatter: yaml[1], body: text.slice(yaml[0].length)}
+
+  const properties = text.match(/^(?:[ \t]*(?:-[ \t]+)?[\w-]+::(?:[ \t].*)?(?:\r?\n|$))+/)
+  if (properties) return {frontMatter: properties[0], body: text.slice(properties[0].length)}
+
+  return {frontMatter: null, body: text}
 }
 
 // The images of the archive, found by the path a document gives (relative to
@@ -194,6 +223,99 @@ class Images {
     const resolved = resolve(decoded.startsWith("/") ? [] : folder, decoded)
     return this.byPath.get(resolved) || this.byName.get(decoded.split("/").pop().toLowerCase()) || null
   }
+}
+
+// The documents of the plan, found by the path a link gives (relative to its
+// file, with or without its extension), else by their file's name or their
+// title, as Obsidian and Logseq link pages by name (`[[Page]]`).
+export class Links {
+  constructor(documents) {
+    this.byPath = new Map()
+    this.byName = new Map()
+
+    for (const {id, path, title} of documents) {
+      if (path) {
+        const normalized = path.replaceAll("\\", "/")
+        this.byPath.set(normalized, id)
+        this.byPath.set(withoutExtension(normalized), id)
+        this.addName(withoutExtension(normalized.split("/").pop()), id)
+      }
+      this.addName(title, id)
+    }
+  }
+
+  addName(name, id) {
+    const key = name.toLowerCase()
+    if (!this.byName.has(key)) this.byName.set(key, id)
+  }
+
+  // `text` with its links to files of the archive (`[[Page]]`,
+  // `[[Page|text]]`, `[text](Other%20page.md)`, `<a href>`) linking to their
+  // documents. Other links stay as written.
+  rewrite(text, documentPath, format) {
+    if (format === "html") {
+      return text.replace(/(<a\b[^>]*?\bhref\s*=\s*)(["'])(.*?)\2/gi, (whole, start, quote, target) => {
+        const id = this.find(target, documentPath)
+        return id ? `${start}${quote}/documents/${id}${quote}` : whole
+      })
+    }
+
+    return text
+      .replace(/(?<!!)\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g, (whole, target, label) => {
+        const id = this.findByName(target.trim(), documentPath)
+        return id ? `[${escapeLabel(label?.trim() || target.trim())}](/documents/${id})` : whole
+      })
+      .replace(
+        /(?<!!)\[([^\]]*)\]\(\s*(?:<([^>]+)>|([^)\s]+))(\s+["'][^"']*["'])?\s*\)/g,
+        (whole, label, angled, plain) => {
+          const id = this.find(angled || plain, documentPath)
+          return id ? `[${label}](/documents/${id})` : whole
+        },
+      )
+  }
+
+  // A link's target, a path relative to the file of `documentPath`.
+  find(target, documentPath) {
+    if (isExternal(target) || target.startsWith("#")) return null
+    const path = decode(target.replace(/[?#].*$/, ""))
+    if (path === "") return null
+
+    const folder = documentPath.replaceAll("\\", "/").split("/").slice(0, -1)
+    const resolved = resolve(path.startsWith("/") ? [] : folder, path)
+    const name = path.split("/").pop()
+    // by name only for a document's file, or a name without extension: a
+    // link to `photo.png` is not one to the page "photo"
+    const byName = withoutExtension(name) !== name || !/\.\w+$/.test(name)
+    return this.byPath.get(resolved) || (byName && this.byName.get(withoutExtension(name).toLowerCase())) || null
+  }
+
+  // A page's name, as `[[Page]]` or `[[folder/Page]]` give it; Logseq writes
+  // the `/` of a namespace (`[[a/b]]`) as `___` in the file's name.
+  findByName(name, documentPath) {
+    return (
+      this.find(name, documentPath) ||
+      this.byName.get(name.toLowerCase()) ||
+      this.byName.get(name.replaceAll("/", "___").toLowerCase()) ||
+      null
+    )
+  }
+}
+
+function withoutExtension(name) {
+  return name.replace(/\.(md|markdown|txt|html?|docx)$/i, "")
+}
+
+function decode(text) {
+  try {
+    return decodeURIComponent(text)
+  } catch (_error) {
+    return text
+  }
+}
+
+// The text of a Markdown link, its brackets escaped.
+function escapeLabel(label) {
+  return label.replace(/[[\]\\]/g, "\\$&")
 }
 
 function isExternal(target) {
