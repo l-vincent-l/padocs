@@ -1021,6 +1021,137 @@ defmodule PadocsWeb.DocumentLiveTest do
     end
   end
 
+  describe "archive import" do
+    setup %{conn: conn} do
+      user = register_user()
+      document = Fixtures.create_document!(user, %{title: "Notes"})
+      {:ok, view, _html} = live(log_in(conn, user), ~p"/documents/#{document.id}")
+      %{user: user, view: view}
+    end
+
+    test "the file input takes zip archives", %{view: view} do
+      assert has_element?(view, "#import-files[accept*='.zip']")
+    end
+
+    test "plans the documents of an archive from its paths", %{view: view} do
+      render_hook(view, "import_archive_plan", %{
+        "name" => "Coffre.zip",
+        "paths" => ["Coffre/A.md", "Coffre/img/x.png", "Coffre/b.xlsx"]
+      })
+
+      assert_reply(view, %{documents: documents, attachments: attachments, skipped: skipped})
+
+      # each with its id, for the links between them
+      assert [
+               %{key: 0, title: "Coffre", parent: nil, id: root_id},
+               %{key: 1, title: "A", path: "Coffre/A.md", parent: 0, id: id}
+             ] = documents
+
+      assert {:ok, _} = Ecto.UUID.cast(root_id)
+      assert root_id != id
+      assert attachments == ["Coffre/img/x.png"]
+      assert skipped == [%{path: "Coffre/b.xlsx", reason: "unsupported"}]
+    end
+
+    # The plan of an archive of `paths`: the ids of its documents, by key.
+    defp plan_archive(view, paths) do
+      render_hook(view, "import_archive_plan", %{"name" => "Coffre.zip", "paths" => paths})
+      assert_reply(view, %{documents: documents})
+      Map.new(documents, &{&1.key, &1.id})
+    end
+
+    test "creates each document of the plan under its parent, with its id and its front matter",
+         %{user: user, view: view} do
+      ids = plan_archive(view, ["Coffre/recette-crepes.md"])
+
+      # a folder: no content
+      render_hook(view, "import_archive_document", %{"key" => 0, "title" => "Coffre"})
+      assert_reply(view, %{id: root_id})
+      assert root_id == ids[0]
+
+      render_hook(view, "import_archive_document", %{
+        "key" => 1,
+        "title" => "recette-crepes",
+        "state" => import_state("Farine, œufs, lait"),
+        "front_matter" => "title: Crêpes\ntags: [dessert, rapide]"
+      })
+
+      assert_reply(view, %{id: id})
+      assert id == ids[1]
+
+      root = Document.get_document!(root_id)
+      assert root.title == "Coffre"
+      assert root.owner_id == user.id
+
+      document = Document.get_document!(id)
+      assert document.title == "Crêpes"
+      assert document.parent_id == root_id
+      assert Document.markdown(document) == "Farine, œufs, lait"
+
+      assert id |> Document.list_tags() |> Enum.map(& &1.label) |> Enum.sort() == [
+               "dessert",
+               "rapide"
+             ]
+    end
+
+    test "creates nothing for a key not planned, and drops its images",
+         %{user: user, view: view} do
+      plan_archive(view, ["Coffre/A.md"])
+      {:ok, image} = Padocs.Files.upload(user, nil, <<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A, "x">>)
+
+      render_hook(view, "import_archive_document", %{
+        "key" => 7,
+        "title" => "Intrus",
+        "state" => import_state("x"),
+        "file_ids" => [image.id]
+      })
+
+      assert_reply(view, reply)
+      refute Map.has_key?(reply, :id)
+      assert {:error, :not_found} = Padocs.Files.get_readable(image.id, user)
+    end
+
+    test "creates a document of the plan once", %{view: view} do
+      plan_archive(view, ["Coffre/A.md"])
+
+      render_hook(view, "import_archive_document", %{"key" => 0, "title" => "Coffre"})
+      assert_reply(view, %{id: _})
+
+      render_hook(view, "import_archive_document", %{"key" => 0, "title" => "Coffre"})
+      assert_reply(view, reply)
+      refute Map.has_key?(reply, :id)
+    end
+
+    test "a file not imported drops its images", %{user: user, view: view} do
+      {:ok, image} = Padocs.Files.upload(user, nil, <<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A, "x">>)
+
+      render_hook(view, "import_document", %{
+        "name" => "x.docx",
+        "state" => "not base64!",
+        "file_ids" => [image.id]
+      })
+
+      assert_reply(view, %{})
+      assert {:error, :not_found} = Padocs.Files.get_readable(image.id, user)
+    end
+
+    test "when done, reports what was imported and opens the root", %{user: user, view: view} do
+      root = Fixtures.create_document!(user, %{title: "Coffre"})
+
+      html =
+        render_hook(view, "import_archive_done", %{
+          "name" => "Coffre.zip",
+          "root_id" => root.id,
+          "imported" => 12,
+          "left_out" => 3
+        })
+
+      assert html =~ "12 documents importés"
+      assert html =~ "3 fichiers laissés de côté"
+      assert_patch(view, ~p"/documents/#{root.id}")
+    end
+  end
+
   describe "search modal" do
     setup %{conn: conn} do
       user = register_user()

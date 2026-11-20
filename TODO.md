@@ -146,10 +146,23 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
 
 ## Files
 
-- **Images of imports never done.** The images of a Word file are uploaded
-  before its document is created: an import that fails leaves them, without
-  document, readable by their owner only. Delete those older than a day, in
-  a periodic job.
+- **Metadata of images.** The bytes are stored as uploaded, EXIF included
+  (a photo's GPS position, the camera, the date), readable by every reader
+  of the document, or by anyone with its public link. Strip it on upload:
+  for JPEG, drop the APP1 segments without decoding the image; for PNG and
+  WebP, their `eXIf`/`EXIF` chunks.
+- **Copy the external images of an import.** An imported file's
+  `![](https://…)` stays an external link: each reader then loads it from a
+  third party, which sees their address (a tracking pixel), and the image
+  goes when the site removes it. Download them on the server during the
+  import (the browser cannot, most sites refusing CORS), into
+  `Padocs.Files`, and tell the user in the closing message ("12 external
+  images copied, 2 not reachable"). Guarded against SSRF: only http(s),
+  the host resolved once and refused when private, loopback or link-local
+  (no internal services, no cloud metadata), the request made to the IP
+  resolved (no DNS rebinding), redirects checked again, a size limit and a
+  timeout, the type checked by its bytes as for an upload. Maybe for images
+  pasted by URL in the editor too.
 - **Images removed from a document** stay stored until the document is
   deleted for good: its history may still show them. Delete those no
   version refers to, when the history is compacted.
@@ -202,14 +215,13 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
 - **Open what is imported.** An imported file becomes a document, listed in
   "My documents" but neither opened nor among the recent ones: open it (the
   last one, for several files), or list them in the flash.
-- **Import an archive.** A zip: the archive of a user's export (its
-  manifest gives back the tree, the order, the tags, the Yjs state when
-  there), or any folder of Markdown, HTML, text and Word files, as exported
-  by Logseq, Obsidian or Notion (a folder becomes a parent document, a file
-  a document, the images linked are uploaded, the tags read from the front
-  matter). On the server rather than in
-  the browser, in a background task, with limits (size, number of files,
-  paths inside the archive), and a report of what was not imported.
+- **Import a Padocs archive.** With the export of all of a user's documents
+  (see Export), its manifest gives back the tree, the order, the tags, the
+  Yjs state when there, in place of what the paths tell.
+- **Import on the server.** In a background task, the tab free to close: the
+  server would need its own Markdown and HTML parser writing BlockNote's
+  Yjs structure, and would not read Word files. Worth it for very large
+  archives only.
 
 ## Tags and blocks (from Logseq)
 

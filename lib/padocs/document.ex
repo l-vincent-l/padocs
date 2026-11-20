@@ -692,12 +692,22 @@ defmodule Padocs.Document do
   converted by BlockNote in the browser. The state is checked by applying it,
   and its excerpt saved along. `file_ids` are the files `user` uploaded for
   it beforehand, its images, put into it (see `Padocs.Files.attach/3`).
+
+  ## Options
+
+    * `:parent_id` - the document it goes under, after its other
+      sub-documents, which `user` must be able to write (else `{:error,
+      :forbidden}`); at the root by default
+    * `:tags` - the labels of its tags (see `add_tag/3`), those not valid
+      left out
+    * `:id` - its id, chosen beforehand, as for the documents of an archive
+      whose links to each other are written before they are created
   """
-  def import_document(user, title, snapshot, file_ids \\ []) do
+  def import_document(user, title, snapshot, file_ids \\ [], opts \\ []) do
     doc = Yex.Doc.new()
 
     changeset =
-      %Document{owner_id: user.id}
+      %Document{id: opts[:id], owner_id: user.id}
       |> Changeset.cast(%{title: title}, [:title])
       |> Changeset.put_change(:snapshot, snapshot)
 
@@ -711,33 +721,57 @@ defmodule Padocs.Document do
          Changeset.add_error(changeset, :snapshot, dgettext_noop("errors", "content too large"))}
 
       Yex.apply_update(doc, snapshot) == :ok ->
-        Repo.transact(fn ->
-          with {:ok, document} <-
-                 changeset |> Changeset.put_change(:excerpt, Body.excerpt(doc)) |> Repo.insert() do
-            # Its first update, the start of its history; folded into the
-            # snapshot.
-            update =
-              Repo.insert!(%Update{
-                document_id: document.id,
-                data: snapshot,
-                started_at: document.inserted_at,
-                ended_at: document.inserted_at
-              })
+        changeset = Changeset.put_change(changeset, :excerpt, Body.excerpt(doc))
 
-            Repo.update_all(from(d in Document, where: d.id == ^document.id),
-              set: [snapshot_update_id: update.id]
-            )
-
-            Files.attach(user, file_ids, document.id)
-            SearchIndex.changed(document.id)
-            {:ok, %{document | snapshot_update_id: update.id}}
-          end
-        end)
+        with {:ok, document} <- insert_import(changeset, user, snapshot, file_ids, opts) do
+          for label <- Keyword.get(opts, :tags, []), do: add_tag(document.id, user, label)
+          {:ok, document}
+        end
 
       true ->
         {:error,
          Changeset.add_error(changeset, :snapshot, dgettext_noop("errors", "unreadable content"))}
     end
+  end
+
+  defp insert_import(changeset, user, snapshot, file_ids, opts) do
+    Repo.transact(fn ->
+      with {:ok, changeset} <- put_parent(changeset, user, opts[:parent_id]),
+           {:ok, document} <- Repo.insert(changeset) do
+        # Its first update, the start of its history; folded into the
+        # snapshot.
+        update =
+          Repo.insert!(%Update{
+            document_id: document.id,
+            data: snapshot,
+            started_at: document.inserted_at,
+            ended_at: document.inserted_at
+          })
+
+        Repo.update_all(from(d in Document, where: d.id == ^document.id),
+          set: [snapshot_update_id: update.id]
+        )
+
+        Files.attach(user, file_ids, document.id)
+        SearchIndex.changed(document.id)
+        {:ok, %{document | snapshot_update_id: update.id}}
+      end
+    end)
+  end
+
+  # Under the document of `parent_id`, after its sub-documents.
+  defp put_parent(changeset, _user, nil), do: {:ok, changeset}
+
+  defp put_parent(changeset, user, parent_id) do
+    authorized(parent_id, user, :write, fn parent ->
+      last =
+        Repo.one(from d in Document, where: d.parent_id == ^parent.id, select: max(d.position))
+
+      {:ok,
+       changeset
+       |> Changeset.put_change(:parent_id, parent.id)
+       |> Changeset.put_change(:position, (last || -1) + 1)}
+    end)
   end
 
   @doc """

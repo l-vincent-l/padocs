@@ -115,12 +115,17 @@ defmodule Padocs.MixProject do
         "phx.digest"
       ],
       precommit: [
-        "compile --warnings-as-errors",
+        # --force: after a change of mix.exs or mix.lock, an incremental
+        # compile warns that the Inspect protocol is already consolidated
+        # (Padocs.Accounts.User), a warning a full one does not give
+        "compile --force --warnings-as-errors",
         "deps.unlock --unused",
         "format",
         # a message added or changed must be extracted and translated
         "gettext.extract --check-up-to-date",
-        "test"
+        "test",
+        # the JavaScript of the imports (assets/test)
+        "cmd npm test --prefix assets"
       ]
     ]
   end

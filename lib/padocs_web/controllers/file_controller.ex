@@ -46,6 +46,7 @@ defmodule PadocsWeb.FileController do
       case reason do
         :forbidden -> :forbidden
         :too_large -> :request_entity_too_large
+        :too_many_pending -> :too_many_requests
         :unsupported_type -> :unsupported_media_type
         :storage -> :service_unavailable
         _ -> :bad_request

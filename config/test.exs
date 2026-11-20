@@ -48,6 +48,9 @@ config :phoenix_live_view,
 config :phoenix,
   sort_verified_routes_query_params: true
 
+# The files of imports never done are deleted when a test says so only.
+config :padocs, Padocs.Files.Sweeper, interval_ms: nil
+
 # No database when the application starts, in the tests: the search index
 # starts empty, the tests' documents are indexed as they change.
 config :padocs, Padocs.Document.SearchIndex, build: false

@@ -15,6 +15,11 @@ defmodule Padocs.Files do
   without document, by its owner only. It is deleted with its document, for
   good (see `Padocs.Document.delete_document/1`): the history may still show
   it while the document exists.
+
+  A file without document is of use during its import only: one left so (an
+  import stopped in the browser, the tab closed) is deleted after an hour by
+  `Padocs.Files.Sweeper`, and a user holds at most `max_pending_bytes/0` of
+  them at a time.
   """
   import Ecto.Query
 
@@ -27,8 +32,13 @@ defmodule Padocs.Files do
 
   @max_bytes 10_000_000
 
+  @max_pending_bytes 200_000_000
+
   @doc "The largest file taken, in bytes."
   def max_bytes, do: @max_bytes
+
+  @doc "The most bytes of files without document a user holds at a time."
+  def max_pending_bytes, do: @max_pending_bytes
 
   @doc "The key of the file of `id` in the storage."
   def key(id), do: "files/#{id}"
@@ -40,12 +50,14 @@ defmodule Padocs.Files do
   Stores `data`, an image uploaded by `user`, in the document of
   `document_id`, which they must be able to write, or without document (`nil`)
   for an import. `{:ok, file}`, or `{:error, reason}`: `:forbidden`,
-  `:unsupported_type`, `:too_large` or `:storage`.
+  `:unsupported_type`, `:too_large`, `:too_many_pending` (past
+  `max_pending_bytes/0` without document) or `:storage`.
   """
   def upload(user, document_id, data) when is_binary(data) do
     with :ok <- check_size(data),
          {:ok, content_type} <- image_type(data),
-         :ok <- check_writable(user, document_id) do
+         :ok <- check_writable(user, document_id),
+         :ok <- check_pending(user, document_id, data) do
       store(user, document_id, data, content_type)
     end
   end
@@ -64,6 +76,21 @@ defmodule Padocs.Files do
       {:error, _} ->
         {:error, :forbidden}
     end
+  end
+
+  defp check_pending(_user, document_id, _data) when document_id != nil, do: :ok
+
+  defp check_pending(user, nil, data) do
+    pending =
+      Repo.one(
+        from f in StoredFile,
+          where: f.owner_id == ^user.id and is_nil(f.document_id),
+          select: coalesce(sum(f.size), 0)
+      )
+
+    if pending + byte_size(data) > @max_pending_bytes,
+      do: {:error, :too_many_pending},
+      else: :ok
   end
 
   # The row first, then the bytes: a file listed is stored, or its row is
@@ -149,6 +176,42 @@ defmodule Padocs.Files do
     )
 
     :ok
+  end
+
+  @doc """
+  Deletes the files of `ids` that `user` uploaded for an import that failed,
+  rows and bytes: those still without document; the others are left alone.
+  """
+  def discard(user, ids) when is_list(ids) do
+    ids = for id <- ids, {:ok, id} <- [Ecto.UUID.cast(id)], do: id
+
+    {_count, deleted} =
+      Repo.delete_all(
+        from(f in StoredFile,
+          where: f.id in ^ids and f.owner_id == ^user.id and is_nil(f.document_id),
+          select: f.id
+        )
+      )
+
+    delete_stored(deleted)
+  end
+
+  @doc """
+  Deletes the files without document uploaded before `before`, a
+  `DateTime`, rows and bytes: those of imports never done. The number
+  deleted.
+  """
+  def delete_pending(before) do
+    {count, deleted} =
+      Repo.delete_all(
+        from(f in StoredFile,
+          where: is_nil(f.document_id) and f.inserted_at < ^before,
+          select: f.id
+        )
+      )
+
+    delete_stored(deleted)
+    count
   end
 
   @doc "The ids of the files of the documents of `document_ids`."

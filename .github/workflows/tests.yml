@@ -62,7 +62,10 @@ jobs:
           npm ci --prefix assets
 
       - name: Compile, warnings as errors
-        run: mix compile --warnings-as-errors
+        # --force: the cached _build may hold warnings of an incremental
+        # compile (see the precommit alias in mix.exs); the project only,
+        # not the deps
+        run: mix compile --force --warnings-as-errors
 
       - name: No unused dependency in mix.lock
         run: mix deps.unlock --check-unused
@@ -76,6 +79,9 @@ jobs:
 
       - name: Tests
         run: mix test
+
+      - name: JavaScript tests
+        run: npm test --prefix assets
 
       - name: Assets build
         run: |
