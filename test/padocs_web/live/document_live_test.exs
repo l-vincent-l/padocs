@@ -965,10 +965,18 @@ defmodule PadocsWeb.DocumentLiveTest do
     # The Yjs state the DocumentImport hook sends for a file holding `text`.
     defp import_state(text), do: text |> state() |> Base.encode64()
 
-    test "the sidebar offers a file input to the hook", %{view: view} do
+    test "the menu beside New document offers a file input and a folder input to the hook",
+         %{view: view} do
+      assert has_element?(view, "#new-document-more[aria-controls=new-document-menu]")
+
       assert has_element?(
                view,
-               "#import-document input#import-files[type=file][phx-hook=DocumentImport]"
+               "#new-document-menu #import-document input#import-files[type=file][multiple][phx-hook=DocumentImport]"
+             )
+
+      assert has_element?(
+               view,
+               "#new-document-menu #import-folder input#import-folder-files[type=file][webkitdirectory][phx-hook=DocumentImport]"
              )
     end
 

@@ -350,55 +350,91 @@ defmodule PadocsWeb.DocumentLive do
                 <.icon name="hero-magnifying-glass" class="size-5" />
               </button>
             </div>
-            <div class="mb-3 flex gap-2">
+            <%!-- "New document", and beside it the menu of the imports: files
+                 (Markdown, HTML, text, Word, zips) or a folder, two pickers,
+                 a browser's taking either files or a folder. Each file is
+                 converted in the browser and sent to the server (see the
+                 DocumentImport hook); meanwhile the whole is busy. --%>
+            <div
+              id="new-document-group"
+              data-import
+              class="group/import relative mb-3 flex aria-busy:pointer-events-none"
+              phx-click-away={JS.hide(to: "#new-document-menu")}
+            >
               <button
                 id="new-document"
-                class="btn btn-sm flex-1 justify-start border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
+                class="btn btn-sm flex-1 justify-start rounded-r-none border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
                 phx-click="new_document"
               >
                 <.icon name="hero-plus" class="size-4" /> {gettext("New document")}
               </button>
-              <%!-- Each file chosen is converted in the browser and sent to the
-                   server (see the DocumentImport hook) --%>
-              <label
-                id="import-document"
-                data-import
-                title={gettext("Import files (Markdown, HTML, text, Word or a zip of them)")}
-                class="group btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-base-content aria-busy:pointer-events-none"
+              <button
+                id="new-document-more"
+                type="button"
+                aria-haspopup="true"
+                aria-controls="new-document-menu"
+                aria-label={gettext("Import")}
+                title={gettext("Import")}
+                phx-click={JS.toggle(to: "#new-document-menu")}
+                class="btn btn-sm btn-square -ml-0.5 rounded-l-none border-base-content bg-base-100 hover:bg-primary hover:text-primary-content"
               >
-                <.icon name="hero-arrow-up-tray" class="size-4 group-aria-busy:hidden" />
-                <span class="loading loading-spinner loading-xs hidden group-aria-busy:inline-block"></span>
-                <span class="sr-only">{gettext(
-                  "Import files (Markdown, HTML, text, Word or a zip of them)"
-                )}</span>
-                <input
-                  id="import-files"
-                  type="file"
-                  multiple
-                  accept=".md,.markdown,.txt,.html,.htm,.docx,.zip,application/zip,text/markdown,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  phx-hook="DocumentImport"
-                  class="sr-only"
+                <.icon
+                  name="hero-chevron-down-micro"
+                  class="size-4 group-aria-busy/import:hidden"
                 />
-              </label>
-              <%!-- A folder, as an Obsidian vault or a Logseq graph: imported
-                   as a zip of it --%>
-              <label
-                id="import-folder"
-                data-import
-                title={gettext("Import a folder")}
-                class="group btn btn-sm btn-square border-base-content bg-base-100 hover:bg-primary hover:text-primary-content focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-base-content aria-busy:pointer-events-none"
+                <span class="loading loading-spinner loading-xs hidden group-aria-busy/import:inline-block"></span>
+              </button>
+              <ul
+                id="new-document-menu"
+                data-import-menu
+                phx-window-keydown={JS.hide(to: "#new-document-menu")}
+                phx-key="Escape"
+                class="absolute top-full right-0 left-0 z-20 mt-1 hidden border-2 border-base-content bg-base-100 py-1 shadow-hard"
               >
-                <.icon name="hero-folder-arrow-down" class="size-4 group-aria-busy:hidden" />
-                <span class="loading loading-spinner loading-xs hidden group-aria-busy:inline-block"></span>
-                <span class="sr-only">{gettext("Import a folder")}</span>
-                <input
-                  id="import-folder-files"
-                  type="file"
-                  webkitdirectory
-                  phx-hook="DocumentImport"
-                  class="sr-only"
-                />
-              </label>
+                <li>
+                  <label
+                    id="import-document"
+                    class="flex cursor-pointer items-start gap-2 px-3 py-1.5 text-sm hover:bg-base-200 focus-within:bg-base-200"
+                  >
+                    <.icon name="hero-document-text" class="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      {gettext("Import files…")}
+                      <span class="block text-xs text-base-content/60">
+                        {gettext("Markdown, HTML, text, Word or zip")}
+                      </span>
+                    </span>
+                    <input
+                      id="import-files"
+                      type="file"
+                      multiple
+                      accept=".md,.markdown,.txt,.html,.htm,.docx,.zip,application/zip,text/markdown,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      phx-hook="DocumentImport"
+                      class="sr-only"
+                    />
+                  </label>
+                </li>
+                <li>
+                  <label
+                    id="import-folder"
+                    class="flex cursor-pointer items-start gap-2 px-3 py-1.5 text-sm hover:bg-base-200 focus-within:bg-base-200"
+                  >
+                    <.icon name="hero-folder" class="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      {gettext("Import a folder…")}
+                      <span class="block text-xs text-base-content/60">
+                        {gettext("An Obsidian vault, a Logseq graph…")}
+                      </span>
+                    </span>
+                    <input
+                      id="import-folder-files"
+                      type="file"
+                      webkitdirectory
+                      phx-hook="DocumentImport"
+                      class="sr-only"
+                    />
+                  </label>
+                </li>
+              </ul>
             </div>
             <%!-- The documents of the scope picked above them: those the user
                  opened last (the last first), their own, those shared with

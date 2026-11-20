@@ -19,6 +19,9 @@ export const DocumentImport = {
     this.el.value = ""
     if (files.length === 0) return
 
+    // the menu it was chosen from closes, the whole stays busy until done
+    const menu = this.el.closest("[data-import-menu]")
+    if (menu) this.js().hide(menu)
     const card = this.el.closest("[data-import]")
     this.js().setAttribute(card, "aria-busy", "true")
     const ids = []

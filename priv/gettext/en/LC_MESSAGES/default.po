@@ -1187,11 +1187,6 @@ msgstr[1] ""
 
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format, fuzzy
-msgid "Import files (Markdown, HTML, text, Word or a zip of them)"
-msgstr ""
-
-#: lib/padocs_web/live/document_live.ex
-#, elixir-autogen, elixir-format, fuzzy
 msgid "“%{name}”: %{count} document imported"
 msgid_plural "“%{name}”: %{count} documents imported"
 msgstr[0] ""
@@ -1199,5 +1194,25 @@ msgstr[1] ""
 
 #: lib/padocs_web/live/document_live.ex
 #, elixir-autogen, elixir-format
-msgid "Import a folder"
+msgid "An Obsidian vault, a Logseq graph…"
+msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import"
+msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import a folder…"
+msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Import files…"
+msgstr ""
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Markdown, HTML, text, Word or zip"
 msgstr ""
