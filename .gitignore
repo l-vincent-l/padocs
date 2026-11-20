@@ -42,3 +42,6 @@ npm-debug.log
 
 # The files of the documents, in development (see config/dev.exs).
 /files/
+
+# The screenshots, snapshots and logs of the Playwright MCP server.
+/.playwright-mcp/
