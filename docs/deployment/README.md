@@ -23,6 +23,9 @@ Every variable, with its default: [Configuration](../configuration.md).
 - [Docker](docker.md): on any machine, behind a reverse proxy with HTTPS.
 - [Podman](podman.md): the same image, rootless, as a systemd service
   (Quadlet).
+- [A bare machine](bare-machine.md), at AWS, Google Cloud, Azure or a VPS:
+  `cloud-init.yaml` sets it all up at its first boot, Podman, Caddy for
+  HTTPS and, as an option, Litestream.
 - [Coolify](coolify.md): on a server of yours, from
   `docker-compose.coolify.yaml`, with HTTPS by Let's Encrypt.
 - [Kamal](kamal.md): from your computer to a server of yours, over SSH,
@@ -44,8 +47,6 @@ Not tried yet, the pages gather what we know before trying them:
 - [Clever Cloud](clever-cloud.md) and
   [Scaleway Serverless Containers](scaleway.md): no persistent disk, the
   database restored from their S3 at start by Litestream.
-- [A bare machine](bare-machine.md), at AWS, Google Cloud or a VPS: a
-  cloud-init file installing Podman and Caddy.
 - [YunoHost](yunohost.md): a package to write.
 
 ## Choosing a host
