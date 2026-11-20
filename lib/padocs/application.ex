@@ -20,6 +20,8 @@ defmodule Padocs.Application do
       # changed, as told on the PubSub.
       {Padocs.Document.SearchIndex,
        Application.get_env(:padocs, Padocs.Document.SearchIndex, [])},
+      # After the Repo: deletes the files of imports never done.
+      {Padocs.Files.Sweeper, Application.get_env(:padocs, Padocs.Files.Sweeper, [])},
       # After the Repo, before the DocServers: on shutdown, it writes the
       # last updates they handed over, once they are stopped.
       Padocs.Document.UpdateWriter,

@@ -2,6 +2,8 @@ defmodule Padocs.FilesTest do
   use Padocs.DataCase
 
   alias Padocs.{Document, Files, Fixtures}
+  alias Padocs.Files.StoredFile
+  alias Padocs.SqliteRepo, as: Repo
 
   # The first bytes of a PNG are all that is checked.
   @png <<0x89, "PNG", 0x0D, 0x0A, 0x1A, 0x0A, "rest of the image">>
@@ -140,6 +142,43 @@ defmodule Padocs.FilesTest do
       assert {:error, :not_found} = Files.get_readable(file.id, owner)
       assert {:ok, _} = Files.get_readable(theirs.id, stranger)
       assert {:ok, _} = Files.get_readable(attached.id, owner)
+    end
+
+    test "those of imports never done are deleted after an hour, bytes included",
+         %{owner: owner, document: document} do
+      {:ok, old} = Files.upload(owner, nil, @png)
+      {:ok, recent} = Files.upload(owner, nil, @png)
+      {:ok, attached} = Files.upload(owner, document.id, @png)
+
+      two_hours_ago = DateTime.add(DateTime.utc_now(), -2, :hour)
+
+      Repo.update_all(from(f in StoredFile, where: f.id in ^[old.id, attached.id]),
+        set: [inserted_at: two_hours_ago]
+      )
+
+      assert Padocs.Files.Sweeper.sweep() == 1
+
+      assert {:error, :not_found} = Files.get_readable(old.id, owner)
+      assert {:error, _} = Files.read(old)
+      assert {:ok, _} = Files.get_readable(recent.id, owner)
+      assert {:ok, _} = Files.get_readable(attached.id, owner)
+    end
+
+    test "a user holds a limited size of them at a time", %{owner: owner, document: document} do
+      {:ok, file} = Files.upload(owner, nil, @png)
+
+      Repo.update_all(from(f in StoredFile, where: f.id == ^file.id),
+        set: [size: Files.max_pending_bytes()]
+      )
+
+      assert {:error, :too_many_pending} = Files.upload(owner, nil, @png)
+      # not those of documents, nor others'
+      assert {:ok, _} = Files.upload(owner, document.id, @png)
+      assert {:ok, _} = Files.upload(register_user(), nil, @png)
+
+      # until their import ends
+      :ok = Files.attach(owner, [file.id], document.id)
+      assert {:ok, _} = Files.upload(owner, nil, @png)
     end
   end
 
