@@ -68,12 +68,11 @@ git clone <this repository> padocs && cd padocs
 HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up --build
 ```
 
-The first start takes several minutes (it compiles the dependencies, Rust
-included); the next ones are quick. The code is mounted in the container:
+The first start takes a few minutes (it compiles the dependencies); the next
+ones are quick. The code is mounted in the container:
 edit it on your machine, the page reloads.
 
-**Without Docker**, you need Elixir, Rust (the search index is a native
-library) and Node.js:
+**Without Docker**, you need Elixir and Node.js:
 
 ```sh
 npm ci --prefix assets

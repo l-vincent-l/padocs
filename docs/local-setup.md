@@ -7,7 +7,6 @@ How to run Padocs on your machine, to try it or to work on it.
 | Tool | Version | Why |
 |---|---|---|
 | Erlang/OTP and Elixir | Elixir 1.17 or later (the Docker image uses Elixir 1.20.4 on OTP 29) | the application |
-| Rust | 1.91 or later, from [rustup](https://rustup.rs) | the search index ([Tantivy](https://github.com/quickwit-oss/tantivy)) is compiled from source |
 | Node.js and npm | a current LTS | the editor's JavaScript dependencies (BlockNote, Yjs) |
 | A C compiler | `build-essential` on Debian and Ubuntu, Xcode's command line tools on macOS | SQLite and other native dependencies |
 
@@ -32,8 +31,11 @@ mix setup
 iex -S mix phx.server
 ```
 
-The first `mix setup` takes a few minutes: it compiles the Rust part of the
-search index. Typst, which makes the PDFs, comes precompiled.
+The native libraries, the search index ([Tantivy](https://github.com/quickwit-oss/tantivy)),
+Yjs and Typst (the PDFs), come precompiled: no Rust needed. On a platform
+with no precompiled library (Linux with musl, such as Alpine), or with
+`TANTIVY_EX_BUILD=1`, the search index is compiled from source, which needs
+Rust 1.91 or later, from [rustup](https://rustup.rs).
 
 Open [localhost:4000](http://localhost:4000) and create an account with an
 email address and a password.
@@ -41,7 +43,7 @@ email address and a password.
 ## Develop in Docker
 
 `compose.yaml` runs the development server in a container (`Dockerfile.dev`,
-with Elixir, Rust and Node), on the repository mounted at `/app`: edit the
+with Elixir and Node), on the repository mounted at `/app`: edit the
 code on your machine, the page reloads as usual.
 
 ```sh
@@ -50,8 +52,8 @@ HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up --build
 
 `HOST_UID` and `HOST_GID` make the container run as you, so that the files it
 writes in the repository (`base.sqlite`, `files/`) stay yours. The first start
-takes several minutes: it installs the dependencies and compiles them, Rust
-included. They are kept in volumes (`deps`, `_build`,
+takes a few minutes: it installs the dependencies and compiles them. They
+are kept in volumes (`deps`, `_build`,
 `assets/node_modules`), apart from those of your machine, whose native code
 would not run in the container: the next starts are quick.
 
@@ -71,8 +73,7 @@ more slowly than on Linux: the reload may take a second or two.
 ## Try the production image
 
 The production image runs locally too, with only Docker installed. It is
-built from the repository; the first build takes several minutes (it compiles
-the search index's Rust code).
+built from the repository; the first build takes a few minutes.
 
 ```sh
 docker build --target final -t padocs .

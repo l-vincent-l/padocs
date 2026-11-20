@@ -13,4 +13,4 @@ the host is worth another look.
 | Heroku | An ephemeral disk, so libSQL elsewhere, and S3 elsewhere for the images; expensive for what it gives. |
 | Gigalixir | Made for Elixir, but around PostgreSQL, which Padocs does not use, with an ephemeral disk. |
 | Northflank | Docker and volumes would do, but a heavy platform for one application. |
-| Scalingo | No disk (its own SQLite guide says so), no S3, no libSQL: two more providers. It builds with buildpacks, the Elixir one lacking Rust (for the search and Yjs) and Node (for the editor). Its SecNumCloud region (`osc-secnum-fr1`) could make it worth it for French public bodies, if one asks. |
+| Scalingo | No disk (its own SQLite guide says so), no S3, no libSQL: two more providers. It builds with buildpacks, the Elixir one lacking Node (for the editor). Its SecNumCloud region (`osc-secnum-fr1`) could make it worth it for French public bodies, if one asks. |

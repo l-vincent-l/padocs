@@ -1,12 +1,6 @@
 defmodule Padocs.MixProject do
   use Mix.Project
 
-  # tantivy_ex comes from a fork whose NIF has functions the precompiled
-  # binaries of the release lack (Searcher.snippet/5): it is built from source,
-  # which needs Rust. Set here, before the dependencies compile, so that it
-  # applies everywhere (dev, test, Docker image).
-  System.put_env("TANTIVY_EX_BUILD", "1")
-
   def project do
     [
       app: :padocs,
@@ -50,13 +44,14 @@ defmodule Padocs.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      # The search index: a fork of tantivy_ex (Searcher.snippet/5 among
+      # others), its NIF downloaded precompiled from the fork's releases, as
+      # are those of Yex and Typst: no Rust needed. TANTIVY_EX_BUILD=1 builds
+      # it from source (Rust 1.91 or later).
       {:tantivy_ex, github: "l-vincent-l/tantivy_ex"},
       # PDF export: Typst, as a precompiled NIF (see Padocs.Document.pdf/1)
       {:typst, "0.4.5"},
       # {:tantivy_ex, path: "../tantivy_ex"},
-      # Builds tantivy_ex's NIF; overrides the requirements of tantivy_ex
-      # (0.36) and y_ex (0.37), both optional.
-      {:rustler, "~> 0.37", runtime: false, override: true},
       {:y_ex, "~> 0.13.0"},
       {:bcrypt_elixir, "~> 3.0"},
       # Sign-in with GitHub and GitLab (OAuth 2, OpenID Connect).

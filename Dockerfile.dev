@@ -1,4 +1,4 @@
-# Development image (see compose.yaml): Elixir, Rust and Node to build and run
+# Development image (see compose.yaml): Elixir and Node to build and run
 # `mix phx.server` on the repository, mounted at /app. It runs as a user with
 # the host's uid and gid, so that the files it writes in the repository
 # (base.sqlite, files/) stay the host user's.
@@ -28,12 +28,6 @@ RUN groupadd --non-unique --gid "$GID" dev \
 
 USER dev
 ENV HOME=/home/dev
-ENV RUSTUP_HOME=/home/dev/.rustup CARGO_HOME=/home/dev/.cargo PATH=/home/dev/.cargo/bin:$PATH
-
-# Rust for the search index (Tantivy), as in the production Dockerfile
-ARG RUST_VERSION=1.91.0
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-  | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION"
 
 RUN mix local.hex --force && mix local.rebar --force
 
