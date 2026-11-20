@@ -6,7 +6,9 @@ costs about a second of edits, and the database can be restored as it was at
 an earlier point, as far back as the replica goes. It only applies to a SQLite file: with Bunny
 Database (libSQL), the backups are Bunny's.
 
-The Fly.io image runs it; any other host can, with the same image. The images
+The Fly.io image runs it; any other host can, with the same image. On [a
+bare machine](bare-machine.md#backups-with-litestream), it runs in a
+container of its own, beside that of Padocs. The images
 of the documents are not in the database: keep them in a bucket too
 (`FILES_S3_BUCKET`, see [Storage of the images](README.md#storage-of-the-images)),
 or back up their folder apart.
