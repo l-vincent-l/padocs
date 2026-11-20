@@ -52,7 +52,7 @@ defmodule Padocs.MixProject do
     [
       {:tantivy_ex, github: "l-vincent-l/tantivy_ex"},
       # PDF export: Typst, as a precompiled NIF (see Padocs.Document.pdf/1)
-      {:typst, "0.4.4"},
+      {:typst, "0.4.5"},
       # {:tantivy_ex, path: "../tantivy_ex"},
       # Builds tantivy_ex's NIF; overrides the requirements of tantivy_ex
       # (0.36) and y_ex (0.37), both optional.
@@ -60,7 +60,7 @@ defmodule Padocs.MixProject do
       {:y_ex, "~> 0.13.0"},
       {:bcrypt_elixir, "~> 3.0"},
       # Sign-in with GitHub and GitLab (OAuth 2, OpenID Connect).
-      {:assent, "~> 0.3.2"},
+      {:assent, "~> 0.4.0"},
       {:ecto_hrana, github: "l-vincent-l/ecto_hrana"},
       {:phoenix, "~> 1.8.15"},
       {:phoenix_ecto, "~> 4.5"},
@@ -94,7 +94,7 @@ defmodule Padocs.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.1"},
       {:bandit, "~> 1.5"},
       {:syn, "== 3.4.2"}
     ]
