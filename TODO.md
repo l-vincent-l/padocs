@@ -295,6 +295,27 @@ these build on.
 - **Notify the person mentioned**, later: in Padocs, or by email (the emails
   of Padocs, see docs/deployment), once per mention, not on every save.
 
+## Sharing
+
+The public link (`/p/<token>`, see `docs/how-it-works.md`) gives the right
+to read only, without an account.
+The choices below are open in `docs/adr/0014-share-by-link.md`.
+
+- **A link to write.** From the share panel, beside the public link, a
+  second link giving the role of editor, renewed or removed by an owner as
+  the first. To decide first: whether it needs an account (the history and
+  the cursors then say who wrote; without one, a "Guest" with a name typed
+  at the first visit, and an instance open to anyone who finds the link),
+  and whether it reaches the sub-documents, as a member's role does, or not,
+  as the public link. Removing it sends its editors away at once, as a
+  member removed.
+- **A link received among the documents shared with me.** A signed-in user
+  opening a link (to read or to write) finds the document afterwards in
+  "Shared with me", without keeping the link. Kept apart from the members
+  (a table user, document, link), so that renewing or removing the link
+  takes it out of their list, and the owner does not see them as members.
+  Maybe the share panel lists them, as "through the link".
+
 ## Administration
 
 Anyone may register today, and there is no administrator role in the

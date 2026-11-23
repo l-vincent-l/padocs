@@ -37,3 +37,4 @@ says why it is built that way, and may link to them.
 | [0011](0011-image-storage.md) | Images on a local folder, generic S3 or Bunny Storage | Accepted | 2026-11-13 |
 | [0012](0012-gettext-english-msgids.md) | Interface through Gettext, English msgids, French by default | Accepted | 2026-11-13 |
 | [0013](0013-generic-code-in-own-namespaces.md) | Generic code kept in YPhoenix and YexBlockNote, not published | Accepted | 2026-10-13 |
+| [0014](0014-share-by-link.md) | Share a document by link, to read or to write | Proposed | 2026-11-23 |
