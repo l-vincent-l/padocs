@@ -50,7 +50,7 @@ defmodule Padocs.MixProject do
       # it from source (Rust 1.91 or later).
       {:tantivy_ex, github: "l-vincent-l/tantivy_ex"},
       # PDF export: Typst, as a precompiled NIF (see Padocs.Document.pdf/1)
-      {:typst, "0.4.5"},
+      {:typst, "0.4.6"},
       # {:tantivy_ex, path: "../tantivy_ex"},
       {:y_ex, "~> 0.13.0"},
       {:bcrypt_elixir, "~> 3.0"},
