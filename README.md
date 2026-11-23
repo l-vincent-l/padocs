@@ -100,6 +100,8 @@ See the [local setup guide](docs/local-setup.md) for the details.
 - [How it works](docs/how-it-works.md): public links, exports.
 - [Performance](docs/performance.md): the current results of the load
   tests, and their history.
+- [Architecture decisions](docs/adr/README.md): why Padocs is built the way
+  it is, and the options set aside.
 - [To do](TODO.md): what comes next.
 
 ## License
