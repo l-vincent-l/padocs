@@ -88,7 +88,8 @@ change often: check them when trying.
   backup. The database would keep only the relational data. Takes a storage
   interface, local and S3 adapters (Req), migrating the log.
 
-  Not a SQLite file per document, nor rewriting Litestream in Elixir.
+  Not a SQLite file per document, nor rewriting Litestream in Elixir (see
+  `docs/adr/0019-several-nodes.md`).
 
 ## Performance
 
@@ -162,7 +163,7 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   (no internal services, no cloud metadata), the request made to the IP
   resolved (no DNS rebinding), redirects checked again, a size limit and a
   timeout, the type checked by its bytes as for an upload. Maybe for images
-  pasted by URL in the editor too.
+  pasted by URL in the editor too. See `docs/adr/0018-copy-external-images.md`.
 - **Images removed from a document** stay stored until the document is
   deleted for good: its history may still show them. Delete those no
   version refers to, when the history is compacted.
@@ -201,7 +202,8 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   the Yjs state of each document too, to import it again without loss
   (Markdown loses some blocks and styles). Built in a background task, the user getting a link
   (or an email) when it is ready: an account may hold thousands of
-  documents. Those shared with them stay out, or as an option.
+  documents. Those shared with them stay out, or as an option. The format
+  and its reasons: `docs/adr/0016-archive-format.md`.
 - **Export a whole instance.** Hesitating. The documents are not encrypted:
   whoever runs the server can already read them all, in the database, so an
   export adds no access. Rather than a page (there is no administrator role
@@ -229,7 +231,8 @@ Ideas from [Logseq](https://logseq.com), where tags and links point to
 blocks, not only to pages. BlockNote has nested blocks (Tab indents a block
 under the previous one: its `children`, read by `YexBlockNote.to_blocks/1`),
 and each block has a stable id (the `id` of its `blockContainer`), which
-these build on.
+these build on. The choices for the tags in the content are in
+`docs/adr/0015-tags-in-the-content.md`.
 
 - **Tags in the content.** `/` → "Tag" opens a small field at the cursor, as
   the link's, offering the user's tags (`Document.search_tags/2`) as they
@@ -295,6 +298,27 @@ these build on.
 - **Notify the person mentioned**, later: in Padocs, or by email (the emails
   of Padocs, see docs/deployment), once per mention, not on every save.
 
+## Sharing
+
+The public link (`/p/<token>`, see `docs/how-it-works.md`) gives the right
+to read only, without an account.
+The choices below are open in `docs/adr/0014-share-by-link.md`.
+
+- **A link to write.** From the share panel, beside the public link, a
+  second link giving the role of editor, renewed or removed by an owner as
+  the first. To decide first: whether it needs an account (the history and
+  the cursors then say who wrote; without one, a "Guest" with a name typed
+  at the first visit, and an instance open to anyone who finds the link),
+  and whether it reaches the sub-documents, as a member's role does, or not,
+  as the public link. Removing it sends its editors away at once, as a
+  member removed.
+- **A link received among the documents shared with me.** A signed-in user
+  opening a link (to read or to write) finds the document afterwards in
+  "Shared with me", without keeping the link. Kept apart from the members
+  (a table user, document, link), so that renewing or removing the link
+  takes it out of their list, and the owner does not see them as members.
+  Maybe the share panel lists them, as "through the link".
+
 ## Administration
 
 Anyone may register today, and there is no administrator role in the
@@ -311,7 +335,8 @@ and GitHub alike.
   from the variable removes the role at the next restart. Maybe later a page
   to name other administrators, kept in the database, the variable still
   giving the first ones. The administrator gets an "Administration" entry in
-  the menu, and the LiveDashboard without its own credentials.
+  the menu, and the LiveDashboard without its own credentials. See
+  `docs/adr/0017-administrator-role.md`.
 - **Control the opening of registrations.** Open, by invitation only, or
   closed, set by the administrator on a page of their own (kept in the
   database, a default from a variable). Closed, the registration page says

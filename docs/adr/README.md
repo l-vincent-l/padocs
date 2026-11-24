@@ -37,3 +37,9 @@ says why it is built that way, and may link to them.
 | [0011](0011-image-storage.md) | Images on a local folder, generic S3 or Bunny Storage | Accepted | 2026-11-13 |
 | [0012](0012-gettext-english-msgids.md) | Interface through Gettext, English msgids, French by default | Accepted | 2026-11-13 |
 | [0013](0013-generic-code-in-own-namespaces.md) | Generic code kept in YPhoenix and YexBlockNote, not published | Accepted | 2026-10-13 |
+| [0014](0014-share-by-link.md) | Share a document by link, to read or to write | Proposed | 2026-11-23 |
+| [0015](0015-tags-in-the-content.md) | Tags in the content, apart from the document's tags | Proposed | 2026-11-18 |
+| [0016](0016-archive-format.md) | Archive of a user's documents: front matter and a manifest | Proposed | 2026-11-23 |
+| [0017](0017-administrator-role.md) | The administrator role from ADMIN_EMAILS, on a confirmed address | Proposed | 2026-11-23 |
+| [0018](0018-copy-external-images.md) | Copy an import's external images, guarded against SSRF | Proposed | 2026-11-23 |
+| [0019](0019-several-nodes.md) | Several nodes: conditional saves, then the log in an object store | Proposed | 2026-11-23 |
