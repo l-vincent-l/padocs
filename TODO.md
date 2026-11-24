@@ -362,6 +362,10 @@ and GitHub alike.
   shared with me, trash) goes back to the recent documents on reload, or
   when the open document goes to the trash: keep it in the browser, as the
   folding of the menu.
+- **Focus on the title of a new document.** On "New document" (or a new
+  sub-document), the cursor goes to its title, to type it at once, then
+  Enter goes on to the text; an opened existing document keeps the focus as
+  today.
 - **Tags under the title on mobile.** Many tags take several lines: show the
   first ones, then "+N", as in the search results.
 - **Table of contents of a document.** The headings of the open document, a
