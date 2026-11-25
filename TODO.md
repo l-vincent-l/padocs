@@ -145,6 +145,19 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   sub-document goes and comes back with its parent. If a sub-document can one
   day be restored alone, put it at the root when its parent is gone.
 
+## Archive
+
+- **Archive a document.** From its menu, beside "Move to trash": the
+  document leaves the sidebar's lists (my documents, shared with me, recent)
+  and the search by default, but stays readable by its members and at its
+  links, never deleted, unlike the trash. It goes with its sub-documents, as
+  to the trash. An "Archived" list in the sidebar, as the trash's, gives it
+  back ("Unarchive"); the search finds it with a filter. To decide first:
+  whether an archived document becomes read only (the DocServer refusing
+  edits, as for a reader) or stays editable, only hidden; who may archive
+  it (its owners, or its editors too); and whether archiving concerns every
+  member or only the user, as a personal "hide from my lists".
+
 ## Files
 
 - **Metadata of images.** The bytes are stored as uploaded, EXIF included
