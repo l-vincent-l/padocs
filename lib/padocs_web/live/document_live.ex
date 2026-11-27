@@ -50,7 +50,11 @@ defmodule PadocsWeb.DocumentLive do
                title. It stays at the top of the screen, on a blur that fades
                out downwards: the document scrolled under it shows blurred
                there. --%>
-            <div class="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 px-2 pt-2 lg:h-16 lg:px-[54px] lg:pt-4">
+            <div
+              id="document-top-bar"
+              phx-hook=".SearchShortcut"
+              class="sticky top-0 z-10 flex h-14 items-center justify-between gap-2 px-2 pt-2 lg:h-16 lg:px-[54px] lg:pt-4"
+            >
               <div
                 aria-hidden="true"
                 class="pointer-events-none absolute inset-x-0 top-0 -bottom-6 -z-10 bg-base-100/70 backdrop-blur-md [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
@@ -58,6 +62,20 @@ defmodule PadocsWeb.DocumentLive do
               </div>
               <%!-- On large screens, close to the menu's edge --%>
               <div class="flex min-w-0 flex-1 items-center gap-1 lg:-ml-[46px]">
+                <%!-- Folded, the menu takes its search button with it: the bar
+                     keeps one, and Ctrl+K opens the search from anywhere (see
+                     SearchShortcut) --%>
+                <button
+                  id="search-button-collapsed"
+                  type="button"
+                  phx-click="open_search"
+                  aria-label={gettext("Search")}
+                  aria-keyshortcuts="Control+K Meta+K"
+                  title={gettext("Search (Ctrl+K)")}
+                  class="btn btn-ghost btn-sm btn-square hidden shrink-0 lg:group-data-[collapsed]/drawer:inline-flex"
+                >
+                  <.icon name="hero-magnifying-glass" class="size-5" />
+                </button>
                 <label
                   id="sidebar-open"
                   for="sidebar-drawer"
@@ -77,6 +95,36 @@ defmodule PadocsWeb.DocumentLive do
               </div>
               <.document_actions :if={@document} document={@document} can_share?={@can_share?} />
             </div>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".SearchShortcut">
+              // Ctrl+K (Cmd+K on a Mac) opens the search modal from anywhere in
+              // the document: the editor, a field, the menu. When the modal is
+              // already open, the shortcut puts the focus back in its field;
+              // another modal (sharing, moving…) keeps it. Listened for in the
+              // capture phase, so that the editor does not take the shortcut
+              // for a link first.
+              export default {
+                mounted() {
+                  this.onKey = e => {
+                    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
+                    if (e.key.toLowerCase() !== "k") return
+                    const field = document.getElementById("search-modal-query")
+                    if (!field && document.querySelector(".modal-open")) return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (field) {
+                      field.focus()
+                      field.select()
+                    } else {
+                      this.pushEvent("open_search", {})
+                    }
+                  }
+                  window.addEventListener("keydown", this.onKey, true)
+                },
+                destroyed() {
+                  window.removeEventListener("keydown", this.onKey, true)
+                }
+              }
+            </script>
 
             <%!-- The title shares the margins of the BlockNote editor, which takes the theme's colors and font (see blocknote.css) --%>
             <div class="flex flex-1 flex-col">
@@ -344,7 +392,8 @@ defmodule PadocsWeb.DocumentLive do
                 type="button"
                 phx-click="open_search"
                 aria-label={gettext("Search")}
-                title={gettext("Search")}
+                aria-keyshortcuts="Control+K Meta+K"
+                title={gettext("Search (Ctrl+K)")}
                 class="btn btn-ghost btn-sm btn-square"
               >
                 <.icon name="hero-magnifying-glass" class="size-5" />

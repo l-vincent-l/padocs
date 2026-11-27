@@ -1216,3 +1216,8 @@ msgstr "Importer des fichiers…"
 #, elixir-autogen, elixir-format
 msgid "Markdown, HTML, text, Word or zip"
 msgstr "Markdown, HTML, texte, Word ou zip"
+
+#: lib/padocs_web/live/document_live.ex
+#, elixir-autogen, elixir-format
+msgid "Search (Ctrl+K)"
+msgstr "Rechercher (Ctrl+K)"
