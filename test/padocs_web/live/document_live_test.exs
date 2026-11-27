@@ -26,6 +26,7 @@ defmodule PadocsWeb.DocumentLiveTest do
       assert has_element?(view, "#{editor}[data-document-id='#{document.id}']")
       assert has_element?(view, "#documents-link[href='/documents']")
       assert has_element?(view, "#search-button")
+      assert has_element?(view, "#search-button-collapsed")
       assert has_element?(view, "#{editor} [data-skeleton]")
       assert has_element?(view, "#{editor} [data-editor][hidden]")
 
@@ -33,6 +34,17 @@ defmodule PadocsWeb.DocumentLiveTest do
 
       assert Document.get_document!(document.id).title == "Mon document"
       assert has_element?(view, "#documents-#{document.id}", "Mon document")
+    end
+
+    test "the top bar keeps a search button when the menu is folded", %{
+      conn: conn,
+      user: user
+    } do
+      document = Fixtures.create_document!(user, %{})
+      {:ok, view, _html} = live(conn, ~p"/documents/#{document.id}")
+
+      view |> element("#search-button-collapsed") |> render_click()
+      assert has_element?(view, "#search-panel[role=dialog]")
     end
 
     test "shows content updates of the open document", %{conn: conn, user: user} do

@@ -145,6 +145,19 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   sub-document goes and comes back with its parent. If a sub-document can one
   day be restored alone, put it at the root when its parent is gone.
 
+## Archive
+
+- **Archive a document.** From its menu, beside "Move to trash": the
+  document leaves the sidebar's lists (my documents, shared with me, recent)
+  and the search by default, but stays readable by its members and at its
+  links, never deleted, unlike the trash. It goes with its sub-documents, as
+  to the trash. An "Archived" list in the sidebar, as the trash's, gives it
+  back ("Unarchive"); the search finds it with a filter. To decide first:
+  whether an archived document becomes read only (the DocServer refusing
+  edits, as for a reader) or stays editable, only hidden; who may archive
+  it (its owners, or its editors too); and whether archiving concerns every
+  member or only the user, as a personal "hide from my lists".
+
 ## Files
 
 - **Metadata of images.** The bytes are stored as uploaded, EXIF included
@@ -224,6 +237,10 @@ From the load tests (`loadtest/`, results in `docs/performance.md`), on 1 CPU an
   server would need its own Markdown and HTML parser writing BlockNote's
   Yjs structure, and would not read Word files. Worth it for very large
   archives only.
+- **Progress of an archive or folder import.** Importing a zip or a folder
+  only sets `aria-busy` on the new-document button (a small spinner in place
+  of the chevron): show how many documents have been imported out of the
+  plan, and let the user cancel.
 
 ## Tags and blocks (from Logseq)
 
@@ -362,6 +379,10 @@ and GitHub alike.
   shared with me, trash) goes back to the recent documents on reload, or
   when the open document goes to the trash: keep it in the browser, as the
   folding of the menu.
+- **Focus on the title of a new document.** On "New document" (or a new
+  sub-document), the cursor goes to its title, to type it at once, then
+  Enter goes on to the text; an opened existing document keeps the focus as
+  today.
 - **Tags under the title on mobile.** Many tags take several lines: show the
   first ones, then "+N", as in the search results.
 - **Table of contents of a document.** The headings of the open document, a
@@ -373,3 +394,75 @@ and GitHub alike.
   blocks, updated as anyone edits), with nothing from the server; shown from
   two or three headings. The links to a heading could then come from it
   (copy the link of a heading).
+- **Document actions button turns blank when open.** `#document-actions-button`
+  sets `aria-expanded:bg-primary aria-expanded:text-primary-content`, but the
+  button's background stays `bg-base-100`, making the `…` icon invisible while
+  the menu is open.
+- **Sub-documents tree in the sidebar.** Pinning `#tree-panel` is hidden
+  inside a breadcrumb popover (unavailable when a document has neither parent
+  nor child), adds a second 256 px column on large screens, and pushes the
+  document down on mobile. Offer the open document's tree directly inside the
+  sidebar instead of a second column.
+- **Filter in the move modal.** `#move-modal` lists every writable
+  destination without filtering, which does not scale to large trees or
+  imported vaults: add a search field at the top of the list.
+- **Multi-line document title.** `#document-title` is a single-line `<input>`,
+  so even short titles (~30 chars on desktop, ~15 on mobile) clip sideways
+  instead of wrapping (unlike the public page's `<h1>`): use an auto-growing
+  `<textarea>`.
+- **Reading margins and metadata row on mobile.** `px-[54px]` on the document
+  header and skeleton (and in `PublicDocumentLive`) takes 108 px of horizontal
+  padding on narrow screens: reduce it on small viewports. Under the title on
+  mobile, tags, the wrapped date, and `#viewers` split onto up to four lines
+  (leaving the avatar alone on the last line), and the always-visible tag `×`
+  buttons sit very close to the clickable tag labels.
+- **Local dates and times.** Timestamps (`#last-update`, history, version
+  banner, search cards, trash) are shown in raw UTC: format them in the
+  browser's timezone (and optionally as relative time with the exact date in
+  `title`).
+- **Empty document deletion notice.** The countdown icon (`deletion_mark`)
+  only shows in `#tree-panel`, which is hidden by default: an empty document
+  left briefly can disappear without the user seeing why. Show the mark in
+  the sidebar's lists too, or explain it discreetly while the empty document
+  is open.
+- **Dark theme in BlockNote and matching topbar.** `blocknote.tsx` passes
+  `theme="light"` unconditionally to `<BlockNoteView>` (leaving some Mantine
+  and native controls in light scheme in dark mode), and `topbar` in `app.js`
+  still uses Phoenix's default `#29d` cyan instead of the theme's
+  `--color-primary`.
+- **Replace native `data-confirm` dialogs.** Destructive actions (trash,
+  purge, empty trash, remove member, regenerate/disable public link, restore
+  version) use `window.confirm()`, breaking the visual style. Use a styled
+  confirmation modal for irreversible actions, and make "Put in the trash" an
+  immediate action with an "Undo" button in the flash.
+- **Collaborator identity.** `#viewers` and `#members` only show the first
+  letter of the email, and the editor's cursor color (`myColor` in
+  `blocknote.tsx`) is random per load and does not match the header avatar:
+  derive a stable color per user and align avatar and cursor colors.
+- **Sign-in page simplification, duplicate email ID and header spacing.**
+  `/sign-in` stacks two separate email inputs (`#password-sign-in` and
+  `#magic-link`) that both render `@form[:email]`, producing duplicate DOM
+  `id`s: fix the duplicate IDs and simplify the layout (one email field or
+  tabs for password vs. sign-in link). Also use a non-breaking space before
+  `?` in French ("Pas encore de compte ?") so it does not wrap onto an
+  orphan line, hide the redundant "Sign in" link in the navbar on `/sign-in`,
+  and give the unauthenticated mobile header breathing room between the logo
+  and "Sign in".
+- **Share modal public link and "(you)" label.** In `#share-modal`, the public
+  URL input and its three action buttons share one row, truncating the URL;
+  in inherited accesses, `(you)` has no leading space and disappears when a
+  long email truncates.
+- **Auto-dismiss info flashes.** Info toasts ("Signed in", "Public link
+  created") stay pinned in the bottom-right corner until clicked: dismiss
+  non-error flashes automatically after a few seconds (pausing on hover, or
+  keeping those with an action link).
+- **Modal focus trap and menu keyboard navigation.** Dialogs (`SearchModal`,
+  `#move-modal`, `#share-modal`, `#history-panel`) lack a Tab focus trap and
+  do not restore focus to their trigger on close; `#document-actions-menu`
+  declares `role="menu"` without `↑`/`↓` arrow navigation, and
+  `#new-document-more` / `#sidebar-scope-button` do not toggle
+  `aria-expanded`.
+- **Typography contrast and weight.** `DM Mono` at `font-weight: 300` in
+  `text-xs` with `/60` or `/50` opacity can look thin and low-contrast on
+  non-Retina screens and in dark mode: review small muted text contrast and
+  weights.
